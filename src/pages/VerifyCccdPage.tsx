@@ -101,7 +101,7 @@ export default function VerifyCccdPage() {
       }
 
       if (result.data.student_id) {
-        setStudentInfo(result.data.student_id, result.data.student_code ?? '');
+        setStudentInfo(result.data.student_id, result.data.student_code ?? '', result.data.student_name);
       }
       setStep('done');
       setTimeout(() => navigate('/dashboard', { replace: true }), 1500);

@@ -23,6 +23,9 @@ export default function Layout() {
           <Link to="/dashboard" className="font-semibold text-slate-800">App Thi Online</Link>
           <Link to="/dashboard" className="text-slate-600 hover:text-slate-900">Trang chủ</Link>
           <Link to="/verify-cccd" className="text-slate-600 hover:text-slate-900">Xác thực CCCD</Link>
+          {(user.role === 'admin' || user.role === 'teacher') && (
+            <Link to="/admin" className="text-indigo-600 hover:text-indigo-700 font-medium">Quản trị</Link>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-600">{user.email}</span>

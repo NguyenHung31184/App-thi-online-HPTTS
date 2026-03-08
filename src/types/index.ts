@@ -12,6 +12,7 @@ export interface User {
   name?: string;
   student_id?: string; // map với TTDT students.id khi đã verify CCCD
   student_code?: string;
+  student_name?: string;
 }
 
 export interface Exam {
@@ -101,6 +102,17 @@ export interface AttemptAuditLog {
   created_at: string;
 }
 
+/** Điểm từng câu chấm tay (tự luận: video_paragraph, main_idea) */
+export interface AttemptQuestionScore {
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  score: number;
+  max_points: number;
+  graded_by?: string | null;
+  graded_at?: string | null;
+}
+
 /** Kết quả OCR CCCD (proxy Chatbot / server 103) */
 export interface OcrCccdResult {
   id_card_number?: string;
@@ -118,6 +130,20 @@ export interface OcrCccdResult {
   sex?: string;
 }
 
+/** TTDT: Lớp học (đọc từ bảng classes nếu cùng DB) */
+export interface ClassItem {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+/** TTDT: Học phần (đọc từ bảng modules nếu cùng DB) */
+export interface ModuleItem {
+  id: string;
+  name: string;
+  code?: string;
+}
+
 /** Response verify-cccd-for-exam (TTDT) */
 export interface VerifyCccdResponse {
   valid: boolean;
@@ -126,4 +152,74 @@ export interface VerifyCccdResponse {
   student_name?: string;
   student_code?: string;
   allowed_windows?: { id: string; exam_id: string; title: string; start_at: number; end_at: number }[];
+}
+
+// --- Phase 5: Thi thực hành ---
+
+export interface PracticalExamTemplate {
+  id: string;
+  title: string;
+  description: string;
+  duration_minutes?: number | null;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string | null;
+}
+
+export interface PracticalExamCriteria {
+  id: string;
+  template_id: string;
+  order_index: number;
+  name: string;
+  description: string;
+  max_score: number;
+  weight: number;
+  score_step?: number | null;
+  created_at?: string;
+}
+
+export interface PracticalExamSession {
+  id: string;
+  template_id: string;
+  class_id: string;
+  start_at: number;
+  end_at: number;
+  access_code: string;
+  created_at?: string;
+}
+
+export type PracticalAttemptStatus = 'pending_upload' | 'submitted' | 'grading' | 'graded';
+
+export interface PracticalAttempt {
+  id: string;
+  session_id: string;
+  user_id: string;
+  status: PracticalAttemptStatus;
+  total_score?: number | null;
+  submitted_at?: string | null;
+  graded_at?: string | null;
+  graded_by?: string | null;
+  synced_to_ttdt_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PracticalAttemptPhoto {
+  id: string;
+  attempt_id: string;
+  criteria_id?: string | null;
+  label: string;
+  file_url: string;
+  order_index: number;
+  uploaded_at?: string;
+}
+
+export interface PracticalAttemptScore {
+  id: string;
+  attempt_id: string;
+  criteria_id: string;
+  score: number;
+  comment?: string | null;
+  graded_by?: string | null;
+  graded_at?: string | null;
 }

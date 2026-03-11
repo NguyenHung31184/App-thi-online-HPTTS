@@ -72,6 +72,16 @@ export default function AdminWindowFormPage() {
     setError('');
     setLoading(true);
     try {
+      if (!class_id || class_id.trim() === '') {
+        setError('Vui lòng chọn Lớp (TTDT) cho kỳ thi để có thể đồng bộ điểm.');
+        setLoading(false);
+        return;
+      }
+      if (!isEdit && !exam_id) {
+        setError('Vui lòng chọn Đề thi.');
+        setLoading(false);
+        return;
+      }
       const startTs = fromDatetimeLocal(start_at);
       const endTs = fromDatetimeLocal(end_at);
       if (endTs <= startTs) {

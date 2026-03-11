@@ -105,6 +105,13 @@ export default function AdminExamFormPage() {
     setError('');
     setLoading(true);
     try {
+      // Bắt buộc chọn mô-đun để sau này đồng bộ điểm với TTDT (join theo module_id).
+      if (!module_id || module_id.trim() === '') {
+        setError('Vui lòng chọn Mô-đun cho đề thi trước khi lưu (để đồng bộ điểm với TTDT).');
+        setLoading(false);
+        return;
+      }
+
       const blueprint = withDifficultyRequirements(parseBlueprint());
       if (isEdit && id) {
         await updateExam(id, {

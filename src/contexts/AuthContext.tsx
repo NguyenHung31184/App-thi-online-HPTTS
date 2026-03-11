@@ -2,10 +2,11 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { getMyProfile, updateMyStudentId } from '../services/profileService';
-import type { User, UserRole } from '../types';
+import type { User, UserRole, StudentSession } from '../types';
 
 const STORAGE_STUDENT_ID = 'exam_student_id';
 const STORAGE_STUDENT_CODE = 'exam_student_code';
+const STORAGE_STUDENT_NAME = 'exam_student_name';
 
 function getRoleFromRaw(raw: unknown): UserRole {
   if (raw === 'admin' || raw === 'teacher' || raw === 'proctor') return raw;
@@ -38,6 +39,8 @@ interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  /** Phiên học viên dựa trên CCCD (không cần Supabase auth). */
+  studentSession: StudentSession | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   setStudentInfo: (studentId: string, studentCode: string, studentName?: string) => void;
@@ -49,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [studentSession, setStudentSession] = useState<StudentSession | null>(null);
 
   const applyUser = useCallback((u: SupabaseUser | null, set: (user: User | null) => void) => {
     if (!u) {
@@ -56,6 +60,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     mapUserWithProfile(u).then(set);
+  }, []);
+
+  // Khởi tạo phiên học viên từ sessionStorage (trường hợp thí sinh vào bằng CCCD, không dùng Supabase auth).
+  useEffect(() => {
+    const sid = sessionStorage.getItem(STORAGE_STUDENT_ID) ?? undefined;
+    const scode = sessionStorage.getItem(STORAGE_STUDENT_CODE) ?? undefined;
+    const sname = sessionStorage.getItem(STORAGE_STUDENT_NAME) ?? undefined;
+    if (sid || scode || sname) {
+      setStudentSession({
+        student_id: sid,
+        student_code: scode,
+        student_name: sname,
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -85,21 +103,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(
     async (email: string, password: string) => {
       if (!isSupabaseConfigured()) return { error: 'Chưa cấu hình Supabase.' };
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      return { error: error?.message };
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error: error.message };
+      // Cập nhật session/user ngay để Layout không redirect về /start khi navigate sang /dashboard (tránh phải đăng nhập 2 lần).
+      if (data.session) {
+        setSession(data.session);
+        if (data.session.user) await applyUser(data.session.user, setUser);
+      }
+      return {};
     },
-    []
+    [applyUser]
   );
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     sessionStorage.removeItem(STORAGE_STUDENT_ID);
     sessionStorage.removeItem(STORAGE_STUDENT_CODE);
+    sessionStorage.removeItem(STORAGE_STUDENT_NAME);
+    setStudentSession(null);
   }, []);
 
   const setStudentInfo = useCallback((studentId: string, studentCode: string, studentName?: string) => {
     sessionStorage.setItem(STORAGE_STUDENT_ID, studentId);
     sessionStorage.setItem(STORAGE_STUDENT_CODE, studentCode);
+    if (studentName) {
+      sessionStorage.setItem(STORAGE_STUDENT_NAME, studentName);
+    }
+    setStudentSession({
+      student_id: studentId,
+      student_code: studentCode,
+      student_name: studentName,
+    });
     setUser((prev) =>
       prev ? { ...prev, student_id: studentId, student_code: studentCode, student_name: studentName } : null
     );
@@ -110,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     session,
     loading,
+    studentSession,
     signIn,
     signOut,
     setStudentInfo,

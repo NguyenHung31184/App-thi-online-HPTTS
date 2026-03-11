@@ -14,7 +14,9 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error: err } = await signIn(email, password);
+    const username = email.trim();
+    const loginEmail = username.includes('@') ? username : `${username}@hptts.vn`;
+    const { error: err } = await signIn(loginEmail, password);
     setLoading(false);
     if (err) setError(err);
     else navigate('/dashboard', { replace: true });
@@ -32,11 +34,11 @@ export default function LoginPage() {
           )}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
-              Email
+              Mã học viên hoặc email
             </label>
             <input
               id="email"
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

@@ -8,7 +8,7 @@ import { createPracticalAttempt } from '../services/practicalAttemptService';
 import type { PracticalSessionWithTemplate } from '../services/practicalSessionService';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, studentSession } = useAuth();
   const navigate = useNavigate();
   const [windows, setWindows] = useState<ExamWindowWithExam[]>([]);
   const [practicalSessions, setPracticalSessions] = useState<PracticalSessionWithTemplate[]>([]);
@@ -22,10 +22,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      getAllowedWindows(user?.student_id ?? undefined),
-      getAllowedPracticalSessions(user?.student_id ?? undefined),
-    ])
+    // Dùng student_id (từ Supabase profile hoặc từ phiên CCCD) để lọc kỳ thi được phép.
+    const sid = user?.student_id ?? studentSession?.student_id ?? undefined;
+    Promise.all([getAllowedWindows(sid), getAllowedPracticalSessions(sid)])
       .then(([winList, practicalList]) => {
         if (!cancelled) {
           setWindows(winList);
@@ -39,7 +38,7 @@ export default function DashboardPage() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [user?.student_id]);
+  }, [user?.student_id, studentSession?.student_id]);
 
   const handleEnterExam = async (windowId: string) => {
     const code = (codeByWindow[windowId] ?? '').trim();
@@ -64,8 +63,10 @@ export default function DashboardPage() {
         setEnterError('Hiện không trong thời gian làm bài của kỳ thi này.');
         return;
       }
+      // Với schema hiện tại, attempts.user_id phải là Supabase auth user (auth.uid()).
+      // Vì vậy vẫn cần tài khoản đăng nhập Supabase; CCCD chỉ là lớp kiểm tra bổ sung.
       if (!user?.id) {
-        setEnterError('Bạn chưa đăng nhập.');
+        setEnterError('Bạn chưa đăng nhập tài khoản thi. Vui lòng đăng nhập rồi thử lại.');
         return;
       }
       const attempt = await createAttempt(user.id, windowId, win.exam_id);
@@ -101,7 +102,7 @@ export default function DashboardPage() {
         return;
       }
       if (!user?.id) {
-        setEnterError('Bạn chưa đăng nhập.');
+        setEnterError('Bạn chưa đăng nhập tài khoản thi. Vui lòng đăng nhập rồi thử lại.');
         return;
       }
       const attempt = await createPracticalAttempt(sessionId, user.id);
@@ -118,9 +119,13 @@ export default function DashboardPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <h2 className="text-xl font-bold text-slate-800 mb-4">Bảng điều khiển</h2>
-      {user?.student_id && (
+      {(user?.student_id || studentSession?.student_id) && (
         <p className="text-sm text-slate-600 mb-4 rounded-xl bg-white/80 border border-slate-100 px-4 py-2 inline-block">
-          Đã xác thực CCCD: {user.student_name || user.student_code}
+          Đã xác thực CCCD:{' '}
+          {user?.student_name ||
+            user?.student_code ||
+            studentSession?.student_name ||
+            studentSession?.student_code}
         </p>
       )}
 

@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import Layout from './pages/Layout';
 import VerifyCccdPage from './pages/VerifyCccdPage';
+import RoleSelectPage from './pages/RoleSelectPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminExamsPage from './pages/admin/AdminExamsPage';
@@ -38,7 +39,10 @@ function App() {
       <BrowserRouter>
         <Toaster position="top-center" richColors closeButton />
         <Routes>
+          <Route path="/start" element={<RoleSelectPage />} />
           <Route path="/login" element={<LoginPage />} />
+          {/* Thí sinh vào thi: xác thực CCCD không yêu cầu Supabase auth */}
+          <Route path="/verify-cccd" element={<VerifyCccdPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/exams" replace />} />
             <Route path="exams" element={<AdminExamsPage />} />
@@ -73,7 +77,6 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="verify-cccd" element={<VerifyCccdPage />} />
             <Route path="exam/:attemptId" element={<ExamTakePage />} />
             <Route path="exam/:attemptId/result" element={<ExamResultPage />} />
             <Route path="practical/:attemptId" element={<PracticalTakePage />} />

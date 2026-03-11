@@ -12,7 +12,7 @@ import type { OcrCccdResult } from '../types';
 
 export default function VerifyCccdPage() {
   const navigate = useNavigate();
-  const { setStudentInfo } = useAuth();
+  const { user, setStudentInfo } = useAuth();
   const [step, setStep] = useState<'upload' | 'ocr' | 'verify' | 'done'>('upload');
   const [verifiedClasses, setVerifiedClasses] = useState<{ id: string; name: string }[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -24,6 +24,8 @@ export default function VerifyCccdPage() {
   const [manualName, setManualName] = useState('');
   const [manualDob, setManualDob] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const canManualOverride = user?.role === 'admin' || user?.role === 'teacher';
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -163,39 +165,41 @@ export default function VerifyCccdPage() {
                 >
                   Chọn ảnh CCCD (mặt trước)
                 </button>
-                <div className="mt-4 pt-4 border-t border-slate-200">
-                  <p className="text-slate-500 text-sm mb-2">Hoặc nhập tay số CCCD:</p>
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Số CCCD"
-                      value={manualCccd}
-                      onChange={(e) => setManualCccd(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Họ tên (tùy chọn)"
-                      value={manualName}
-                      onChange={(e) => setManualName(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Ngày sinh (tùy chọn, VD: 11/05/1984)"
-                      value={manualDob}
-                      onChange={(e) => setManualDob(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleUseManualCccd}
-                      className="w-full py-2 border border-indigo-400 text-indigo-600 rounded-lg hover:bg-indigo-50 text-sm"
-                    >
-                      Kiểm tra số CCCD này
-                    </button>
+                {canManualOverride && (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <p className="text-slate-500 text-sm mb-2">Hoặc nhập tay số CCCD:</p>
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Số CCCD"
+                        value={manualCccd}
+                        onChange={(e) => setManualCccd(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Họ tên (tùy chọn)"
+                        value={manualName}
+                        onChange={(e) => setManualName(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Ngày sinh (tùy chọn, VD: 11/05/1984)"
+                        value={manualDob}
+                        onChange={(e) => setManualDob(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUseManualCccd}
+                        className="w-full py-2 border border-indigo-400 text-indigo-600 rounded-lg hover:bg-indigo-50 text-sm"
+                      >
+                        Kiểm tra số CCCD này
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             ) : (
               <>
@@ -221,39 +225,41 @@ export default function VerifyCccdPage() {
                     {loading ? 'Đang đọc...' : 'Đọc CCCD'}
                   </button>
                 </div>
-                <div className="mt-4 pt-4 border-t border-slate-200">
-                  <p className="text-slate-500 text-sm mb-2">Hoặc nhập tay số CCCD (khi không đọc được ảnh):</p>
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Số CCCD"
-                      value={manualCccd}
-                      onChange={(e) => setManualCccd(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Họ tên (tùy chọn)"
-                      value={manualName}
-                      onChange={(e) => setManualName(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Ngày sinh (tùy chọn, VD: 11/05/1984)"
-                      value={manualDob}
-                      onChange={(e) => setManualDob(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleUseManualCccd}
-                      className="w-full py-2 border border-indigo-400 text-indigo-600 rounded-lg hover:bg-indigo-50 text-sm"
-                    >
-                      Dùng số CCCD này để kiểm tra
-                    </button>
+                {canManualOverride && (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <p className="text-slate-500 text-sm mb-2">Hoặc nhập tay số CCCD (khi không đọc được ảnh):</p>
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Số CCCD"
+                        value={manualCccd}
+                        onChange={(e) => setManualCccd(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Họ tên (tùy chọn)"
+                        value={manualName}
+                        onChange={(e) => setManualName(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Ngày sinh (tùy chọn, VD: 11/05/1984)"
+                        value={manualDob}
+                        onChange={(e) => setManualDob(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUseManualCccd}
+                        className="w-full py-2 border border-indigo-400 text-indigo-600 rounded-lg hover:bg-indigo-50 text-sm"
+                      >
+                        Dùng số CCCD này để kiểm tra
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             )}
           </>
@@ -313,13 +319,15 @@ export default function VerifyCccdPage() {
           <div className="mt-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
         )}
 
-        <button
-          type="button"
-          onClick={handleSkip}
-          className="mt-4 w-full py-2 text-slate-500 text-sm hover:text-slate-700"
-        >
-          Bỏ qua (đã đăng nhập và được phép thi)
-        </button>
+        {user && (
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="mt-4 w-full py-2 text-slate-500 text-sm hover:text-slate-700"
+          >
+            Bỏ qua (đã đăng nhập và được phép thi)
+          </button>
+        )}
       </div>
     </div>
   );

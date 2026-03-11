@@ -12,7 +12,7 @@ const viewTitles: Record<string, string> = {
 };
 
 export default function Layout() {
-  const { user, loading, signOut } = useAuth();
+  const { user, studentSession, loading, signOut } = useAuth();
   const location = useLocation();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
 
@@ -41,16 +41,25 @@ export default function Layout() {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (!user && !studentSession) {
+    return <Navigate to="/start" replace />;
   }
+
+  const displayEmail =
+    user?.email ?? studentSession?.student_code ?? studentSession?.student_id ?? 'Thí sinh';
+  const displayRole =
+    user?.role === 'admin'
+      ? 'Admin'
+      : user?.role === 'teacher'
+      ? 'Giáo viên'
+      : 'Thí sinh';
 
   return (
     <AppLayout
       navItems={navItems}
       title={title}
-      userEmail={user.email}
-      userRole={user.role === 'admin' ? 'Admin' : user.role === 'teacher' ? 'Giáo viên' : 'Thí sinh'}
+      userEmail={displayEmail}
+      userRole={displayRole}
       onLogout={() => signOut()}
       isSidebarOpen={isSidebarOpen}
       setSidebarOpen={setSidebarOpen}

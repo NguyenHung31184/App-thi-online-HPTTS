@@ -15,6 +15,14 @@ export interface User {
   student_name?: string;
 }
 
+/** Phiên đăng nhập của học viên dựa trên CCCD (không cần Supabase auth). */
+export interface StudentSession {
+  id_card_number?: string;
+  student_id?: string;
+  student_code?: string;
+  student_name?: string;
+}
+
 export interface Exam {
   id: string;
   title: string;

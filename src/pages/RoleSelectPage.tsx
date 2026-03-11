@@ -44,7 +44,7 @@ export default function RoleSelectPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-500 mb-1">Thí sinh</p>
             <p className="font-semibold text-slate-800 mb-1">Student</p>
             <p className="text-xs text-slate-500">
-              Không cần tài khoản. Chụp CCCD để hệ thống xác thực và cho vào màn hình thi.
+              Bắt đầu bước xác thực CCCD cho thí sinh. Sau khi xác thực, đăng nhập bằng tài khoản thi (mã học viên/email + mật khẩu) để vào phòng thi.
             </p>
           </button>
         </div>

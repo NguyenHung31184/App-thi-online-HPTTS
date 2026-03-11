@@ -5,11 +5,14 @@ import {
   deletePracticalTemplate,
 } from '../../services/practicalTemplateService';
 import type { PracticalExamTemplate } from '../../types';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 export default function AdminPracticalTemplatesPage() {
   const [templates, setTemplates] = useState<PracticalExamTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -29,13 +32,20 @@ export default function AdminPracticalTemplatesPage() {
   }, []);
 
   const handleDelete = async (id: string, title: string) => {
-    if (!window.confirm(`Xóa mẫu "${title}"? Các tiêu chí và kỳ thi liên quan sẽ bị ảnh hưởng.`))
-      return;
+    setConfirmDelete({ id, title });
+  };
+
+  const doDelete = async () => {
+    if (!confirmDelete) return;
     try {
-      await deletePracticalTemplate(id);
-      setTemplates((prev) => prev.filter((t) => t.id !== id));
+      setDeleting(true);
+      await deletePracticalTemplate(confirmDelete.id);
+      setTemplates((prev) => prev.filter((t) => t.id !== confirmDelete.id));
+      setConfirmDelete(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi xóa mẫu.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -112,6 +122,19 @@ export default function AdminPracticalTemplatesPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmationModal
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={doDelete}
+        title="Xóa mẫu thi thực hành"
+        isLoading={deleting}
+        confirmText="Xóa"
+      >
+        {confirmDelete
+          ? `Xóa mẫu "${confirmDelete.title}"? Các tiêu chí và kỳ thi liên quan sẽ bị ảnh hưởng.`
+          : ''}
+      </ConfirmationModal>
     </div>
   );
 }

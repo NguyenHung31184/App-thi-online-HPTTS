@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { getExam } from '../../services/examService';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { getOccupation } from '../../services/occupationService';
 import {
-  getQuestion,
-  createQuestion,
-  updateQuestion,
-  uploadQuestionImage,
-} from '../../services/questionService';
+  getQuestionBankItem,
+  createQuestionBankItem,
+  updateQuestionBankItem,
+  uploadQuestionBankImage,
+} from '../../services/questionBankService';
 import { ZonePositionPicker } from '../../components/ZonePositionPicker';
-import type { QuestionType } from '../../types';
+import type { QuestionType, ModuleItem } from '../../types';
+import { listModules } from '../../services/ttdtDataService';
 
 const OPTION_IDS = ['A', 'B', 'C', 'D', 'E'];
 
@@ -38,12 +39,15 @@ function parseAnswerKey(v: string, type: QuestionType): { single: string; multip
   return { single: s.slice(0, 1) || 'A', multiple: [], order: [] };
 }
 
-export default function AdminQuestionFormPage() {
-  const { id: examId, qId } = useParams<{ id: string; qId?: string }>();
+export default function AdminQuestionBankFormPage() {
+  const { occupationId, qId } = useParams<{ occupationId: string; qId?: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const isEdit = Boolean(qId);
 
-  const [examTitle, setExamTitle] = useState('');
+  const [occupationName, setOccupationName] = useState('');
+  const [modules, setModules] = useState<ModuleItem[]>([]);
+  const [moduleId, setModuleId] = useState<string | null>(null);
   const [stem, setStem] = useState('');
   const [options, setOptions] = useState(emptyOptions());
   const [questionType, setQuestionType] = useState<QuestionType>('single_choice');
@@ -59,21 +63,41 @@ export default function AdminQuestionFormPage() {
   const [existingMediaUrl, setExistingMediaUrl] = useState<string | null>(null);
   const [rubric, setRubric] = useState('');
   const [zonePositions, setZonePositions] = useState<{ x: number; y: number }[]>(() => [...DEFAULT_ZONE_POSITIONS]);
+  /** Với drag_drop + ảnh: đáp án từng ô [id ô 1, id ô 2, id ô 3, id ô 4]. */
   const [zoneAnswers, setZoneAnswers] = useState<string[]>(() => ['A', 'B', 'C', 'D']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!examId) return;
-    getExam(examId).then((exam) => {
-      if (exam) setExamTitle(exam.title);
-    }).catch(() => {});
-  }, [examId]);
+    if (!occupationId) return;
+    getOccupation(occupationId).then((o) => o && setOccupationName(o.name)).catch(() => {});
+  }, [occupationId]);
 
   useEffect(() => {
-    if (!isEdit || !examId || !qId) return;
+    const params = new URLSearchParams(location.search);
+    const initialModuleId = params.get('moduleId');
+    if (initialModuleId) {
+      setModuleId(initialModuleId);
+    }
     let cancelled = false;
-    getQuestion(qId).then((q) => {
+    listModules()
+      .then((list) => {
+        if (cancelled) return;
+        setModules(list);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setModules([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!isEdit || !occupationId || !qId) return;
+    let cancelled = false;
+    getQuestionBankItem(qId).then((q) => {
       if (cancelled || !q) return;
       setStem(q.stem);
       const opts = Array.isArray(q.options)
@@ -97,6 +121,7 @@ export default function AdminQuestionFormPage() {
       setPoints(q.points ?? 1);
       setTopic(q.topic ?? '');
       setDifficulty(q.difficulty ?? 'medium');
+      setModuleId(q.module_id ?? moduleId ?? null);
       setExistingImageUrl(q.image_url ?? null);
       setExistingMediaUrl(q.media_url ?? null);
       setMediaUrl(q.media_url ?? '');
@@ -116,18 +141,16 @@ export default function AdminQuestionFormPage() {
       }
     }).catch(() => setError('Không tải được câu hỏi.'));
     return () => { cancelled = true; };
-  }, [isEdit, examId, qId]);
+  }, [isEdit, occupationId, qId]);
 
   const handleOptionChange = (id: string, text: string) => {
     setOptions((prev) => prev.map((o) => (o.id === id ? { ...o, text } : o)));
   };
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setImageFile(file ?? null);
     setImagePreview(file ? URL.createObjectURL(file) : null);
   };
-
   const handleToggleMultiple = (optId: string) => {
     setAnswerMultiple((prev) =>
       prev.includes(optId) ? prev.filter((x) => x !== optId) : [...prev, optId].sort()
@@ -136,7 +159,7 @@ export default function AdminQuestionFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!examId) return;
+    if (!occupationId) return;
     setError('');
     setLoading(true);
     try {
@@ -164,7 +187,7 @@ export default function AdminQuestionFormPage() {
         const za = zoneAnswers.slice(0, 4);
         const unique = new Set(za);
         if (unique.size !== 4 || za.some((id) => !validIds.includes(id))) {
-          setError('Mỗi ô phải chọn đúng một nhãn khác nhau (4 ô = 4 nhãn).');
+          setError('Với câu kéo nhãn lên ảnh: mỗi ô phải chọn đúng một nhãn khác nhau (4 ô = 4 nhãn).');
           setLoading(false);
           return;
         }
@@ -181,8 +204,8 @@ export default function AdminQuestionFormPage() {
       }
 
       let image_url: string | null = existingImageUrl;
-      if (imageFile && examId) {
-        image_url = await uploadQuestionImage(imageFile, examId, qId ?? undefined);
+      if (imageFile && occupationId) {
+        image_url = await uploadQuestionBankImage(imageFile, occupationId, qId ?? undefined);
       }
       const media_url = (mediaUrl || existingMediaUrl || '').trim() || null;
       let rubricVal: unknown = rubric.trim() ? rubric.trim() : null;
@@ -192,8 +215,9 @@ export default function AdminQuestionFormPage() {
         rubricVal = rubric.trim() ? rubric.trim() : null;
       }
 
+      const baseUrl = `/admin/questions/occupation/${occupationId}`;
       if (isEdit && qId) {
-        await updateQuestion(qId, {
+        await updateQuestionBankItem(qId, {
           question_type: questionType,
           stem,
           options: optsToSave.length ? optsToSave : [{ id: 'A', text: '' }],
@@ -201,14 +225,15 @@ export default function AdminQuestionFormPage() {
           points,
           topic,
           difficulty,
+          module_id: moduleId,
           image_url,
           media_url: isEssay ? media_url : undefined,
           rubric: isEssay ? rubricVal : (questionType === 'drag_drop' && opts.length === 4 ? rubricVal : undefined),
         });
-        navigate(`/admin/exams/${examId}/questions`);
+        navigate(baseUrl);
       } else {
-        await createQuestion({
-          exam_id: examId,
+        await createQuestionBankItem({
+          occupation_id: occupationId,
           question_type: questionType,
           stem,
           options: optsToSave.length ? optsToSave : [{ id: 'A', text: '' }],
@@ -216,11 +241,12 @@ export default function AdminQuestionFormPage() {
           points,
           topic,
           difficulty,
+          module_id: moduleId,
           image_url,
           media_url: isEssay ? media_url : undefined,
           rubric: isEssay ? rubricVal : (questionType === 'drag_drop' && opts.length === 4 ? rubricVal : undefined),
         });
-        navigate(`/admin/exams/${examId}/questions`);
+        navigate(baseUrl);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi lưu câu hỏi.');
@@ -230,7 +256,6 @@ export default function AdminQuestionFormPage() {
   };
 
   const displayImage = imagePreview || existingImageUrl;
-
   const typeLabels: Record<QuestionType, string> = {
     single_choice: 'Trắc nghiệm 1 đáp án',
     multiple_choice: 'Nhiều đáp án đúng',
@@ -243,7 +268,18 @@ export default function AdminQuestionFormPage() {
 
   return (
     <div>
-      <p className="text-slate-500 text-sm">Đề thi: {examTitle}</p>
+      <p className="text-slate-500 text-sm">
+        Nghề: {occupationName}
+        {moduleId && (
+          <>
+            {' · '}
+            <span>
+              Mô-đun:{' '}
+              {modules.find((m) => m.id === moduleId)?.name || 'Đang tải...'}
+            </span>
+          </>
+        )}
+      </p>
       <h1 className="text-xl font-semibold text-slate-800 mb-4">
         {isEdit ? 'Sửa câu hỏi' : 'Thêm câu hỏi'} — {typeLabels[questionType]}
       </h1>
@@ -274,107 +310,75 @@ export default function AdminQuestionFormPage() {
           />
         </div>
         {showOptions && (
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            {questionType === 'drag_drop' ? '4 nhãn (tên các lựa chọn)' : 'Đáp án'}
-          </label>
-          {questionType === 'drag_drop' && (
-            <p className="text-xs text-slate-500 mb-2">
-              Gõ 4 nhãn bên dưới. Ở phần Đáp án bên dưới chọn nhãn đúng cho từng ô trên ảnh (Ô 1–4).
-            </p>
-          )}
-          {questionType === 'drag_drop' ? (
-            ['A', 'B', 'C', 'D'].map((optId, idx) => (
-              <div key={optId} className="flex items-center gap-2 mb-2">
-                <span className="text-slate-600 w-20">Nhãn {idx + 1}</span>
-                <input
-                  type="text"
-                  value={options.find((o) => o.id === optId)?.text ?? ''}
-                  onChange={(e) => handleOptionChange(optId, e.target.value)}
-                  className="flex-1 border border-slate-300 rounded-lg px-3 py-2"
-                  placeholder="VD: Càng nâng"
-                />
-              </div>
-            ))
-          ) : (
-          OPTION_IDS.map((optId) => (
-            <div key={optId} className="flex items-center gap-2 mb-2">
-              <span className="w-6 font-medium text-slate-600">{optId}.</span>
-              <input
-                type="text"
-                value={options.find((o) => o.id === optId)?.text ?? ''}
-                onChange={(e) => handleOptionChange(optId, e.target.value)}
-                className="flex-1 border border-slate-300 rounded-lg px-3 py-2"
-                placeholder={`Đáp án ${optId}`}
-              />
-              {questionType === 'single_choice' ? (
-                <label className="flex items-center gap-1">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              {questionType === 'drag_drop' ? '4 nhãn (tên các lựa chọn)' : 'Đáp án'}
+            </label>
+            {questionType === 'drag_drop' && (
+              <p className="text-xs text-slate-500 mb-2">
+                <strong>Kéo nhãn lên ảnh:</strong> Nếu bạn thêm <strong>ảnh minh họa</strong> và đúng <strong>4 mục</strong>, thí sinh sẽ kéo từng nhãn vào 4 ô trên ảnh (trái-trên, phải-trên, trái-dưới, phải-dưới). Thứ tự mục 1→4 = thứ tự ô. Gõ 4 nhãn, sau đó chọn đáp án từng ô bên dưới. “chỉ đúng bộ phận trên hình” (vd: ảnh xe nâng Forklift, 4 mũi tên, học viên kéo Càng nâng, Cabin… vào đúng ô).
+              </p>
+            )}
+            {questionType === 'drag_drop' ? (
+              ['A', 'B', 'C', 'D'].map((optId, idx) => (
+                <div key={optId} className="flex items-center gap-2 mb-2">
+                  <span className="text-slate-600 w-20">Nhãn {idx + 1}</span>
                   <input
-                    type="radio"
-                    name="answer_key"
-                    checked={answer_key === optId}
-                    onChange={() => setAnswerKey(optId)}
+                    type="text"
+                    value={options.find((o) => o.id === optId)?.text ?? ''}
+                    onChange={(e) => handleOptionChange(optId, e.target.value)}
+                    className="flex-1 border border-slate-300 rounded-lg px-3 py-2"
+                    placeholder="VD: Càng nâng"
                   />
-                  <span className="text-sm">Đúng</span>
-                </label>
-              ) : (
-                <label className="flex items-center gap-1">
+                </div>
+              ))
+            ) : (
+              OPTION_IDS.map((optId) => (
+                <div key={optId} className="flex items-center gap-2 mb-2">
+                  <span className="w-6 font-medium text-slate-600">{optId}.</span>
                   <input
-                    type="checkbox"
-                    checked={answerMultiple.includes(optId)}
-                    onChange={() => handleToggleMultiple(optId)}
+                    type="text"
+                    value={options.find((o) => o.id === optId)?.text ?? ''}
+                    onChange={(e) => handleOptionChange(optId, e.target.value)}
+                    className="flex-1 border border-slate-300 rounded-lg px-3 py-2"
+                    placeholder={`Đáp án ${optId}`}
                   />
-                  <span className="text-sm">Đúng</span>
-                </label>
-              )}
-            </div>
-          ))
-          )
-        }
-        </div>
+                  {questionType === 'single_choice' ? (
+                    <label className="flex items-center gap-1">
+                      <input type="radio" name="answer_key" checked={answer_key === optId} onChange={() => setAnswerKey(optId)} />
+                      <span className="text-sm">Đúng</span>
+                    </label>
+                  ) : (
+                    <label className="flex items-center gap-1">
+                      <input type="checkbox" checked={answerMultiple.includes(optId)} onChange={() => handleToggleMultiple(optId)} />
+                      <span className="text-sm">Đúng</span>
+                    </label>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         )}
         {questionType === 'video_paragraph' && (
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">URL video</label>
-            <input
-              type="url"
-              value={mediaUrl || existingMediaUrl || ''}
-              onChange={(e) => setMediaUrl(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2"
-              placeholder="https://..."
-            />
+            <input type="url" value={mediaUrl || existingMediaUrl || ''} onChange={(e) => setMediaUrl(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="https://..." />
           </div>
         )}
         {isEssay && (
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Rubric / gợi ý chấm (cho GV)</label>
-            <textarea
-              value={rubric}
-              onChange={(e) => setRubric(e.target.value)}
-              rows={3}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2"
-              placeholder="Tiêu chí hoặc gợi ý đáp án..."
-            />
+            <textarea value={rubric} onChange={(e) => setRubric(e.target.value)} rows={3} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Tiêu chí hoặc gợi ý đáp án..." />
           </div>
         )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Điểm</label>
-            <input
-              type="number"
-              min={1}
-              value={points}
-              onChange={(e) => setPoints(Number(e.target.value))}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2"
-            />
+            <input type="number" min={1} value={points} onChange={(e) => setPoints(Number(e.target.value))} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Độ khó</label>
-            <select
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2"
-            >
+            <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2">
               <option value="easy">Dễ</option>
               <option value="medium">Trung bình</option>
               <option value="hard">Khó</option>
@@ -383,29 +387,17 @@ export default function AdminQuestionFormPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Chủ đề</label>
-          <input
-            type="text"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            className="w-full border border-slate-300 rounded-lg px-3 py-2"
-            placeholder="VD: An toàn hàng hải"
-          />
+          <input type="text" value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="VD: An toàn hàng hải" />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Ảnh minh họa</label>
           <input type="file" accept="image/*" onChange={handleImageChange} className="block mb-2" />
-          {displayImage && (
-            <img
-              src={displayImage}
-              alt="Preview"
-              className="max-w-xs rounded border border-slate-200"
-            />
-          )}
+          {displayImage && <img src={displayImage} alt="Preview" className="max-w-xs rounded border border-slate-200" />}
         </div>
         {questionType === 'drag_drop' && (
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Đáp án – chọn nhãn đúng cho từng ô trên ảnh</label>
-            <p className="text-xs text-slate-500 mb-2">Ô 1, Ô 2, Ô 3, Ô 4 tương ứng 4 vị trí trên ảnh. Mỗi ô chọn đúng một nhãn.</p>
+            <p className="text-xs text-slate-500 mb-2">Ô 1, Ô 2, Ô 3, Ô 4 tương ứng 4 vị trí bạn đặt trên ảnh. Mỗi ô chọn đúng một nhãn.</p>
             <div className="grid grid-cols-2 gap-2">
               {[0, 1, 2, 3].map((idx) => {
                 const opts = options.filter((o) => o.text.trim() !== '');
@@ -498,18 +490,10 @@ export default function AdminQuestionFormPage() {
           </div>
         )}
         <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-          >
+          <button type="submit" disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
             {loading ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Thêm câu hỏi'}
           </button>
-          <button
-            type="button"
-            onClick={() => navigate(`/admin/exams/${examId}/questions`)}
-            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
-          >
+          <button type="button" onClick={() => navigate(`/admin/questions/occupation/${occupationId}`)} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">
             Hủy
           </button>
         </div>

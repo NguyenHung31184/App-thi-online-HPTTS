@@ -41,8 +41,6 @@ export default function AdminEssayGradingPage() {
       .finally(() => setLoading(false));
   }, [selectedExamId]);
 
-  const exam = exams.find((e) => e.id === selectedExamId);
-
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-800 mb-4">Chấm bài tự luận</h1>

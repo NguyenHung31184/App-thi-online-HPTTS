@@ -144,10 +144,10 @@ export default function AdminEssayGradingDetailPage() {
                   <video src={q.media_url} controls className="max-w-full rounded max-h-48" />
                 </div>
               )}
-              {q.rubric && (
+              {q.rubric != null && (
                 <div className="mb-2 p-2 bg-amber-50 rounded text-sm text-slate-700">
                   <span className="font-medium">Rubric / gợi ý chấm:</span>{' '}
-                  {typeof q.rubric === 'string' ? q.rubric : JSON.stringify(q.rubric)}
+                  {typeof q.rubric === 'string' ? q.rubric : JSON.stringify(q.rubric as object)}
                 </div>
               )}
               <div className="mb-2">

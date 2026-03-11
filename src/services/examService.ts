@@ -38,6 +38,7 @@ export async function createExam(input: CreateExamInput): Promise<Exam> {
     pass_threshold: input.pass_threshold ?? 0.7,
     total_questions: input.total_questions ?? 0,
     blueprint: input.blueprint ?? [],
+    // Lưu đúng mã mô-đun dạng text (ví dụ: 'm07') để khớp với question_bank.module_id
     module_id: input.module_id ?? null,
     created_by: input.created_by ?? null,
   };
@@ -60,7 +61,12 @@ export interface UpdateExamInput {
 export async function updateExam(id: string, input: UpdateExamInput): Promise<Exam> {
   const { data, error } = await supabase
     .from('exams')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update({
+      ...input,
+      // Cho phép lưu mã mô-đun dạng text (m07, m08, ...)
+      module_id: input.module_id ?? null,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id)
     .select()
     .single();
@@ -93,18 +99,36 @@ export async function validateExamAndCreateSnapshot(
     return { valid: false, message: 'Chưa có ma trận blueprint hoặc chưa có câu hỏi.' };
   }
 
-  const byKey: Record<string, number> = {};
+  const byTopicDifficulty: Record<string, number> = {};
+  const byDifficulty: Record<string, number> = {};
+  const total = questionList.length;
   for (const q of questionList) {
-    const key = `${q.topic || ''}|${q.difficulty || ''}`;
-    byKey[key] = (byKey[key] ?? 0) + 1;
+    const topic = q.topic || '';
+    const difficulty = q.difficulty || '';
+    const key = `${topic}|${difficulty}`;
+    byTopicDifficulty[key] = (byTopicDifficulty[key] ?? 0) + 1;
+    byDifficulty[difficulty] = (byDifficulty[difficulty] ?? 0) + 1;
   }
+
   for (const rule of blueprint) {
-    const key = `${rule.topic}|${rule.difficulty}`;
-    const have = byKey[key] ?? 0;
+    const topic = rule.topic ?? '';
+    const difficulty = rule.difficulty ?? '';
+
+    const have =
+      topic === '*' && difficulty === '*'
+        ? total
+        : topic === '*'
+          ? (byDifficulty[difficulty] ?? 0)
+          : difficulty === '*'
+            ? questionList.filter((q) => (q.topic || '') === topic).length
+            : (byTopicDifficulty[`${topic}|${difficulty}`] ?? 0);
+
     if (have < rule.count) {
+      const topicLabel = topic === '*' ? 'tất cả chủ đề' : `chủ đề "${topic}"`;
+      const diffLabel = difficulty === '*' ? 'mọi độ khó' : `độ khó "${difficulty}"`;
       return {
         valid: false,
-        message: `Thiếu câu: chủ đề "${rule.topic}", độ khó "${rule.difficulty}" cần ${rule.count}, hiện có ${have}.`,
+        message: `Thiếu câu: ${topicLabel}, ${diffLabel} cần ${rule.count}, hiện có ${have}.`,
       };
     }
   }

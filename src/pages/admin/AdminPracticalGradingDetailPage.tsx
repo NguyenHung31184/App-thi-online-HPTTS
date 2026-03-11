@@ -15,8 +15,8 @@ import type {
   PracticalAttempt,
   PracticalAttemptPhoto,
   PracticalExamCriteria,
-  PracticalSessionWithTemplate,
 } from '../../types';
+import type { PracticalSessionWithTemplate } from '../../services/practicalSessionService';
 
 export default function AdminPracticalGradingDetailPage() {
   const { attemptId } = useParams<{ attemptId: string }>();

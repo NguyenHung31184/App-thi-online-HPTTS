@@ -21,8 +21,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50/40 p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8">
         <h1 className="text-2xl font-bold text-slate-800 text-center mb-2">App Thi Online</h1>
         <p className="text-slate-500 text-sm text-center mb-6">Đăng nhập để tiếp tục</p>
 
@@ -61,7 +61,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+            className="w-full py-2.5 bg-gradient-to-r from-indigo-500 via-blue-500 to-indigo-600 text-white font-semibold rounded-xl hover:from-indigo-600 hover:via-blue-600 hover:to-indigo-700 shadow-lg shadow-indigo-500/25 disabled:opacity-50 transition-all"
           >
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>

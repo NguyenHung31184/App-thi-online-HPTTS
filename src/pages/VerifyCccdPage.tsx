@@ -118,7 +118,7 @@ export default function VerifyCccdPage() {
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg p-6">
         <h1 className="text-xl font-bold text-slate-800 mb-1">Xác thực CCCD trước khi thi</h1>
         <p className="text-slate-500 text-sm mb-6">
-          Chụp hoặc tải ảnh mặt trước CCCD. Hệ thống sẽ đọc thông tin và kiểm tra với danh sách được phép thi.
+          Rà soát học viên theo CCCD: kiểm tra số CCCD có đúng lớp được phép thi hay không. Chỉ học viên đúng lớp mới được cho vào thi. Chụp hoặc tải ảnh mặt trước CCCD để hệ thống đọc và kiểm tra với danh sách lớp.
         </p>
 
         <input

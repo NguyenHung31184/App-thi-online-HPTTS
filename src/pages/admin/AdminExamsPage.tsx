@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listExams, deleteExam } from '../../services/examService';
 import type { Exam } from '../../types';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 export default function AdminExamsPage() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -26,12 +29,20 @@ export default function AdminExamsPage() {
   }, []);
 
   const handleDelete = async (id: string, title: string) => {
-    if (!window.confirm(`Xóa đề thi "${title}"? Các câu hỏi và kỳ thi liên quan có thể bị ảnh hưởng.`)) return;
+    setConfirmDelete({ id, title });
+  };
+
+  const doDelete = async () => {
+    if (!confirmDelete) return;
     try {
-      await deleteExam(id);
-      setExams((prev) => prev.filter((e) => e.id !== id));
+      setDeleting(true);
+      await deleteExam(confirmDelete.id);
+      setExams((prev) => prev.filter((e) => e.id !== confirmDelete.id));
+      setConfirmDelete(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi xóa đề thi.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -48,6 +59,10 @@ export default function AdminExamsPage() {
         >
           Thêm đề thi
         </Link>
+      </div>
+
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-slate-700">
+        <strong>Cách tạo đề thi:</strong> Nhấn <strong>Thêm đề thi</strong> → điền tiêu đề, thời gian, mô tả, ma trận đề (nếu có) → <strong>Tạo đề thi</strong>. Sau đó vào <strong>Soạn câu hỏi</strong> (menu bên trái) hoặc nhấn <strong>Câu hỏi</strong> trên từng đề để thêm/import câu hỏi.
       </div>
 
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
@@ -92,7 +107,7 @@ export default function AdminExamsPage() {
                     >
                       Câu hỏi
                     </Link>
-                    <Link to={`/admin/exams/${exam.id}`} className="text-indigo-600 hover:underline mr-3">
+                    <Link to={`/admin/exams/${exam.id}/edit`} className="text-indigo-600 hover:underline mr-3">
                       Sửa
                     </Link>
                     <button
@@ -109,6 +124,19 @@ export default function AdminExamsPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmationModal
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={doDelete}
+        title="Xóa đề thi"
+        isLoading={deleting}
+        confirmText="Xóa"
+      >
+        {confirmDelete
+          ? `Xóa đề thi "${confirmDelete.title}"? Các câu hỏi và kỳ thi liên quan có thể bị ảnh hưởng.`
+          : ''}
+      </ConfirmationModal>
     </div>
   );
 }

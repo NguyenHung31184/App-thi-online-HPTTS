@@ -1,12 +1,41 @@
-import { Outlet, Navigate, Link } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import AppLayout from '../components/AppLayout';
+import { DashboardIcon, IdCardIcon, SettingsIcon } from '../components/Icons';
+
+const viewTitles: Record<string, string> = {
+  '/dashboard': 'Trang chủ',
+  '/': 'Trang chủ',
+  '/verify-cccd': 'Xác thực CCCD',
+  '/admin': 'Quản trị',
+};
 
 export default function Layout() {
   const { user, loading, signOut } = useAuth();
+  const location = useLocation();
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+
+  const navItems = useMemo(() => {
+    const items = [
+      { to: '/dashboard', label: 'Trang chủ', icon: DashboardIcon },
+      { to: '/verify-cccd', label: 'Xác thực CCCD', icon: IdCardIcon },
+    ];
+    if (user?.role === 'admin' || user?.role === 'teacher') {
+      items.push({ to: '/admin', label: 'Quản trị', icon: SettingsIcon });
+    }
+    return items;
+  }, [user?.role]);
+
+  const title = useMemo(() => {
+    const path = location.pathname;
+    if (path.startsWith('/admin')) return 'Quản trị';
+    return viewTitles[path] ?? 'App Thi Online';
+  }, [location.pathname]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50/40">
         <p className="text-slate-500">Đang tải...</p>
       </div>
     );
@@ -17,30 +46,16 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to="/dashboard" className="font-semibold text-slate-800">App Thi Online</Link>
-          <Link to="/dashboard" className="text-slate-600 hover:text-slate-900">Trang chủ</Link>
-          <Link to="/verify-cccd" className="text-slate-600 hover:text-slate-900">Xác thực CCCD</Link>
-          {(user.role === 'admin' || user.role === 'teacher') && (
-            <Link to="/admin" className="text-indigo-600 hover:text-indigo-700 font-medium">Quản trị</Link>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-600">{user.email}</span>
-          <button
-            type="button"
-            onClick={() => signOut()}
-            className="text-sm text-red-600 hover:text-red-700"
-          >
-            Đăng xuất
-          </button>
-        </div>
-      </header>
-      <main className="p-4">
-        <Outlet />
-      </main>
-    </div>
+    <AppLayout
+      navItems={navItems}
+      title={title}
+      userEmail={user.email}
+      userRole={user.role === 'admin' ? 'Admin' : user.role === 'teacher' ? 'Giáo viên' : 'Thí sinh'}
+      onLogout={() => signOut()}
+      isSidebarOpen={isSidebarOpen}
+      setSidebarOpen={setSidebarOpen}
+    >
+      <Outlet />
+    </AppLayout>
   );
 }

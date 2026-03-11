@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { RefreshCw } from 'lucide-react';
 import {
   getExamWindow,
   createExamWindow,
@@ -7,7 +8,6 @@ import {
 } from '../../services/examWindowService';
 import { listExams } from '../../services/examService';
 import { listClasses } from '../../services/ttdtDataService';
-import type { ExamWindow } from '../../types';
 
 function toDatetimeLocal(ts: number): string {
   const d = new Date(ts);
@@ -21,6 +21,16 @@ function toDatetimeLocal(ts: number): string {
 
 function fromDatetimeLocal(s: string): number {
   return new Date(s).getTime();
+}
+
+/** Mã truy cập ngẫu nhiên 4 ký tự: chữ và số. */
+function randomAccessCode4(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
 }
 
 export default function AdminWindowFormPage() {
@@ -158,14 +168,25 @@ export default function AdminWindowFormPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Mã truy cập *</label>
-          <input
-            type="text"
-            value={access_code}
-            onChange={(e) => setAccessCode(e.target.value)}
-            required
-            placeholder="VD: THI2026"
-            className="w-full border border-slate-300 rounded-lg px-3 py-2"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={access_code}
+              onChange={(e) => setAccessCode(e.target.value)}
+              required
+              placeholder="VD: A1B2 hoặc bấm nút tạo mã"
+              className="flex-1 border border-slate-300 rounded-lg px-3 py-2"
+            />
+            <button
+              type="button"
+              onClick={() => setAccessCode(randomAccessCode4())}
+              title="Tạo mã ngẫu nhiên 4 ký tự (chữ + số)"
+              className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-indigo-600 transition-colors"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">Bấm biểu tượng xoay tròn để tạo mã 4 ký tự ngẫu nhiên.</p>
         </div>
         <div className="flex gap-2">
           <button

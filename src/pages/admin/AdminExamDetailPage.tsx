@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getExam, updateExam, validateExamAndCreateSnapshot } from '../../services/examService';
+import { getExam, validateExamAndCreateSnapshot } from '../../services/examService';
 import { listQuestionsByExam } from '../../services/questionService';
 import type { Exam } from '../../types';
 
@@ -77,6 +77,12 @@ export default function AdminExamDetailPage() {
           >
             {validating ? 'Đang kiểm định...' : 'Kiểm định đề'}
           </button>
+          <Link
+            to={`/admin/exams/${id}/edit`}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Sửa đề thi
+          </Link>
           <button
             type="button"
             onClick={() => navigate('/admin/exams')}

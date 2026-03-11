@@ -165,3 +165,98 @@ export function importRowToQuestionPayload(row: ImportRow): {
     difficulty: row.difficulty,
   };
 }
+
+function normalizeText(s: unknown): string {
+  return String(s ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+export interface ImportAuditIssue {
+  /** 1-based row number in the parsed list (after header removed). */
+  row: number;
+  type: 'duplicate_in_file' | 'duplicate_existing' | 'invalid_answer';
+  message: string;
+}
+
+export function buildSingleChoiceSignature(q: {
+  stem: string;
+  options: { id: string; text: string }[];
+  answer_key: string;
+}): string {
+  const optById: Record<string, string> = {};
+  for (const o of q.options ?? []) optById[o.id] = o.text ?? '';
+  const stem = normalizeText(q.stem);
+  const a = normalizeText(optById.A ?? '');
+  const b = normalizeText(optById.B ?? '');
+  const c = normalizeText(optById.C ?? '');
+  const d = normalizeText(optById.D ?? '');
+  const ans = normalizeText(q.answer_key).toUpperCase();
+  return [stem, a, b, c, d, ans].join('|');
+}
+
+export function auditSingleChoicePayloads(
+  payloads: Array<{ stem: string; options: { id: string; text: string }[]; answer_key: string }>,
+  existing?: Array<{ stem: string; options: { id: string; text: string }[]; answer_key: string }>
+): ImportAuditIssue[] {
+  const issues: ImportAuditIssue[] = [];
+
+  const seen = new Map<string, number>(); // signature -> first row (1-based)
+  const firstPayloadBySig = new Map<string, { stem: string; options: { id: string; text: string }[]; answer_key: string }>();
+  const existingSet = new Set<string>((existing ?? []).map(buildSingleChoiceSignature));
+
+  const formatPayload = (p: { stem: string; options: { id: string; text: string }[]; answer_key: string }): string => {
+    const optById: Record<string, string> = {};
+    for (const o of p.options ?? []) optById[o.id] = o.text ?? '';
+    const stem = String(p.stem ?? '').trim();
+    const a = String(optById.A ?? '').trim();
+    const b = String(optById.B ?? '').trim();
+    const c = String(optById.C ?? '').trim();
+    const d = String(optById.D ?? '').trim();
+    const ans = String(p.answer_key ?? '').trim().toUpperCase();
+    return `Q="${stem}" | A="${a}" | B="${b}" | C="${c}" | D="${d}" | Đúng=${ans}`;
+  };
+
+  payloads.forEach((p, idx0) => {
+    const row = idx0 + 1;
+    const sig = buildSingleChoiceSignature(p);
+
+    // Invalid answer mapping
+    const ids = (p.options ?? []).map((o) => o.id);
+    const ans = String(p.answer_key ?? '').trim().toUpperCase();
+    const hasAnswer = ids.includes(ans);
+    if (!hasAnswer) {
+      issues.push({
+        row,
+        type: 'invalid_answer',
+        message: `Dòng ${row}: Đáp án đúng "${p.answer_key}" không khớp với bất kỳ lựa chọn nào (A/B/C/D) trong dòng.`,
+      });
+    }
+
+    // Duplicate in file
+    const first = seen.get(sig);
+    if (first != null) {
+      const firstPayload = firstPayloadBySig.get(sig);
+      issues.push({
+        row,
+        type: 'duplicate_in_file',
+        message: `Dòng ${row}: Trùng với dòng ${first}.\n- Dòng ${first}: ${firstPayload ? formatPayload(firstPayload) : '(không lấy được nội dung)'}\n- Dòng ${row}: ${formatPayload(p)}`,
+      });
+    } else {
+      seen.set(sig, row);
+      firstPayloadBySig.set(sig, p);
+    }
+
+    // Duplicate with existing
+    if (existingSet.has(sig)) {
+      issues.push({
+        row,
+        type: 'duplicate_existing',
+        message: `Dòng ${row}: Có vẻ đã tồn tại trong ngân hàng.\n- Dòng ${row}: ${formatPayload(p)}`,
+      });
+    }
+  });
+
+  return issues;
+}

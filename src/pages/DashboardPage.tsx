@@ -117,9 +117,9 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h2 className="text-xl font-semibold text-slate-800 mb-4">Dashboard</h2>
+      <h2 className="text-xl font-bold text-slate-800 mb-4">Bảng điều khiển</h2>
       {user?.student_id && (
-        <p className="text-sm text-slate-500 mb-4">
+        <p className="text-sm text-slate-600 mb-4 rounded-xl bg-white/80 border border-slate-100 px-4 py-2 inline-block">
           Đã xác thực CCCD: {user.student_name || user.student_code}
         </p>
       )}
@@ -127,13 +127,13 @@ export default function DashboardPage() {
       <div className="flex gap-3 mb-6">
         <Link
           to="/verify-cccd"
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          className="px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold rounded-xl hover:from-indigo-600 hover:to-blue-600 shadow-lg shadow-indigo-500/25 transition-all"
         >
           Xác thực CCCD
         </Link>
       </div>
 
-      <h3 className="text-lg font-medium text-slate-700 mb-3">Kỳ thi đang mở</h3>
+      <h3 className="text-lg font-semibold text-slate-700 mb-3">Kỳ thi đang mở</h3>
       {loading && <p className="text-slate-500">Đang tải...</p>}
       {error && <p className="text-red-600">{error}</p>}
       {!loading && !error && windows.length === 0 && practicalSessions.length === 0 && (
@@ -147,7 +147,7 @@ export default function DashboardPage() {
         {windows.map((w) => (
           <div
             key={w.id}
-            className="bg-white border border-slate-200 rounded-lg p-4"
+            className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow"
           >
             <p className="font-medium text-slate-800">{w.exam_title ?? 'Đề thi'}</p>
             {w.class_name && <p className="text-sm text-slate-500">Lớp: {w.class_name}</p>}
@@ -166,7 +166,7 @@ export default function DashboardPage() {
                 type="button"
                 disabled={enteringWindowId === w.id}
                 onClick={() => handleEnterExam(w.id)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-medium rounded-xl hover:from-indigo-600 hover:to-blue-600 shadow-md disabled:opacity-50 transition-all"
               >
                 {enteringWindowId === w.id ? 'Đang vào...' : 'Vào thi'}
               </button>
@@ -180,7 +180,7 @@ export default function DashboardPage() {
           <h3 className="text-lg font-medium text-slate-700 mt-8 mb-3">Thi thực hành đang mở</h3>
           <div className="space-y-4">
             {practicalSessions.map((s) => (
-              <div key={s.id} className="bg-white border border-slate-200 rounded-lg p-4">
+              <div key={s.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
                 <p className="font-medium text-slate-800">{s.template?.title ?? 'Thi thực hành'}</p>
                 {s.class_name && <p className="text-sm text-slate-500">Lớp: {s.class_name}</p>}
                 <p className="text-sm text-slate-600">
@@ -198,7 +198,7 @@ export default function DashboardPage() {
                     type="button"
                     disabled={enteringPracticalId === s.id}
                     onClick={() => handleEnterPractical(s.id)}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium rounded-xl hover:from-emerald-600 hover:to-teal-600 shadow-md disabled:opacity-50 transition-all"
                   >
                     {enteringPracticalId === s.id ? 'Đang vào...' : 'Vào thi thực hành'}
                   </button>

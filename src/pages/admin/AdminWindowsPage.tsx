@@ -4,6 +4,7 @@ import { listExamWindows, deleteExamWindow } from '../../services/examWindowServ
 import { listExams } from '../../services/examService';
 import { listClasses } from '../../services/ttdtDataService';
 import type { ExamWindow } from '../../types';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 export default function AdminWindowsPage() {
   const [windows, setWindows] = useState<ExamWindow[]>([]);
@@ -11,6 +12,8 @@ export default function AdminWindowsPage() {
   const [classes, setClasses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -36,12 +39,20 @@ export default function AdminWindowsPage() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Xóa kỳ thi này? Thí sinh sẽ không thể vào thi bằng mã này.')) return;
+    setConfirmDeleteId(id);
+  };
+
+  const doDelete = async () => {
+    if (!confirmDeleteId) return;
     try {
-      await deleteExamWindow(id);
-      setWindows((prev) => prev.filter((w) => w.id !== id));
+      setDeleting(true);
+      await deleteExamWindow(confirmDeleteId);
+      setWindows((prev) => prev.filter((w) => w.id !== confirmDeleteId));
+      setConfirmDeleteId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi xóa.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -110,6 +121,17 @@ export default function AdminWindowsPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmationModal
+        isOpen={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={doDelete}
+        title="Xóa kỳ thi"
+        isLoading={deleting}
+        confirmText="Xóa"
+      >
+        Xóa kỳ thi này? Thí sinh sẽ không thể vào thi bằng mã này.
+      </ConfirmationModal>
     </div>
   );
 }

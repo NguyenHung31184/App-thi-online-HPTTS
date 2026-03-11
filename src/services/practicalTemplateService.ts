@@ -4,8 +4,6 @@ import type {
   PracticalExamCriteria,
 } from '../types';
 
-const BUCKET = 'exam-uploads';
-
 export async function listPracticalTemplates(): Promise<PracticalExamTemplate[]> {
   const { data, error } = await supabase
     .from('practical_exam_templates')

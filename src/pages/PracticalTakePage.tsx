@@ -9,6 +9,7 @@ import {
   submitPracticalAttempt,
 } from '../services/practicalAttemptService';
 import { getPracticalSessionWithTemplate } from '../services/practicalSessionService';
+import type { PracticalSessionWithTemplate } from '../services/practicalSessionService';
 import { listCriteriaByTemplate } from '../services/practicalTemplateService';
 import type { PracticalAttemptPhoto, PracticalExamCriteria } from '../types';
 
@@ -17,7 +18,7 @@ export default function PracticalTakePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [attempt, setAttempt] = useState<{ id: string; session_id: string; status: string } | null>(null);
-  const [session, setSession] = useState<{ template?: { title: string }; template_id?: string } | null>(null);
+  const [session, setSession] = useState<PracticalSessionWithTemplate | null>(null);
   const [criteria, setCriteria] = useState<PracticalExamCriteria[]>([]);
   const [photos, setPhotos] = useState<PracticalAttemptPhoto[]>([]);
   const [uploading, setUploading] = useState(false);

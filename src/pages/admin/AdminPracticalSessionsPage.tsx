@@ -6,6 +6,7 @@ import {
   getPracticalSessionWithTemplate,
 } from '../../services/practicalSessionService';
 import type { PracticalExamSession } from '../../types';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 export default function AdminPracticalSessionsPage() {
   const [sessions, setSessions] = useState<PracticalExamSession[]>([]);
@@ -13,6 +14,8 @@ export default function AdminPracticalSessionsPage() {
   const [classNames, setClassNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,8 +23,6 @@ export default function AdminPracticalSessionsPage() {
       .then(async (list) => {
         if (cancelled) return;
         setSessions(list);
-        const templateIds = [...new Set(list.map((s) => s.template_id))];
-        const classIds = [...new Set(list.map((s) => s.class_id))];
         const titles: Record<string, string> = {};
         const names: Record<string, string> = {};
         await Promise.all(
@@ -40,12 +41,20 @@ export default function AdminPracticalSessionsPage() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Xóa kỳ thi thực hành này?')) return;
+    setConfirmDeleteId(id);
+  };
+
+  const doDelete = async () => {
+    if (!confirmDeleteId) return;
     try {
-      await deletePracticalSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
+      setDeleting(true);
+      await deletePracticalSession(confirmDeleteId);
+      setSessions((prev) => prev.filter((s) => s.id !== confirmDeleteId));
+      setConfirmDeleteId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi xóa.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -110,6 +119,17 @@ export default function AdminPracticalSessionsPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmationModal
+        isOpen={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={doDelete}
+        title="Xóa kỳ thi thực hành"
+        isLoading={deleting}
+        confirmText="Xóa"
+      >
+        Xóa kỳ thi thực hành này?
+      </ConfirmationModal>
     </div>
   );
 }

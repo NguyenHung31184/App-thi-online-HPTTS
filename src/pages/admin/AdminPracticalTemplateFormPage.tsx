@@ -9,7 +9,8 @@ import {
   updatePracticalCriteria,
   deletePracticalCriteria,
 } from '../../services/practicalTemplateService';
-import type { PracticalExamTemplate, PracticalExamCriteria } from '../../types';
+import type { PracticalExamCriteria } from '../../types';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 export default function AdminPracticalTemplateFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +24,8 @@ export default function AdminPracticalTemplateFormPage() {
   const [templateLoading, setTemplateLoading] = useState(isEdit);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDeleteCritId, setConfirmDeleteCritId] = useState<string | null>(null);
+  const [deletingCrit, setDeletingCrit] = useState(false);
 
   useEffect(() => {
     if (!isEdit || !id) return;
@@ -98,12 +101,20 @@ export default function AdminPracticalTemplateFormPage() {
   };
 
   const handleDeleteCriteria = async (critId: string) => {
-    if (!window.confirm('Xóa tiêu chí này?')) return;
+    setConfirmDeleteCritId(critId);
+  };
+
+  const doDeleteCriteria = async () => {
+    if (!confirmDeleteCritId) return;
     try {
-      await deletePracticalCriteria(critId);
-      setCriteria((prev) => prev.filter((c) => c.id !== critId));
+      setDeletingCrit(true);
+      await deletePracticalCriteria(confirmDeleteCritId);
+      setCriteria((prev) => prev.filter((c) => c.id !== confirmDeleteCritId));
+      setConfirmDeleteCritId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi xóa tiêu chí.');
+    } finally {
+      setDeletingCrit(false);
     }
   };
 
@@ -275,6 +286,17 @@ export default function AdminPracticalTemplateFormPage() {
           </ul>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={!!confirmDeleteCritId}
+        onClose={() => setConfirmDeleteCritId(null)}
+        onConfirm={doDeleteCriteria}
+        title="Xóa tiêu chí"
+        isLoading={deletingCrit}
+        confirmText="Xóa"
+      >
+        Xóa tiêu chí này?
+      </ConfirmationModal>
     </div>
   );
 }

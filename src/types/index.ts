@@ -137,11 +137,38 @@ export interface ClassItem {
   code?: string;
 }
 
-/** TTDT: Học phần (đọc từ bảng modules nếu cùng DB) */
+/** TTDT: Học phần / Mô-đun (đọc từ bảng modules nếu cùng DB) */
 export interface ModuleItem {
   id: string;
   name: string;
   code?: string;
+}
+
+/** Nghề đào tạo (theo nghề, không theo khóa học). Ngân hàng câu hỏi gắn theo nghề. */
+export interface Occupation {
+  id: string;
+  name: string;
+  code?: string;
+  created_at?: string;
+}
+
+/** Câu hỏi trong ngân hàng theo nghề (question_bank). Cấu trúc giống Question nhưng không có exam_id. */
+export interface QuestionBankItem {
+  id: string;
+  occupation_id: string;
+  module_id?: string | null;
+  question_type: QuestionType;
+  stem: string;
+  options: { id: string; text: string }[] | unknown;
+  answer_key: string;
+  points: number;
+  topic: string;
+  difficulty: string;
+  image_url?: string | null;
+  media_url?: string | null;
+  rubric?: unknown | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /** Response verify-cccd-for-exam (TTDT) */

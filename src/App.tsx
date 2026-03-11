@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import Layout from './pages/Layout';
@@ -8,6 +9,10 @@ import AdminLayout from './pages/admin/AdminLayout';
 import AdminExamsPage from './pages/admin/AdminExamsPage';
 import AdminExamFormPage from './pages/admin/AdminExamFormPage';
 import AdminExamDetailPage from './pages/admin/AdminExamDetailPage';
+import AdminQuestionHomePage from './pages/admin/AdminQuestionHomePage';
+import AdminOccupationQuestionsPage from './pages/admin/AdminOccupationQuestionsPage';
+import AdminQuestionBankFormPage from './pages/admin/AdminQuestionBankFormPage';
+import AdminQuestionBankImportPage from './pages/admin/AdminQuestionBankImportPage';
 import AdminQuestionsPage from './pages/admin/AdminQuestionsPage';
 import AdminQuestionFormPage from './pages/admin/AdminQuestionFormPage';
 import AdminQuestionImportPage from './pages/admin/AdminQuestionImportPage';
@@ -31,13 +36,20 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Toaster position="top-center" richColors closeButton />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/exams" replace />} />
             <Route path="exams" element={<AdminExamsPage />} />
             <Route path="exams/new" element={<AdminExamFormPage />} />
+            <Route path="questions" element={<AdminQuestionHomePage />} />
+            <Route path="questions/occupation/:occupationId" element={<AdminOccupationQuestionsPage />} />
+            <Route path="questions/occupation/:occupationId/new" element={<AdminQuestionBankFormPage />} />
+            <Route path="questions/occupation/:occupationId/import" element={<AdminQuestionBankImportPage />} />
+            <Route path="questions/occupation/:occupationId/questions/:qId" element={<AdminQuestionBankFormPage />} />
             <Route path="exams/:id" element={<AdminExamDetailPage />} />
+            <Route path="exams/:id/edit" element={<AdminExamFormPage />} />
             <Route path="exams/:id/questions" element={<AdminQuestionsPage />} />
             <Route path="exams/:id/questions/import" element={<AdminQuestionImportPage />} />
             <Route path="exams/:id/questions/new" element={<AdminQuestionFormPage />} />

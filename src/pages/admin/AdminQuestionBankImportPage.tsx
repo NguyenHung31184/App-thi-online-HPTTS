@@ -1,27 +1,34 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getExam } from '../../services/examService';
-import { createQuestionsBulk } from '../../services/questionService';
-import { parseFileToRows, importRowToQuestionPayload, auditSingleChoicePayloads, type ImportRow } from '../../services/questionImportService';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
+import { getOccupation } from '../../services/occupationService';
+import { createQuestionBankBulk, listQuestionsByOccupation } from '../../services/questionBankService';
+import { parseFileToRows, importRowToQuestionPayload, auditSingleChoicePayloads } from '../../services/questionImportService';
 import * as XLSX from 'xlsx';
 
-export default function AdminQuestionImportPage() {
-  const { id: examId } = useParams<{ id: string }>();
+type QuestionPayload = ReturnType<typeof importRowToQuestionPayload>;
+
+export default function AdminQuestionBankImportPage() {
+  const { occupationId } = useParams<{ occupationId: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
-  const [examTitle, setExamTitle] = useState('');
+  const [occupationName, setOccupationName] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [firstRowIsHeader, setFirstRowIsHeader] = useState(true);
-  const [rows, setRows] = useState<ImportRow[]>([]);
+  const [rows, setRows] = useState<QuestionPayload[]>([]);
   const [auditIssues, setAuditIssues] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ created: number; errors: string[] } | null>(null);
   const [error, setError] = useState('');
+  const [moduleId, setModuleId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!examId) return;
-    getExam(examId).then((exam) => exam && setExamTitle(exam.title)).catch(() => {});
-  }, [examId]);
+    if (!occupationId) return;
+    const params = new URLSearchParams(location.search);
+    const mId = params.get('moduleId');
+    setModuleId(mId);
+    getOccupation(occupationId).then((o) => o && setOccupationName(o.name)).catch(() => {});
+  }, [occupationId, location.search]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -39,12 +46,20 @@ export default function AdminQuestionImportPage() {
     setAuditIssues([]);
     try {
       const parsed = await parseFileToRows(file, { firstRowIsHeader });
-      setRows(parsed);
-      if (parsed.length === 0) setError('Không có dòng dữ liệu nào (kiểm tra "Dòng đầu là tiêu đề").');
-      if (parsed.length > 0) {
-        const payloads = parsed.map(importRowToQuestionPayload);
-        const issues = auditSingleChoicePayloads(payloads);
-        setAuditIssues(issues.map((x) => x.message));
+      const payloads = parsed.map((r) => importRowToQuestionPayload(r));
+      setRows(payloads);
+      if (payloads.length === 0) setError('Không có dòng dữ liệu nào (kiểm tra "Dòng đầu là tiêu đề").');
+
+      if (occupationId && payloads.length > 0) {
+        try {
+          const existing = await listQuestionsByOccupation(occupationId, moduleId);
+          const issues = auditSingleChoicePayloads(payloads, existing as unknown as QuestionPayload[]);
+          setAuditIssues(issues.map((x) => x.message));
+        } catch {
+          // Nếu không tải được existing, vẫn audit nội bộ file
+          const issues = auditSingleChoicePayloads(payloads);
+          setAuditIssues(issues.map((x) => x.message));
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi đọc file');
@@ -54,13 +69,12 @@ export default function AdminQuestionImportPage() {
   };
 
   const handleImport = async () => {
-    if (!examId || rows.length === 0) return;
+    if (!occupationId || rows.length === 0) return;
     setImporting(true);
     setError('');
     setResult(null);
     try {
-      const payloads = rows.map(importRowToQuestionPayload);
-      const res = await createQuestionsBulk(examId, payloads);
+      const res = await createQuestionBankBulk(occupationId, moduleId ?? null, rows);
       setResult(res);
       if (res.created > 0) setRows([]);
     } catch (e) {
@@ -105,17 +119,16 @@ export default function AdminQuestionImportPage() {
   return (
     <div>
       <p className="text-slate-500 text-sm">
-        <Link to={`/admin/exams/${examId}/questions`} className="hover:underline">← Câu hỏi</Link>
+        <Link to={`/admin/questions/occupation/${occupationId}`} className="hover:underline">← Ngân hàng câu hỏi</Link>
         {' · '}
         <span className="font-medium text-slate-700">Import từ Excel / CSV</span>
       </p>
       <h1 className="text-xl font-semibold text-slate-800 mt-2 mb-4">
-        Nhập ngân hàng câu hỏi vào đề: {examTitle || '...'}
+        Nhập câu hỏi vào ngân hàng: {occupationName || '...'}
       </h1>
 
       <p className="text-slate-600 mb-4 max-w-2xl">
-        File Excel/CSV cần có các cột theo thứ tự: <strong>Nội dung câu hỏi, Đáp án A, B, C, D, Đáp án đúng (A/B/C/D hoặc 1/2/3/4), Chủ đề, Độ khó, Điểm</strong>.
-        Cột 7–9 có thể để trống. Xem <code className="bg-slate-100 px-1 rounded">docs/HUONG_DAN_SOAN_DE_VA_IMPORT_CAU_HOI.md</code>.
+        File Excel/CSV cần có các cột: <strong>Nội dung câu hỏi, Đáp án A, B, C, D, Đáp án đúng (A/B/C/D), Chủ đề, Độ khó, Điểm</strong>. Cột 7–9 có thể để trống.
       </p>
 
       <div className="space-y-4 max-w-2xl">
@@ -131,26 +144,12 @@ export default function AdminQuestionImportPage() {
           <span className="text-slate-500 text-xs">Mẹo: mở file CSV bằng Excel rồi copy/paste câu hỏi vào.</span>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <input
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleFileChange}
-            className="block"
-          />
+          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} className="block" />
           <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={firstRowIsHeader}
-              onChange={(e) => setFirstRowIsHeader(e.target.checked)}
-            />
+            <input type="checkbox" checked={firstRowIsHeader} onChange={(e) => setFirstRowIsHeader(e.target.checked)} />
             Dòng đầu là tiêu đề
           </label>
-          <button
-            type="button"
-            onClick={handleParse}
-            disabled={!file || loading}
-            className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50"
-          >
+          <button type="button" onClick={handleParse} disabled={!file || loading} className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50">
             {loading ? 'Đang đọc...' : 'Đọc file & xem trước'}
           </button>
         </div>
@@ -170,9 +169,7 @@ export default function AdminQuestionImportPage() {
         {result && (
           <p className="text-green-700">
             Đã thêm <strong>{result.created}</strong> câu hỏi.
-            {result.errors.length > 0 && (
-              <span className="block text-amber-700 mt-1">Một số dòng lỗi: {result.errors.slice(0, 3).join('; ')}</span>
-            )}
+            {result.errors.length > 0 && <span className="block text-amber-700 mt-1">Một số dòng lỗi: {result.errors.slice(0, 3).join('; ')}</span>}
           </p>
         )}
 
@@ -192,11 +189,11 @@ export default function AdminQuestionImportPage() {
                   {previewRows.map((r, i) => (
                     <tr key={i} className="border-b border-slate-100">
                       <td className="px-2 py-1 max-w-xs truncate" title={r.stem}>{r.stem}</td>
-                      <td className="px-2 py-1 max-w-[120px] truncate">{r.optionA}</td>
-                      <td className="px-2 py-1 max-w-[120px] truncate">{r.optionB}</td>
-                      <td className="px-2 py-1 max-w-[120px] truncate">{r.optionC}</td>
-                      <td className="px-2 py-1 max-w-[120px] truncate">{r.optionD}</td>
-                      <td className="px-2 py-1">{r.answer}</td>
+                      <td className="px-2 py-1 max-w-[120px] truncate">{r.options[0]?.text}</td>
+                      <td className="px-2 py-1 max-w-[120px] truncate">{r.options[1]?.text}</td>
+                      <td className="px-2 py-1 max-w-[120px] truncate">{r.options[2]?.text}</td>
+                      <td className="px-2 py-1 max-w-[120px] truncate">{r.options[3]?.text}</td>
+                      <td className="px-2 py-1">{r.answer_key}</td>
                       <td className="px-2 py-1">{r.topic}</td>
                       <td className="px-2 py-1">{r.difficulty}</td>
                       <td className="px-2 py-1">{r.points}</td>
@@ -206,19 +203,10 @@ export default function AdminQuestionImportPage() {
               </table>
             </div>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleImport}
-                disabled={importing}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {importing ? 'Đang nhập...' : `Nhập ${rows.length} câu vào đề này`}
+              <button type="button" onClick={handleImport} disabled={importing} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                {importing ? 'Đang nhập...' : `Nhập ${rows.length} câu vào ngân hàng`}
               </button>
-              <button
-                type="button"
-                onClick={() => navigate(`/admin/exams/${examId}/questions`)}
-                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
-              >
+              <button type="button" onClick={() => navigate(`/admin/questions/occupation/${occupationId}`)} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">
                 Xong
               </button>
             </div>

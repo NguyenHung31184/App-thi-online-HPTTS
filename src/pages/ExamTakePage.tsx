@@ -7,7 +7,38 @@ import { getExamWindow } from '../services/examWindowService';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
 import { supabase } from '../lib/supabaseClient';
 import { SortableOptionList } from '../components/SortableOptionList';
+import { LabelOnImageDrop } from '../components/LabelOnImageDrop';
 import type { Attempt, Exam, QuestionForStudent } from '../types';
+
+function hashStringToSeed(s: string): number {
+  // FNV-1a 32-bit
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+function mulberry32(seed: number): () => number {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let x = Math.imul(t ^ (t >>> 15), 1 | t);
+    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleWithSeed<T>(arr: T[], seed: number): T[] {
+  const a = [...arr];
+  const rnd = mulberry32(seed);
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 function formatRemaining(ms: number): string {
   if (ms <= 0) return '0:00';
@@ -194,10 +225,20 @@ export default function ExamTakePage() {
       <p className="text-slate-500 text-sm mb-4">Trình duyệt sẽ ghi nhận khi bạn chuyển tab hoặc mất focus. Nên làm bài trong chế độ toàn màn hình.</p>
 
       <div className="space-y-6">
-        {questions.map((q, idx) => {
-          const opts = (Array.isArray(q.options) ? q.options as { id: string; text: string }[] : []);
+        {(() => {
+          // Tráo thứ tự câu hỏi theo attemptId (ổn định cho thí sinh trong suốt lượt làm)
+          const qSeed = hashStringToSeed(attemptId ?? 'seed');
+          const shuffledQuestions = shuffleWithSeed(questions, qSeed);
+          return shuffledQuestions.map((q, idx) => {
+            const rawOpts = (Array.isArray(q.options) ? q.options as { id: string; text: string }[] : []);
+            // Tráo đáp án cho trắc nghiệm (giữ id, chỉ tráo thứ tự hiển thị)
+            const optSeed = hashStringToSeed(`${attemptId ?? 'seed'}|${q.id}|opts`);
+            const opts = (q.question_type === 'single_choice' || q.question_type === 'multiple_choice')
+              ? shuffleWithSeed(rawOpts, optSeed)
+              : rawOpts;
           const isMultiple = q.question_type === 'multiple_choice';
           const isDragDrop = q.question_type === 'drag_drop';
+          const isLabelOnImage = isDragDrop && q.image_url && opts.length === 4;
           const isEssay = q.question_type === 'video_paragraph' || q.question_type === 'main_idea';
           const currentSingle = answers[q.id] ?? '';
           let currentMultiple: string[] = [];
@@ -213,6 +254,9 @@ export default function ExamTakePage() {
             }
           } catch {}
           if (isDragDrop && currentOrder.length === 0 && opts.length) currentOrder = opts.map((o) => o.id);
+          const labelOnImageValue = isLabelOnImage
+            ? (currentOrder.length >= 4 ? currentOrder : [...currentOrder, '', '', '', ''].slice(0, 4))
+            : [];
 
           return (
             <div key={q.id} className="bg-white border border-slate-200 rounded-lg p-4">
@@ -220,9 +264,10 @@ export default function ExamTakePage() {
                 Câu {idx + 1}. {q.stem}
                 {isMultiple && <span className="text-slate-500 text-sm ml-1">(chọn nhiều đáp án đúng)</span>}
                 {isDragDrop && <span className="text-slate-500 text-sm ml-1">(kéo thả sắp xếp đúng thứ tự)</span>}
+                {isLabelOnImage && <span className="text-slate-500 text-sm ml-1">(kéo nhãn vào đúng ô trên hình)</span>}
                 {isEssay && <span className="text-slate-500 text-sm ml-1">(tự luận)</span>}
               </p>
-              {q.image_url && (
+              {q.image_url && !isLabelOnImage && (
                 <img src={q.image_url} alt="" className="max-w-full rounded mb-2 max-h-48 object-contain" />
               )}
               {isEssay && q.media_url && (
@@ -238,9 +283,38 @@ export default function ExamTakePage() {
                   className="w-full border border-slate-300 rounded-lg px-3 py-2"
                   placeholder="Nhập câu trả lời..."
                 />
+              ) : isLabelOnImage ? (
+                (() => {
+                  let r = q.rubric;
+                  if (typeof r === 'string' && r.trim()) {
+                    try {
+                      r = JSON.parse(r) as unknown;
+                    } catch {
+                      r = undefined;
+                    }
+                  }
+                  const zones =
+                    r &&
+                    typeof r === 'object' &&
+                    r !== null &&
+                    'zones' in r &&
+                    Array.isArray((r as { zones?: unknown }).zones) &&
+                    (r as { zones: { x: number; y: number }[] }).zones.length === 4
+                      ? (r as { zones: { x: number; y: number }[] }).zones
+                      : undefined;
+                  return (
+                    <LabelOnImageDrop
+                      imageUrl={q.image_url!}
+                      options={shuffleWithSeed(opts, hashStringToSeed(`${attemptId ?? 'seed'}|${q.id}|labels`))}
+                      value={labelOnImageValue}
+                      onChange={(zoneLabelIds) => setAnswers((prev) => ({ ...prev, [q.id]: JSON.stringify(zoneLabelIds) }))}
+                      zones={zones}
+                    />
+                  );
+                })()
               ) : isDragDrop && opts.length > 0 ? (
                 <SortableOptionList
-                  options={opts}
+                  options={shuffleWithSeed(opts, hashStringToSeed(`${attemptId ?? 'seed'}|${q.id}|drag`))}
                   value={currentOrder}
                   onChange={(orderedIds) => setAnswers((prev) => ({ ...prev, [q.id]: JSON.stringify(orderedIds) }))}
                 />
@@ -279,7 +353,8 @@ export default function ExamTakePage() {
               )}
             </div>
           );
-        })}
+          });
+        })()}
       </div>
 
       <div className="mt-8 flex justify-between items-center">

@@ -14,11 +14,15 @@ export default function VerifyCccdPage() {
   const navigate = useNavigate();
   const { setStudentInfo } = useAuth();
   const [step, setStep] = useState<'upload' | 'ocr' | 'verify' | 'done'>('upload');
+  const [verifiedClasses, setVerifiedClasses] = useState<{ id: string; name: string }[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [ocrData, setOcrData] = useState<OcrCccdResult | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [manualCccd, setManualCccd] = useState('');
+  const [manualName, setManualName] = useState('');
+  const [manualDob, setManualDob] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,7 +80,25 @@ export default function VerifyCccdPage() {
     setLoading(false);
   };
 
-  /** Bước 2: Gọi TTDT verify-cccd-for-exam với số CCCD đã đọc. */
+  /** Dùng số CCCD nhập tay để chuyển sang bước kiểm tra (khi OCR lỗi hoặc user chọn nhập tay). */
+  const handleUseManualCccd = () => {
+    const cccd = manualCccd.replace(/\s/g, '').trim();
+    setError('');
+    if (!cccd) {
+      setError('Vui lòng nhập số CCCD.');
+      return;
+    }
+    setOcrData({
+      id_card_number: cccd,
+      full_name: manualName.trim() || undefined,
+      name: manualName.trim() || undefined,
+      dob: manualDob.trim() || undefined,
+      date_of_birth: manualDob.trim() || undefined,
+    });
+    setStep('ocr');
+  };
+
+  /** Bước 2: Gọi TTDT verify-cccd-for-exam với số CCCD đã đọc hoặc nhập tay. */
   const handleVerify = async () => {
     if (!ocrData?.id_card_number) return;
     setError('');
@@ -103,6 +125,7 @@ export default function VerifyCccdPage() {
       if (result.data.student_id) {
         setStudentInfo(result.data.student_id, result.data.student_code ?? '', result.data.student_name);
       }
+      setVerifiedClasses(result.data.classes ?? []);
       setStep('done');
       setTimeout(() => navigate('/dashboard', { replace: true }), 1500);
     } catch (err) {
@@ -132,13 +155,48 @@ export default function VerifyCccdPage() {
         {step === 'upload' && (
           <>
             {!imagePreviewUrl ? (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-8 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:border-indigo-400 hover:text-indigo-600"
-              >
-                Chọn ảnh CCCD (mặt trước)
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-8 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:border-indigo-400 hover:text-indigo-600"
+                >
+                  Chọn ảnh CCCD (mặt trước)
+                </button>
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <p className="text-slate-500 text-sm mb-2">Hoặc nhập tay số CCCD:</p>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Số CCCD"
+                      value={manualCccd}
+                      onChange={(e) => setManualCccd(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Họ tên (tùy chọn)"
+                      value={manualName}
+                      onChange={(e) => setManualName(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Ngày sinh (tùy chọn, VD: 11/05/1984)"
+                      value={manualDob}
+                      onChange={(e) => setManualDob(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleUseManualCccd}
+                      className="w-full py-2 border border-indigo-400 text-indigo-600 rounded-lg hover:bg-indigo-50 text-sm"
+                    >
+                      Kiểm tra số CCCD này
+                    </button>
+                  </div>
+                </div>
+              </>
             ) : (
               <>
                 <img
@@ -163,6 +221,39 @@ export default function VerifyCccdPage() {
                     {loading ? 'Đang đọc...' : 'Đọc CCCD'}
                   </button>
                 </div>
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <p className="text-slate-500 text-sm mb-2">Hoặc nhập tay số CCCD (khi không đọc được ảnh):</p>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Số CCCD"
+                      value={manualCccd}
+                      onChange={(e) => setManualCccd(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Họ tên (tùy chọn)"
+                      value={manualName}
+                      onChange={(e) => setManualName(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Ngày sinh (tùy chọn, VD: 11/05/1984)"
+                      value={manualDob}
+                      onChange={(e) => setManualDob(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleUseManualCccd}
+                      className="w-full py-2 border border-indigo-400 text-indigo-600 rounded-lg hover:bg-indigo-50 text-sm"
+                    >
+                      Dùng số CCCD này để kiểm tra
+                    </button>
+                  </div>
+                </div>
               </>
             )}
           </>
@@ -176,6 +267,7 @@ export default function VerifyCccdPage() {
               <p><span className="font-medium text-slate-500">Ngày sinh:</span> {ocrData.dob ?? ocrData.date_of_birth ?? '—'}</p>
               <p><span className="font-medium text-slate-500">Ngày cấp:</span> {ocrData.id_card_issue_date ?? ocrData.issue_date ?? '—'}</p>
               <p><span className="font-medium text-slate-500">Nơi cấp:</span> {ocrData.id_card_issue_place ?? ocrData.issue_place ?? '—'}</p>
+              <p className="text-slate-500 italic">Bấm &quot;Kiểm tra & vào thi&quot; để xem lớp đang tham gia và vào trang thi.</p>
             </div>
             <div className="flex gap-2">
               <button
@@ -198,8 +290,22 @@ export default function VerifyCccdPage() {
         )}
 
         {step === 'done' && (
-          <div className="text-center py-6 text-green-600 font-medium">
-            Xác thực thành công. Đang chuyển đến trang thi...
+          <div className="space-y-4">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-sm">
+              <p className="font-medium text-green-800 mb-2">Xác thực thành công</p>
+              <p><span className="text-slate-600">Số CCCD:</span> {ocrData?.id_card_number ?? '—'}</p>
+              <p><span className="text-slate-600">Họ tên:</span> {ocrData?.full_name ?? ocrData?.name ?? '—'}</p>
+              <p><span className="text-slate-600">Ngày sinh:</span> {ocrData?.dob ?? ocrData?.date_of_birth ?? '—'}</p>
+              {verifiedClasses.length > 0 ? (
+                <p className="mt-2">
+                  <span className="text-slate-600 font-medium">Lớp đang tham gia:</span>{' '}
+                  {verifiedClasses.map((c) => c.name).join(', ')}
+                </p>
+              ) : (
+                <p className="mt-2 text-amber-700">Chưa gắn lớp nào trong hệ thống. Liên hệ quản trị để được gắn lớp và thấy kỳ thi.</p>
+              )}
+            </div>
+            <p className="text-center text-green-600 font-medium">Đang chuyển đến trang thi...</p>
           </div>
         )}
 

@@ -92,7 +92,7 @@ export interface Attempt {
   questions?: QuestionForStudent[];
 }
 
-export type AuditEvent = 'focus_lost' | 'visibility_hidden' | 'copy_paste_blocked' | 'photo_taken';
+export type AuditEvent = 'focus_lost' | 'visibility_hidden' | 'copy_paste_blocked' | 'photo_taken' | 'fullscreen_exited';
 
 export interface AttemptAuditLog {
   id: string;
@@ -178,6 +178,8 @@ export interface VerifyCccdResponse {
   student_id?: string;
   student_name?: string;
   student_code?: string;
+  /** Lớp học viên đang tham gia (từ enrollments + classes TTDT) */
+  classes?: { id: string; name: string }[];
   allowed_windows?: { id: string; exam_id: string; title: string; start_at: number; end_at: number }[];
 }
 

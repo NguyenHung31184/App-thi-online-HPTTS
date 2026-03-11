@@ -8,6 +8,8 @@ import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncSer
 import { supabase } from '../lib/supabaseClient';
 import { SortableOptionList } from '../components/SortableOptionList';
 import { LabelOnImageDrop } from '../components/LabelOnImageDrop';
+import ConfirmationModal from '../components/ConfirmationModal';
+import { CheckCircle } from 'lucide-react';
 import type { Attempt, Exam, QuestionForStudent } from '../types';
 
 function hashStringToSeed(s: string): number {
@@ -58,12 +60,37 @@ export default function ExamTakePage() {
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(!!document.fullscreenElement);
+  const [fullscreenError, setFullscreenError] = useState<string>('');
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<Record<string, string>>({});
   const timeUpSubmittedRef = useRef(false);
   const answersRef = useRef<Record<string, string>>({});
   answersRef.current = answers;
   const proctoringDoneRef = useRef(false);
+  const handleSubmitRef = useRef<null | (() => void)>(null);
+  const violationCountRef = useRef(0);
+  const submittedDueToViolationRef = useRef(false);
+  const fullscreenRequestedRef = useRef(false);
+  const MAX_VIOLATIONS = 3;
+
+  const enterFullscreen = useCallback(async () => {
+    setFullscreenError('');
+    const el = document.documentElement;
+    if (!el.requestFullscreen) {
+      setFullscreenError('Trình duyệt không hỗ trợ toàn màn hình.');
+      return;
+    }
+    try {
+      await el.requestFullscreen();
+      fullscreenRequestedRef.current = true;
+      setIsFullscreen(true);
+    } catch {
+      // Thường xảy ra khi không có thao tác người dùng hoặc user từ chối
+      setFullscreenError('Không thể bật toàn màn hình. Hãy bấm nút lần nữa hoặc kiểm tra quyền/trình duyệt.');
+    }
+  }, []);
 
   /** Proctoring cơ bản: chụp 1 ảnh webcam khi bắt đầu làm bài, upload Storage, ghi audit log. Tùy chọn — nếu từ chối camera vẫn cho làm bài. */
   useEffect(() => {
@@ -150,6 +177,7 @@ export default function ExamTakePage() {
 
   const handleSubmit = async () => {
     if (!attemptId || !attempt || attempt.status !== 'in_progress') return;
+    setShowSubmitConfirm(false);
     setSubmitting(true);
     setError('');
     const toSave = answersRef.current;
@@ -162,20 +190,29 @@ export default function ExamTakePage() {
         return;
       }
       const updated = await getAttempt(attemptId);
+      let syncSkipped = false;
       if (updated && exam && isTtdtSyncConfigured()) {
         const win = await getExamWindow(updated.window_id);
-        await syncAttemptToTtdt(updated, exam, {
-          studentId: user?.student_id ?? undefined,
-          classId: win?.class_id ?? undefined,
-        });
+        const hasModule = exam.module_id != null && String(exam.module_id).trim() !== '';
+        const hasEnrollmentInfo = (user?.student_id && win?.class_id) || undefined;
+        if (hasModule && hasEnrollmentInfo) {
+          await syncAttemptToTtdt(updated, exam, {
+            studentId: user?.student_id ?? undefined,
+            classId: win?.class_id ?? undefined,
+          });
+        } else {
+          syncSkipped = true;
+        }
       }
-      navigate(`/exam/${attemptId}/result`, { replace: true });
+      navigate(`/exam/${attemptId}/result`, { replace: true, state: { syncSkipped } });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi nộp bài.');
     } finally {
       setSubmitting(false);
     }
   };
+
+  handleSubmitRef.current = handleSubmit;
 
   useEffect(() => {
     if (!attemptId || Object.keys(answers).length === 0) return;
@@ -195,10 +232,22 @@ export default function ExamTakePage() {
     const onVisibility = () => {
       if (document.visibilityState === 'hidden' && attemptId) {
         logAuditEvent(attemptId, 'visibility_hidden').catch(() => {});
+        violationCountRef.current += 1;
+        if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
+          submittedDueToViolationRef.current = true;
+          setTimeout(() => handleSubmitRef.current?.(), 200);
+        }
       }
     };
     const onBlur = () => {
-      if (attemptId) logAuditEvent(attemptId, 'focus_lost').catch(() => {});
+      if (attemptId) {
+        logAuditEvent(attemptId, 'focus_lost').catch(() => {});
+        violationCountRef.current += 1;
+        if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
+          submittedDueToViolationRef.current = true;
+          setTimeout(() => handleSubmitRef.current?.(), 200);
+        }
+      }
     };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('blur', onBlur);
@@ -208,11 +257,72 @@ export default function ExamTakePage() {
     };
   }, [attemptId]);
 
+  /** Chặn copy/paste trên màn làm bài và ghi audit */
+  useEffect(() => {
+    if (!attemptId) return;
+    const prevent = (e: ClipboardEvent) => {
+      e.preventDefault();
+      logAuditEvent(attemptId, 'copy_paste_blocked').catch(() => {});
+    };
+    document.addEventListener('copy', prevent);
+    document.addEventListener('paste', prevent);
+    return () => {
+      document.removeEventListener('copy', prevent);
+      document.removeEventListener('paste', prevent);
+    };
+  }, [attemptId]);
+
+  /** Bắt buộc toàn màn hình khi làm bài; ghi audit khi thoát fullscreen; đếm vi phạm và auto-nộp sau N lần */
+  useEffect(() => {
+    if (!attemptId || !attempt || questions.length === 0) return;
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+      if (document.fullscreenElement) return;
+      if (fullscreenRequestedRef.current && attemptId) {
+        logAuditEvent(attemptId, 'fullscreen_exited').catch(() => {});
+        violationCountRef.current += 1;
+        if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
+          submittedDueToViolationRef.current = true;
+          setTimeout(() => handleSubmitRef.current?.(), 200);
+        }
+      }
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, [attemptId, attempt?.id, questions.length]);
+
   if (error && !attempt) return <p className="p-4 text-red-600">{error}</p>;
   if (!attempt || !exam) return <p className="p-4 text-slate-500">Đang tải...</p>;
 
+  const answeredCount = questions.filter((q) => {
+    const v = answers[q.id];
+    if (v == null || typeof v !== 'string') return false;
+    return v.trim() !== '';
+  }).length;
+  const totalQuestions = questions.length;
+
   return (
     <div className="max-w-3xl mx-auto p-4">
+      {!isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl p-5">
+            <div className="font-semibold text-slate-900 text-lg mb-1">Bắt buộc chế độ toàn màn hình</div>
+            <div className="text-slate-600 text-sm mb-4">
+              Ứng dụng thi chỉ hoạt động khi bạn bật toàn màn hình. Nếu bạn bấm <strong>ESC</strong> hoặc thoát fullscreen, hệ thống sẽ ghi nhận vi phạm.
+            </div>
+            {fullscreenError && <div className="text-red-600 text-sm mb-3">{fullscreenError}</div>}
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={enterFullscreen}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                Vào toàn màn hình
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
         <span className="font-medium text-slate-800">{exam.title}</span>
         <span className={`font-mono text-lg ${remainingMs !== null && remainingMs < 60000 ? 'text-red-600' : 'text-slate-700'}`}>
@@ -222,7 +332,7 @@ export default function ExamTakePage() {
 
       {error && <p className="text-red-600 mb-2">{error}</p>}
 
-      <p className="text-slate-500 text-sm mb-4">Trình duyệt sẽ ghi nhận khi bạn chuyển tab hoặc mất focus. Nên làm bài trong chế độ toàn màn hình.</p>
+      <p className="text-slate-500 text-sm mb-4">Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình.</p>
 
       <div className="space-y-6">
         {(() => {
@@ -367,13 +477,27 @@ export default function ExamTakePage() {
         </button>
         <button
           type="button"
-          onClick={handleSubmit}
+          onClick={() => setShowSubmitConfirm(true)}
           disabled={submitting || (remainingMs !== null && remainingMs <= 0)}
           className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
         >
           {submitting ? 'Đang nộp...' : 'Nộp bài'}
         </button>
       </div>
+
+      <ConfirmationModal
+        isOpen={showSubmitConfirm}
+        onClose={() => setShowSubmitConfirm(false)}
+        onConfirm={() => handleSubmit()}
+        title="Xác nhận nộp bài"
+        confirmText="Có, nộp bài"
+        confirmColor="primary"
+        isLoading={submitting}
+        icon={CheckCircle}
+      >
+        Bạn đã làm được <strong>{answeredCount}</strong> / <strong>{totalQuestions}</strong> câu.
+        Bạn có chắc chắn muốn nộp bài? Sau khi nộp bạn không thể sửa lại.
+      </ConfirmationModal>
     </div>
   );
 }

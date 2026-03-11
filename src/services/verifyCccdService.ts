@@ -1,17 +1,15 @@
 /**
  * Kiểm tra số CCCD với TTDT — rà soát học viên có đúng lớp được phép thi không để cho vào thi.
- * Ưu tiên gọi trực tiếp Supabase Edge Function `verify-cccd-for-exam` qua supabase-js (tự xử lý JWT),
- * hạn chế tự dùng fetch để tránh lỗi "Invalid JWT".
+ * Gọi Edge Function verify-cccd-for-exam qua fetch với anon key + x-api-key (tránh 401 gateway).
  */
 import type { VerifyCccdResponse } from '../types';
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 const TTDT_VERIFY_CCCD_URL = import.meta.env.VITE_TTDT_VERIFY_CCCD_URL || '';
 const TTDT_API_KEY = import.meta.env.VITE_TTDT_API_KEY || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 
 export function isVerifyCccdConfigured(): boolean {
-  // Nếu đã cấu hình Supabase (Edge Function) thì coi như đã cấu hình verify CCCD.
-  // TTDT_VERIFY_CCCD_URL chỉ dùng khi cần gọi server ngoài Supabase.
   return isSupabaseConfigured() || Boolean(TTDT_VERIFY_CCCD_URL && TTDT_VERIFY_CCCD_URL.length > 0);
 }
 
@@ -34,42 +32,19 @@ export async function verifyCccdForExam(
     return { success: false, error: 'Số CCCD không được để trống.' };
   }
 
+  const url = TTDT_VERIFY_CCCD_URL || (isSupabaseConfigured() ? `${import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '')}/functions/v1/verify-cccd-for-exam` : '');
+  if (!url) {
+    return { success: false, error: 'Chưa cấu hình endpoint kiểm tra CCCD.' };
+  }
+
   try {
-    // Nhánh 1: gọi trực tiếp Supabase Edge Function — đây là cấu hình mặc định.
-    if (isSupabaseConfigured()) {
-      const headers: Record<string, string> = {};
-      if (TTDT_API_KEY) headers['x-api-key'] = TTDT_API_KEY;
-      const { data, error } = await supabase.functions.invoke('verify-cccd-for-exam', {
-        body: {
-          id_card_number: cleanCccd,
-          name: params.name,
-          dob: params.dob,
-          class_id: params.class_id,
-          window_id: params.window_id,
-        },
-        ...(Object.keys(headers).length ? { headers } : {}),
-      });
-
-      if (error) {
-        return {
-          success: false,
-          error: (error as { message?: string })?.message || 'Lỗi khi gọi verify-cccd-for-exam.',
-        };
-      }
-      return { success: true, data: (data ?? {}) as VerifyCccdResponse };
-    }
-
-    // Nhánh 2: fallback gọi URL tùy chỉnh (nếu không dùng Supabase Edge Function).
-    if (!TTDT_VERIFY_CCCD_URL) {
-      return { success: false, error: 'Chưa cấu hình endpoint kiểm tra CCCD.' };
-    }
-
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'x-api-key': TTDT_API_KEY,
     };
-    if (TTDT_API_KEY) headers['x-api-key'] = TTDT_API_KEY;
+    if (SUPABASE_ANON_KEY) headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
 
-    const res = await fetch(TTDT_VERIFY_CCCD_URL, {
+    const res = await fetch(url, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -81,7 +56,7 @@ export async function verifyCccdForExam(
       }),
     });
 
-    const data: VerifyCccdResponse = await res.json();
+    const data = (await res.json()) as VerifyCccdResponse & { message?: string };
 
     if (!res.ok) {
       return {
@@ -90,7 +65,7 @@ export async function verifyCccdForExam(
       };
     }
 
-    return { success: true, data };
+    return { success: true, data: data as VerifyCccdResponse };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Lỗi mạng khi kiểm tra CCCD.';
     return { success: false, error: message };

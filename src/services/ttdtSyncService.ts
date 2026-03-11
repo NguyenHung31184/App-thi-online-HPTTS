@@ -6,6 +6,13 @@ import type { Attempt } from '../types';
 
 const RECEIVE_GRADES_URL = import.meta.env.VITE_TTDT_RECEIVE_GRADES_URL ?? '';
 const TTDT_API_KEY = import.meta.env.VITE_TTDT_API_KEY ?? '';
+/** Anon key thật từ Supabase (Settings > API > anon public) — gateway cần JWT hợp lệ. */
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
+
+/** Chỉ ghi sync log / update khi có anon key đúng định dạng JWT — tránh POST không header apikey gây 400. */
+function canLogToSupabase(): boolean {
+  return SUPABASE_ANON_KEY.length > 50 && SUPABASE_ANON_KEY.startsWith('eyJ');
+}
 
 export function isTtdtSyncConfigured(): boolean {
   return Boolean(RECEIVE_GRADES_URL && TTDT_API_KEY && !RECEIVE_GRADES_URL.includes('your-'));
@@ -59,7 +66,8 @@ export async function syncAttemptToTtdt(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${TTDT_API_KEY}`,
+        ...(SUPABASE_ANON_KEY && { Authorization: `Bearer ${SUPABASE_ANON_KEY}` }),
+        'x-api-key': TTDT_API_KEY,
       },
       body: JSON.stringify(payload),
     });
@@ -67,33 +75,44 @@ export async function syncAttemptToTtdt(
     const status = res.status;
     const success = status >= 200 && status < 300;
 
-    await supabase.from('exam_sync_log').insert({
-      attempt_id: attempt.id,
-      enrollment_id: options?.enrollmentId ?? null,
-      module_id: exam.module_id ?? null,
-      payload,
-      status: success ? 'success' : 'failed',
-      response: text.slice(0, 2000),
-    });
-
-    if (success) {
-      await supabase
-        .from('attempts')
-        .update({ synced_to_ttdt_at: new Date().toISOString() })
-        .eq('id', attempt.id);
+    if (canLogToSupabase()) {
+      try {
+        await supabase.from('exam_sync_log').insert({
+          attempt_id: attempt.id,
+          enrollment_id: options?.enrollmentId ?? null,
+          module_id: exam.module_id ?? null,
+          payload,
+          status: success ? 'success' : 'failed',
+          response: text.slice(0, 2000),
+        });
+      } catch (_) {
+        // Không ném lại — tránh 400 (No API key) làm F12 báo lỗi; đồng bộ TTDT đã thành công thì vẫn cập nhật bên dưới.
+      }
+      if (success) {
+        try {
+          await supabase
+            .from('attempts')
+            .update({ synced_to_ttdt_at: new Date().toISOString() })
+            .eq('id', attempt.id);
+        } catch (_) {}
+      }
     }
 
     return { success, message: success ? undefined : `HTTP ${status}: ${text.slice(0, 200)}` };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Lỗi gọi API TTDT';
-    await supabase.from('exam_sync_log').insert({
-      attempt_id: attempt.id,
-      enrollment_id: options?.enrollmentId ?? null,
-      module_id: exam.module_id ?? null,
-      payload,
-      status: 'failed',
-      response: message.slice(0, 2000),
-    });
+    if (canLogToSupabase()) {
+      try {
+        await supabase.from('exam_sync_log').insert({
+          attempt_id: attempt.id,
+          enrollment_id: options?.enrollmentId ?? null,
+          module_id: exam.module_id ?? null,
+          payload,
+          status: 'failed',
+          response: message.slice(0, 2000),
+        });
+      } catch (_) {}
+    }
     return { success: false, message };
   }
 }
@@ -126,7 +145,8 @@ export async function syncPracticalAttemptToTtdt(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${TTDT_API_KEY}`,
+        ...(SUPABASE_ANON_KEY && { Authorization: `Bearer ${SUPABASE_ANON_KEY}` }),
+        'x-api-key': TTDT_API_KEY,
       },
       body: JSON.stringify(payload),
     });
@@ -134,32 +154,41 @@ export async function syncPracticalAttemptToTtdt(
     const status = res.status;
     const success = status >= 200 && status < 300;
 
-    await supabase.from('practical_sync_log').insert({
-      practical_attempt_id: practicalAttemptId,
-      enrollment_id: null,
-      module_id: options?.moduleId ?? null,
-      payload,
-      status: success ? 'success' : 'failed',
-      response: text.slice(0, 2000),
-    });
-
-    if (success) {
-      await supabase
-        .from('practical_attempts')
-        .update({ synced_to_ttdt_at: new Date().toISOString() })
-        .eq('id', practicalAttemptId);
+    if (canLogToSupabase()) {
+      try {
+        await supabase.from('practical_sync_log').insert({
+          practical_attempt_id: practicalAttemptId,
+          enrollment_id: null,
+          module_id: options?.moduleId ?? null,
+          payload,
+          status: success ? 'success' : 'failed',
+          response: text.slice(0, 2000),
+        });
+      } catch (_) {}
+      if (success) {
+        try {
+          await supabase
+            .from('practical_attempts')
+            .update({ synced_to_ttdt_at: new Date().toISOString() })
+            .eq('id', practicalAttemptId);
+        } catch (_) {}
+      }
     }
 
     return { success, message: success ? undefined : `HTTP ${status}: ${text.slice(0, 200)}` };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Lỗi gọi API TTDT';
-    await supabase.from('practical_sync_log').insert({
-      practical_attempt_id: practicalAttemptId,
-      module_id: options?.moduleId ?? null,
-      payload,
-      status: 'failed',
-      response: message.slice(0, 2000),
-    });
+    if (canLogToSupabase()) {
+      try {
+        await supabase.from('practical_sync_log').insert({
+          practical_attempt_id: practicalAttemptId,
+          module_id: options?.moduleId ?? null,
+          payload,
+          status: 'failed',
+          response: message.slice(0, 2000),
+        });
+      } catch (_) {}
+    }
     return { success: false, message };
   }
 }

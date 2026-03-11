@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Trash2, Loader2 } from 'lucide-react';
+import { Trash2, Loader2, type LucideIcon } from 'lucide-react';
 
 /**
  * Modal xác nhận giống app quản lý TTDT: overlay tối, thẻ trắng, icon, tiêu đề, nội dung, Hủy + Xác nhận.
@@ -14,6 +14,8 @@ export interface ConfirmationModalProps {
   isLoading?: boolean;
   confirmText?: string;
   confirmColor?: 'primary' | 'danger';
+  /** Icon hiển thị (mặc định Trash2). Ví dụ CheckCircle cho xác nhận nộp bài. */
+  icon?: LucideIcon;
 }
 
 const buttonSecondary =
@@ -28,6 +30,7 @@ export default function ConfirmationModal({
   isLoading = false,
   confirmText = 'Xác nhận',
   confirmColor = 'danger',
+  icon: Icon = Trash2,
 }: ConfirmationModalProps) {
   if (!isOpen) return null;
 
@@ -43,7 +46,7 @@ export default function ConfirmationModal({
           <div
             className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${iconBgClass} mb-4`}
           >
-            <Trash2 className={`h-6 w-6 ${iconColorClass}`} />
+            <Icon className={`h-6 w-6 ${iconColorClass}`} />
           </div>
           <h3 className="text-lg font-bold text-slate-900">{title}</h3>
           <p className="mt-2 text-sm text-slate-500">{children}</p>

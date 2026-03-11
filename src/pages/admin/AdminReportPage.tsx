@@ -3,9 +3,13 @@ import { listExams } from '../../services/examService';
 import { listExamWindows } from '../../services/examWindowService';
 import {
   listAttemptsForReport,
+  listViolationsForReport,
   exportReportToCsv,
   exportReportToExcel,
+  exportViolationsToCsv,
+  exportViolationsToExcel,
   type AttemptReportRow,
+  type ViolationReportRow,
   type ReportFilters,
 } from '../../services/reportService';
 import type { Exam, ExamWindow } from '../../types';
@@ -15,8 +19,11 @@ export default function AdminReportPage() {
   const [windows, setWindows] = useState<ExamWindow[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>('');
   const [selectedWindowId, setSelectedWindowId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'results' | 'violations'>('results');
   const [rows, setRows] = useState<AttemptReportRow[]>([]);
+  const [violationRows, setViolationRows] = useState<ViolationReportRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingViolations, setLoadingViolations] = useState(false);
 
   useEffect(() => {
     listExams().then(setExams).catch(() => {});
@@ -36,6 +43,10 @@ export default function AdminReportPage() {
     const filters: ReportFilters = {};
     if (selectedExamId) filters.exam_id = selectedExamId;
     if (selectedWindowId) filters.window_id = selectedWindowId;
+    if (activeTab !== 'results') {
+      setRows([]);
+      return;
+    }
     if (!selectedExamId) {
       setRows([]);
       return;
@@ -45,7 +56,26 @@ export default function AdminReportPage() {
       .then(setRows)
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
-  }, [selectedExamId, selectedWindowId]);
+  }, [selectedExamId, selectedWindowId, activeTab]);
+
+  useEffect(() => {
+    const filters: ReportFilters = {};
+    if (selectedExamId) filters.exam_id = selectedExamId;
+    if (selectedWindowId) filters.window_id = selectedWindowId;
+    if (activeTab !== 'violations') {
+      setViolationRows([]);
+      return;
+    }
+    if (!selectedExamId) {
+      setViolationRows([]);
+      return;
+    }
+    setLoadingViolations(true);
+    listViolationsForReport(filters)
+      .then(setViolationRows)
+      .catch(() => setViolationRows([]))
+      .finally(() => setLoadingViolations(false));
+  }, [selectedExamId, selectedWindowId, activeTab]);
 
   const handleExportCsv = () => {
     exportReportToCsv(rows);
@@ -55,15 +85,47 @@ export default function AdminReportPage() {
     exportReportToExcel(rows);
   };
 
+  const handleExportViolationsCsv = () => {
+    exportViolationsToCsv(violationRows);
+  };
+
+  const handleExportViolationsExcel = () => {
+    exportViolationsToExcel(violationRows);
+  };
+
   const handlePrint = () => {
     window.print();
   };
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-800 mb-4">Xuất báo cáo kết quả</h1>
+      <h1 className="text-xl font-semibold text-slate-800 mb-2">Báo cáo thi</h1>
+      <div className="mb-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('results')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-full border ${
+            activeTab === 'results'
+              ? 'bg-slate-800 text-white border-slate-800'
+              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+          }`}
+        >
+          Kết quả
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('violations')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-full border ${
+            activeTab === 'violations'
+              ? 'bg-rose-700 text-white border-rose-700'
+              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+          }`}
+        >
+          Vi phạm
+        </button>
+      </div>
       <p className="text-slate-600 text-sm mb-4">
-        Chọn đề thi (và tùy chọn kỳ thi) để xem danh sách bài làm đã nộp, sau đó xuất CSV hoặc Excel.
+        Chọn đề thi (và tùy chọn kỳ thi) để {activeTab === 'results' ? 'xem và xuất danh sách bài làm đã nộp.' : 'xem nhật ký vi phạm (mất focus, thoát fullscreen, copy/paste, ảnh webcam...).'}
       </p>
 
       <div className="flex flex-wrap gap-4 mb-4">
@@ -99,9 +161,9 @@ export default function AdminReportPage() {
         </div>
       </div>
 
-      {loading && <p className="text-slate-500 text-sm">Đang tải...</p>}
+      {(loading || loadingViolations) && <p className="text-slate-500 text-sm">Đang tải...</p>}
 
-      {selectedExamId && !loading && (
+      {activeTab === 'results' && selectedExamId && !loading && (
         <>
           <div className="flex flex-wrap gap-2 mb-4 print:hidden">
             <button
@@ -178,6 +240,88 @@ export default function AdminReportPage() {
 
           {rows.length === 0 && (
             <p className="text-slate-500 text-sm mt-2">Chưa có bài làm nào đã nộp với bộ lọc đã chọn.</p>
+          )}
+        </>
+      )}
+
+      {activeTab === 'violations' && selectedExamId && !loadingViolations && (
+        <>
+          <div className="flex flex-wrap gap-2 mb-4 print:hidden">
+            <button
+              type="button"
+              onClick={handleExportViolationsCsv}
+              disabled={violationRows.length === 0}
+              className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Xuất CSV
+            </button>
+            <button
+              type="button"
+              onClick={handleExportViolationsExcel}
+              disabled={violationRows.length === 0}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Xuất Excel
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={violationRows.length === 0}
+              className="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              In / PDF
+            </button>
+          </div>
+
+          <p className="text-slate-600 text-sm mb-2">
+            Số log vi phạm: <strong>{violationRows.length}</strong>
+          </p>
+
+          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-100 text-slate-700">
+                <tr>
+                  <th className="px-3 py-2">Mã log</th>
+                  <th className="px-3 py-2">Mã bài làm</th>
+                  <th className="px-3 py-2">User ID</th>
+                  <th className="px-3 py-2">Đề thi</th>
+                  <th className="px-3 py-2">Kỳ / Lớp</th>
+                  <th className="px-3 py-2">Sự kiện</th>
+                  <th className="px-3 py-2">Thời điểm</th>
+                </tr>
+              </thead>
+              <tbody>
+                {violationRows.map((r) => (
+                  <tr key={r.id} className="border-t border-slate-100">
+                    <td className="px-3 py-2 font-mono text-xs">{r.id.slice(0, 8)}…</td>
+                    <td className="px-3 py-2 font-mono text-xs">{r.attempt_id.slice(0, 8)}…</td>
+                    <td className="px-3 py-2 font-mono text-xs">{r.user_id.slice(0, 8)}…</td>
+                    <td className="px-3 py-2">{r.exam_title}</td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {r.window_id.slice(0, 8)}… / {r.class_id ? r.class_id.slice(0, 8) + '…' : '—'}
+                    </td>
+                    <td className="px-3 py-2">
+                      {r.event === 'focus_lost'
+                        ? 'Mất focus'
+                        : r.event === 'visibility_hidden'
+                        ? 'Ẩn tab'
+                        : r.event === 'copy_paste_blocked'
+                        ? 'Copy/Paste'
+                        : r.event === 'photo_taken'
+                        ? 'Ảnh webcam'
+                        : r.event === 'fullscreen_exited'
+                        ? 'Thoát fullscreen'
+                        : r.event}
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">{r.created_at}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {violationRows.length === 0 && (
+            <p className="text-slate-500 text-sm mt-2">Chưa có log vi phạm nào với bộ lọc đã chọn.</p>
           )}
         </>
       )}

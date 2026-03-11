@@ -41,7 +41,7 @@ interface AuthContextValue {
   loading: boolean;
   /** Phiên học viên dựa trên CCCD (không cần Supabase auth). */
   studentSession: StudentSession | null;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ error?: string; user?: User | null }>;
   signOut: () => Promise<void>;
   setStudentInfo: (studentId: string, studentCode: string, studentName?: string) => void;
 }
@@ -105,12 +105,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isSupabaseConfigured()) return { error: 'Chưa cấu hình Supabase.' };
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return { error: error.message };
-      // Cập nhật session/user ngay để Layout không redirect về /start khi navigate sang /dashboard (tránh phải đăng nhập 2 lần).
-      if (data.session) {
+
+      let mappedUser: User | null = null;
+      // Cập nhật session/user ngay để Layout không redirect về /start khi navigate (tránh phải đăng nhập 2 lần).
+      if (data.session?.user) {
         setSession(data.session);
-        if (data.session.user) await applyUser(data.session.user, setUser);
+        mappedUser = await mapUserWithProfile(data.session.user);
+        setUser(mappedUser);
       }
-      return {};
+      return { user: mappedUser };
     },
     [applyUser]
   );

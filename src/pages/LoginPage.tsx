@@ -16,10 +16,19 @@ export default function LoginPage() {
     setLoading(true);
     const username = email.trim();
     const loginEmail = username.includes('@') ? username : `${username}@hptts.vn`;
-    const { error: err } = await signIn(loginEmail, password);
+    const { error: err, user } = await signIn(loginEmail, password);
     setLoading(false);
-    if (err) setError(err);
-    else navigate('/dashboard', { replace: true });
+    if (err) {
+      setError(err);
+    } else {
+      const role = user?.role;
+      if (role === 'admin' || role === 'teacher' || role === 'proctor') {
+        navigate('/dashboard', { replace: true });
+      } else {
+        // Mặc định: thí sinh → đi thẳng đến bước xác thực CCCD
+        navigate('/verify-cccd', { replace: true });
+      }
+    }
   };
 
   return (

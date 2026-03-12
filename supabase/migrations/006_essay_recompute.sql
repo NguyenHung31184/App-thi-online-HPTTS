@@ -2,7 +2,9 @@
 -- Chạy sau 005.
 
 -- Cột điểm từ chấm tự động (để cộng với điểm tự luận khi GV chấm xong)
-ALTER TABLE attempts ADD COLUMN IF NOT EXISTS auto_earned NUMERIC(5,4);
+-- Không dùng NUMERIC(5,4) vì tổng điểm có thể > 10 gây overflow.
+ALTER TABLE attempts ADD COLUMN IF NOT EXISTS auto_earned NUMERIC;
+ALTER TABLE attempts ALTER COLUMN auto_earned TYPE NUMERIC;
 
 -- Backfill: attempts đã completed coi raw_score hiện tại = auto_earned
 UPDATE attempts SET auto_earned = raw_score WHERE status = 'completed' AND auto_earned IS NULL;

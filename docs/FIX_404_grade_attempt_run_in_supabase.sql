@@ -7,8 +7,12 @@
 -- Cách chạy: Supabase Dashboard → chọn project XXXX → SQL Editor → New query → dán toàn bộ file → Run.
 
 -- 1. Cột bảng attempts (nếu chưa có)
-ALTER TABLE attempts ADD COLUMN IF NOT EXISTS auto_earned NUMERIC(5,4);
+-- Lưu ý: không dùng NUMERIC(5,4) vì tổng điểm có thể > 10 gây "numeric field overflow".
+ALTER TABLE attempts ADD COLUMN IF NOT EXISTS auto_earned NUMERIC;
 ALTER TABLE attempts ADD COLUMN IF NOT EXISTS total_max NUMERIC;
+
+-- Nếu cột đã tồn tại kiểu NUMERIC(5,4) từ bản cũ, nới kiểu để tránh overflow.
+ALTER TABLE attempts ALTER COLUMN auto_earned TYPE NUMERIC;
 
 -- 2. Bảng chấm tự luận (nếu chưa có)
 CREATE TABLE IF NOT EXISTS attempt_question_scores (

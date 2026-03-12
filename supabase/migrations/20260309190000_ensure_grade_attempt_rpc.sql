@@ -2,7 +2,9 @@
 -- Chạy trong Supabase SQL Editor (project App Thi) nếu nộp bài báo 404 Not Found.
 
 -- 1. Cột auto_earned (cần cho phiên bản grade_attempt đầy đủ)
-ALTER TABLE attempts ADD COLUMN IF NOT EXISTS auto_earned NUMERIC(5,4);
+-- Không dùng NUMERIC(5,4) vì tổng điểm có thể > 10 gây overflow.
+ALTER TABLE attempts ADD COLUMN IF NOT EXISTS auto_earned NUMERIC;
+ALTER TABLE attempts ALTER COLUMN auto_earned TYPE NUMERIC;
 
 -- 2. Bảng attempt_question_scores (nếu chưa có — dùng cho chấm tự luận)
 CREATE TABLE IF NOT EXISTS attempt_question_scores (

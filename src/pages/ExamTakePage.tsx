@@ -75,6 +75,13 @@ export default function ExamTakePage() {
   const fullscreenRequestedRef = useRef(false);
   const MAX_VIOLATIONS = 3;
 
+  /** Bước 1: Chụp ảnh khuôn mặt bắt buộc trước khi làm bài. Chỉ sau khi chụp xong mới cho vào fullscreen + đề. */
+  const [photoVerified, setPhotoVerified] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string>('');
+  const [capturing, setCapturing] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   const enterFullscreen = useCallback(async () => {
     setFullscreenError('');
     const el = document.documentElement;
@@ -92,44 +99,67 @@ export default function ExamTakePage() {
     }
   }, []);
 
-  /** Proctoring cơ bản: chụp 1 ảnh webcam khi bắt đầu làm bài, upload Storage, ghi audit log. Tùy chọn — nếu từ chối camera vẫn cho làm bài. */
+  /** Yêu cầu học viên chụp ảnh khuôn mặt trước khi làm bài. Bật camera khi vào bước này; chỉ cho vào đề sau khi chụp thành công. */
+  const showCameraStep = Boolean(attempt && exam && questions.length > 0 && !photoVerified);
+
   useEffect(() => {
-    if (!attemptId || !attempt || questions.length === 0 || proctoringDoneRef.current) return;
-    proctoringDoneRef.current = true;
+    if (!showCameraStep || !attemptId) return;
+    setCameraError('');
     let stream: MediaStream | null = null;
-    const run = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        video.muted = true;
-        await new Promise<void>((res, rej) => {
-          video.onloadeddata = () => res();
-          video.onerror = () => rej(new Error('Video not ready'));
-        });
-        video.play();
-        await new Promise((r) => setTimeout(r, 500));
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.drawImage(video, 0, 0);
-        const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.8));
-        if (!blob) return;
-        const path = `proctoring/${attemptId}/start.jpg`;
-        const { error: uploadErr } = await supabase.storage.from('exam-uploads').upload(path, blob, { upsert: true });
-        if (uploadErr) return;
-        const { data: urlData } = supabase.storage.from('exam-uploads').getPublicUrl(path);
-        await logAuditEvent(attemptId, 'photo_taken', { url: urlData.publicUrl });
-      } catch (_) {
-        // User từ chối camera hoặc lỗi — không chặn làm bài
-      } finally {
-        if (stream) stream.getTracks().forEach((t) => t.stop());
-      }
+    navigator.mediaDevices
+      .getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } })
+      .then((s) => {
+        stream = s;
+        setCameraStream(s);
+      })
+      .catch((err) => {
+        setCameraError(
+          err?.name === 'NotAllowedError'
+            ? 'Bạn cần cấp quyền camera để làm bài. Vui lòng bật quyền camera trong cài đặt trình duyệt rồi tải lại trang.'
+            : 'Không thể bật camera. Vui lòng kiểm tra thiết bị và tải lại trang.'
+        );
+      });
+    return () => {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      setCameraStream(null);
     };
-    run();
-  }, [attemptId, attempt?.id, questions.length]);
+  }, [showCameraStep, attemptId]);
+
+  const handleCaptureAndStart = useCallback(async () => {
+    if (!attemptId || !videoRef.current || !cameraStream || capturing) return;
+    const video = videoRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+    setCapturing(true);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0);
+      const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.8));
+      if (!blob) return;
+      const path = `proctoring/${attemptId}/start.jpg`;
+      const { error: uploadErr } = await supabase.storage.from('exam-uploads').upload(path, blob, { upsert: true });
+      if (uploadErr) throw new Error(uploadErr.message);
+      const { data: urlData } = supabase.storage.from('exam-uploads').getPublicUrl(path);
+      await logAuditEvent(attemptId, 'photo_taken', { url: urlData.publicUrl });
+      cameraStream.getTracks().forEach((t) => t.stop());
+      setCameraStream(null);
+      proctoringDoneRef.current = true;
+      setPhotoVerified(true);
+    } catch (e) {
+      setCameraError(e instanceof Error ? e.message : 'Chụp ảnh thất bại. Vui lòng thử lại.');
+    } finally {
+      setCapturing(false);
+    }
+  }, [attemptId, cameraStream, capturing]);
+
+  useEffect(() => {
+    if (!cameraStream || !videoRef.current) return;
+    videoRef.current.srcObject = cameraStream;
+    videoRef.current.play().catch(() => {});
+  }, [cameraStream]);
 
   const load = useCallback(async () => {
     if (!attemptId || !user?.id) return;
@@ -249,6 +279,13 @@ export default function ExamTakePage() {
           setTimeout(() => handleSubmitRef.current?.(), 200);
         }
       }
+      if (document.visibilityState === 'visible' && attemptId) {
+        getAttempt(attemptId).then((a) => {
+          if (a?.status === 'completed') {
+            navigate(`/exam/${attemptId}/result`, { replace: true });
+          }
+        }).catch(() => {});
+      }
     };
     const onBlur = () => {
       if (attemptId) {
@@ -314,7 +351,49 @@ export default function ExamTakePage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4">
-      {!isFullscreen && (
+      {/* Bước 1: Chụp ảnh khuôn mặt — bắt buộc trước khi làm bài */}
+      {showCameraStep && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/90 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl p-5">
+            <div className="font-semibold text-slate-900 text-lg mb-1">Chụp ảnh khuôn mặt trước khi làm bài</div>
+            <p className="text-slate-600 text-sm mb-4">
+              Vui lòng bật quyền camera và đưa khuôn mặt vào khung hình. Sau đó bấm <strong>Chụp ảnh và bắt đầu làm bài</strong>. Ảnh dùng để giám sát thi.
+            </p>
+            {cameraError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+                {cameraError}
+              </div>
+            )}
+            {cameraStream && (
+              <>
+                <div className="relative rounded-lg overflow-hidden bg-slate-800 mb-4 aspect-video">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                    style={{ transform: 'scaleX(-1)' }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCaptureAndStart}
+                  disabled={capturing}
+                  className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                >
+                  {capturing ? 'Đang chụp và tải lên...' : 'Chụp ảnh và bắt đầu làm bài'}
+                </button>
+              </>
+            )}
+            {!cameraStream && !cameraError && (
+              <p className="text-slate-500 text-sm">Đang bật camera...</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {photoVerified && !isFullscreen && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl p-5">
             <div className="font-semibold text-slate-900 text-lg mb-1">Bắt buộc chế độ toàn màn hình</div>
@@ -343,7 +422,7 @@ export default function ExamTakePage() {
 
       {error && <p className="text-red-600 mb-2">{error}</p>}
 
-      <p className="text-slate-500 text-sm mb-4">Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình.</p>
+      <p className="text-slate-500 text-sm mb-4">Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu ẩn tab / thoát fullscreen 3 lần, bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.</p>
 
       <div className="space-y-6">
         {(() => {

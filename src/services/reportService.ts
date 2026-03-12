@@ -43,7 +43,9 @@ export interface ReportFilters {
   window_id?: string;
 }
 
-/** Danh sách bài làm đã hoàn thành để báo cáo (có join đề thi + kỳ thi). Không join profiles trong query để tránh lỗi/trống khi FK hoặc RLS khác schema. */
+/** Danh sách bài làm đã hoàn thành để báo cáo (có join đề thi + kỳ thi). Không join profiles trong query để tránh lỗi/trống khi FK hoặc RLS khác schema.
+ * Khi lọc theo exam_id: hiển thị cả bài làm thuộc kỳ thi "nhiều đề" (exam_ids chứa exam_id đó), không chỉ attempt.exam_id = exam_id.
+ */
 export async function listAttemptsForReport(
   filters: ReportFilters
 ): Promise<AttemptReportRow[]> {
@@ -67,7 +69,34 @@ export async function listAttemptsForReport(
     .eq('status', 'completed')
     .order('completed_at', { ascending: false });
 
-  if (filters.exam_id) q = q.eq('exam_id', filters.exam_id);
+  if (filters.exam_id) {
+    const examId = filters.exam_id;
+    const { data: windowRows } = await supabase
+      .from('exam_windows')
+      .select('id')
+      .or(`exam_id.eq.${examId},exam_ids.ov.{"${examId}"}`);
+    const windowIds = (windowRows ?? []).map((r: { id: string }) => r.id);
+    const idsToFetch = new Set<string>();
+    const { data: byExam } = await supabase
+      .from('attempts')
+      .select('id')
+      .eq('status', 'completed')
+      .eq('exam_id', examId);
+    (byExam ?? []).forEach((r: { id: string }) => idsToFetch.add(r.id));
+    if (windowIds.length > 0) {
+      const { data: byWindow } = await supabase
+        .from('attempts')
+        .select('id')
+        .eq('status', 'completed')
+        .in('window_id', windowIds);
+      (byWindow ?? []).forEach((r: { id: string }) => idsToFetch.add(r.id));
+    }
+    if (idsToFetch.size > 0) {
+      q = q.in('id', [...idsToFetch]);
+    } else {
+      q = q.eq('exam_id', examId);
+    }
+  }
   if (filters.window_id) q = q.eq('window_id', filters.window_id);
 
   const { data, error } = await q;

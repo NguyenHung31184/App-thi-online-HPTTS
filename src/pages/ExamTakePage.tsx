@@ -257,6 +257,11 @@ export default function ExamTakePage() {
       await updateAttemptAnswers(attemptId, toSave);
       const result = await submitAttempt(attemptId);
       if (!result.ok) {
+        if (result.error === 'already_completed') {
+          const base = (import.meta.env.BASE_URL || '').replace(/\/$/, '');
+          window.location.replace(`${base}/exam/${attemptId}/result`);
+          return;
+        }
         setError(result.error ?? 'Chấm bài thất bại.');
         setSubmitting(false);
         return;
@@ -473,7 +478,28 @@ export default function ExamTakePage() {
         </span>
       </div>
 
-      {error && <p className="text-red-600 mb-2">{error}</p>}
+      {error && (
+        <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200">
+          <p className="text-red-800 font-medium">Lỗi nộp bài</p>
+          <p className="text-red-700 text-sm mt-1">{error}</p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => { setError(''); setShowSubmitConfirm(true); }}
+              className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
+            >
+              Thử nộp lại
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/exam/${attemptId}/result`, { replace: true })}
+              className="px-3 py-1.5 border border-slate-400 text-slate-700 rounded-lg text-sm hover:bg-slate-100"
+            >
+              Xem trang kết quả
+            </button>
+          </div>
+        </div>
+      )}
 
       <p className="text-slate-500 text-sm mb-4">Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu ẩn tab / thoát fullscreen 3 lần, bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.</p>
 

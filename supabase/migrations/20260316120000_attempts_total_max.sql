@@ -36,13 +36,15 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'already_completed');
   END IF;
 
+  -- Chỉ chấm những câu có trong answers (tránh timeout khi đề có nhiều câu trong DB).
   FOR q IN
-    SELECT id, question_type, answer_key, points
-    FROM questions
-    WHERE exam_id = r.exam_id
+    SELECT q2.id, q2.question_type, q2.answer_key, q2.points
+    FROM questions q2
+    WHERE q2.exam_id = r.exam_id
+      AND (r.answers ? q2.id::text)
   LOOP
     total_max := total_max + COALESCE(q.points, 0);
-    ans := r.answers->>q.id;
+    ans := r.answers->>(q.id::text);
 
     IF q.question_type = 'multiple_choice' THEN
       ans_json := ans::jsonb;

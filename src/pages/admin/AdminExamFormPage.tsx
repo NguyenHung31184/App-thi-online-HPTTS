@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getExam, createExam, updateExam } from '../../services/examService';
-import { listClasses, listModulesWithCourses, type ModuleWithCourse } from '../../services/ttdtDataService';
+import { listModulesWithCourses, type ModuleWithCourse } from '../../services/ttdtDataService';
 import type { BlueprintRule } from '../../types';
 
 export default function AdminExamFormPage() {
@@ -13,7 +13,6 @@ export default function AdminExamFormPage() {
   const [description, setDescription] = useState('');
   const [duration_minutes, setDurationMinutes] = useState(60);
   const [pass_threshold, setPassThreshold] = useState(0.7);
-  const [class_id, setClassId] = useState<string>('');
   const [module_id, setModuleId] = useState<string>('');
   const [blueprintRaw, setBlueprintRaw] = useState('[]');
   const [rules, setRules] = useState<BlueprintRule[]>([]);
@@ -23,19 +22,11 @@ export default function AdminExamFormPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [modules, setModules] = useState<ModuleWithCourse[]>([]);
   /** True nếu khi load đề từ Supabase mà đề thi không có module_id (điểm nộp bài sẽ không ghi nhận). */
   const [loadedExamMissingModule, setLoadedExamMissingModule] = useState(false);
 
-  // Load lớp từ TTDT
   useEffect(() => {
-    listClasses().then((list) => setClasses(list.map((c) => ({ id: c.id, name: c.name })))).catch(() => setClasses([]));
-  }, []);
-
-  useEffect(() => {
-    // Lấy toàn bộ modules kèm thông tin nghề (course) để group trong dropdown.
-    // Chưa lọc theo lớp; lớp hiện chỉ dùng cho mục đích khác.
     listModulesWithCourses()
       .then((list) => setModules(list))
       .catch(() => setModules([]));
@@ -231,20 +222,6 @@ export default function AdminExamFormPage() {
               className="w-full border border-slate-300 rounded-lg px-3 py-2"
             />
           </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Lớp</label>
-          <select
-            value={class_id}
-            onChange={(e) => setClassId(e.target.value)}
-            className="w-full border border-slate-300 rounded-lg px-3 py-2"
-          >
-            <option value="">— Không chọn —</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <p className="text-xs text-slate-500 mt-1">Chọn lớp để sau này lọc mô-đun theo lớp (khi app quản lý đã cập nhật).</p>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Mô-đun</label>

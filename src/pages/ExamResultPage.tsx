@@ -17,23 +17,47 @@ export default function ExamResultPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!attemptId || !user?.id) return;
-    getAttempt(attemptId)
-      .then(async (a) => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        if (!attemptId) return;
+        const ctxId = user?.id ?? '';
+        if (ctxId) {
+          // ok
+        } else {
+          const { data } = await supabase.auth.getUser();
+          const uid = data.user?.id ?? '';
+          if (!uid) {
+            if (!cancelled) setError('Bạn chưa đăng nhập. Vui lòng đăng nhập lại để xem kết quả.');
+            return;
+          }
+        }
+
+        const a = await getAttempt(attemptId);
         if (!a) {
-          setError('Không tìm thấy bài làm.');
+          if (!cancelled) setError('Không tìm thấy bài làm.');
           return;
         }
-        if (a.user_id !== user.id) {
-          setError('Bạn không có quyền xem kết quả này.');
+        const uid = ctxId || (await supabase.auth.getUser()).data.user?.id || '';
+        if (uid && a.user_id !== uid) {
+          if (!cancelled) setError('Bạn không có quyền xem kết quả này.');
           return;
         }
-        setAttempt(a);
-        const e = await getExam(a.exam_id);
-        setExam(e ?? null);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Lỗi tải kết quả.'))
-      .finally(() => setLoading(false));
+        if (!cancelled) {
+          setAttempt(a);
+          const e = await getExam(a.exam_id);
+          setExam(e ?? null);
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Lỗi tải kết quả.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [attemptId, user?.id]);
 
   useEffect(() => {
@@ -95,11 +119,26 @@ export default function ExamResultPage() {
         {attempt.synced_to_ttdt_at && (
           <p className="text-sm text-green-600 mt-2">Đã đồng bộ điểm sang hệ thống TTDT.</p>
         )}
-        {(location.state as { syncSkipped?: boolean } | null)?.syncSkipped && !attempt.synced_to_ttdt_at && (
-          <p className="text-sm text-amber-700 mt-2 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-            Điểm chưa đồng bộ sang TTDT: đề thi chưa gắn mô-đun hoặc thiếu thông tin lớp/học viên. Quản trị cần cấu hình <strong>Mô-đun</strong> cho đề thi, <strong>Lớp</strong> cho kỳ thi và <strong>Mã học viên</strong> cho tài khoản.
-          </p>
-        )}
+        {(location.state as {
+          syncSkipped?: boolean;
+          syncMissingModule?: boolean;
+          syncMissingStudentId?: boolean;
+          syncMissingClassId?: boolean;
+        } | null)?.syncSkipped &&
+          !attempt.synced_to_ttdt_at && (
+            <div className="text-sm text-amber-800 mt-2 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              <p className="font-medium">Điểm chưa đồng bộ sang TTDT.</p>
+              <p className="mt-1 text-amber-700">Thiếu cấu hình hoặc thông tin sau:</p>
+              <ul className="list-disc pl-5 mt-1 text-amber-700">
+                {(location.state as any)?.syncMissingModule && <li>Đề thi chưa gắn mô-đun (module_id).</li>}
+                {(location.state as any)?.syncMissingClassId && <li>Kỳ thi chưa gắn lớp (class_id).</li>}
+                {(location.state as any)?.syncMissingStudentId && <li>Tài khoản thi chưa có student_id (chưa xác thực CCCD).</li>}
+                {!((location.state as any)?.syncMissingModule || (location.state as any)?.syncMissingClassId || (location.state as any)?.syncMissingStudentId) && (
+                  <li>Chưa đủ điều kiện đồng bộ (kiểm tra mô-đun, lớp, CCCD/student_id).</li>
+                )}
+              </ul>
+            </div>
+          )}
 
         <div className="mt-8 flex gap-3 print:hidden">
           <button

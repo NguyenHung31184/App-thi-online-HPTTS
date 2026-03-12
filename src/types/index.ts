@@ -71,6 +71,8 @@ export interface QuestionForStudent extends Omit<Question, 'answer_key'> {
 export interface ExamWindow {
   id: string;
   exam_id: string;
+  /** Khi có giá trị, thí sinh vào thi quay ngẫu nhiên 1 trong các đề. */
+  exam_ids?: string[] | null;
   class_id: string;
   start_at: number; // timestamp
   end_at: number;

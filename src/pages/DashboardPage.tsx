@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAllowedWindows, getExamWindow, type ExamWindowWithExam } from '../services/examWindowService';
+import { getAllowedWindows, getExamWindow, getExamIdForNewAttempt, type ExamWindowWithExam } from '../services/examWindowService';
 import { createAttempt } from '../services/attemptService';
 import { getAllowedPracticalSessions, getPracticalSession } from '../services/practicalSessionService';
 import { createPracticalAttempt } from '../services/practicalAttemptService';
@@ -69,7 +69,7 @@ export default function DashboardPage() {
         setEnterError('Bạn chưa đăng nhập tài khoản thi. Vui lòng đăng nhập rồi thử lại.');
         return;
       }
-      const attempt = await createAttempt(user.id, windowId, win.exam_id);
+      const attempt = await createAttempt(user.id, windowId, getExamIdForNewAttempt(win));
       navigate(`/exam/${attempt.id}`);
     } catch (e) {
       setEnterError(e instanceof Error ? e.message : 'Lỗi tạo bài làm.');

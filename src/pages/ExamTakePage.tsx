@@ -191,10 +191,15 @@ export default function ExamTakePage() {
       }
       const updated = await getAttempt(attemptId);
       let syncSkipped = false;
+      let syncMissingModule = false;
+      let syncMissingStudentId = false;
+      let syncMissingClassId = false;
       if (updated && exam && isTtdtSyncConfigured()) {
         const win = await getExamWindow(updated.window_id);
         const hasModule = exam.module_id != null && String(exam.module_id).trim() !== '';
-        const hasEnrollmentInfo = (user?.student_id && win?.class_id) || undefined;
+        const hasStudentId = Boolean(user?.student_id && String(user?.student_id).trim() !== '');
+        const hasClassId = Boolean(win?.class_id && String(win?.class_id).trim() !== '');
+        const hasEnrollmentInfo = (hasStudentId && hasClassId) || undefined;
         if (hasModule && hasEnrollmentInfo) {
           await syncAttemptToTtdt(updated, exam, {
             studentId: user?.student_id ?? undefined,
@@ -202,9 +207,15 @@ export default function ExamTakePage() {
           });
         } else {
           syncSkipped = true;
+          syncMissingModule = !hasModule;
+          syncMissingStudentId = !hasStudentId;
+          syncMissingClassId = !hasClassId;
         }
       }
-      navigate(`/exam/${attemptId}/result`, { replace: true, state: { syncSkipped } });
+      navigate(`/exam/${attemptId}/result`, {
+        replace: true,
+        state: { syncSkipped, syncMissingModule, syncMissingStudentId, syncMissingClassId },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi nộp bài.');
     } finally {

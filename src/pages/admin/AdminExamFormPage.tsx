@@ -25,6 +25,8 @@ export default function AdminExamFormPage() {
 
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [modules, setModules] = useState<ModuleWithCourse[]>([]);
+  /** True nếu khi load đề từ Supabase mà đề thi không có module_id (điểm nộp bài sẽ không ghi nhận). */
+  const [loadedExamMissingModule, setLoadedExamMissingModule] = useState(false);
 
   // Load lớp từ TTDT
   useEffect(() => {
@@ -49,6 +51,7 @@ export default function AdminExamFormPage() {
       setDurationMinutes(exam.duration_minutes ?? 60);
       setPassThreshold(exam.pass_threshold ?? 0.7);
       setModuleId(exam.module_id ?? '');
+      setLoadedExamMissingModule(!exam.module_id || String(exam.module_id).trim() === '');
       const rawBlueprint =
         Array.isArray(exam.blueprint)
           ? JSON.stringify(exam.blueprint, null, 2)
@@ -105,9 +108,28 @@ export default function AdminExamFormPage() {
     setError('');
     setLoading(true);
     try {
-      // Bắt buộc chọn mô-đun để sau này đồng bộ điểm với TTDT (join theo module_id).
+      // ——— Kiểm tra trước khi lưu: tránh học viên nộp bài mà điểm không ghi nhận ———
+      const titleTrim = (title ?? '').trim();
+      if (!titleTrim) {
+        setError('Vui lòng nhập Tiêu đề đề thi.');
+        setLoading(false);
+        return;
+      }
       if (!module_id || module_id.trim() === '') {
-        setError('Vui lòng chọn Mô-đun cho đề thi trước khi lưu (để đồng bộ điểm với TTDT).');
+        setError(
+          'Bắt buộc chọn Mô-đun trước khi lưu. Nếu không chọn, điểm sẽ không được đồng bộ sang TTDT — học viên nộp bài sẽ không được ghi nhận điểm. Vui lòng chọn Mô-đun ở trên rồi thử lại.'
+        );
+        setLoading(false);
+        return;
+      }
+      if (duration_minutes < 1) {
+        setError('Thời gian thi phải ít nhất 1 phút.');
+        setLoading(false);
+        return;
+      }
+      const pt = Number(pass_threshold);
+      if (Number.isNaN(pt) || pt < 0 || pt > 1) {
+        setError('Ngưỡng đạt phải trong khoảng 0 đến 1.');
         setLoading(false);
         return;
       }
@@ -115,22 +137,22 @@ export default function AdminExamFormPage() {
       const blueprint = withDifficultyRequirements(parseBlueprint());
       if (isEdit && id) {
         await updateExam(id, {
-          title,
+          title: titleTrim,
           description,
           duration_minutes,
-          pass_threshold,
-          module_id: module_id || null,
+          pass_threshold: pt,
+          module_id: module_id.trim() || null,
           blueprint,
         });
         navigate('/admin/exams');
       } else {
         const exam = await createExam({
-          title,
+          title: titleTrim,
           description,
           duration_minutes,
-          pass_threshold,
+          pass_threshold: pt,
           blueprint,
-          module_id: module_id || undefined,
+          module_id: module_id.trim() || undefined,
         });
         navigate(`/admin/exams/${exam.id}`);
       }
@@ -161,6 +183,12 @@ export default function AdminExamFormPage() {
       </h1>
       <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
         {error && <p className="text-red-600 text-sm">{error}</p>}
+        {isEdit && loadedExamMissingModule && (
+          <div className="p-4 rounded-lg bg-amber-50 border border-amber-400 text-amber-900 text-sm">
+            <p className="font-semibold">Đề thi này đang thiếu Mô-đun (theo dữ liệu từ hệ thống)</p>
+            <p className="mt-1">Điểm của bài làm đã nộp sẽ không được đồng bộ sang TTDT cho đến khi bạn chọn Mô-đun bên dưới và bấm <strong>Cập nhật</strong>. Vui lòng chọn Mô-đun rồi lưu lại.</p>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Tiêu đề *</label>
           <input
@@ -222,8 +250,11 @@ export default function AdminExamFormPage() {
           <label className="block text-sm font-medium text-slate-700 mb-1">Mô-đun</label>
           <select
             value={module_id}
-            onChange={(e) => setModuleId(e.target.value)}
-            className="w-full border border-slate-300 rounded-lg px-3 py-2"
+            onChange={(e) => {
+              setModuleId(e.target.value);
+              if ((e.target.value ?? '').trim()) setLoadedExamMissingModule(false);
+            }}
+            className={`w-full border rounded-lg px-3 py-2 ${!module_id?.trim() ? 'border-amber-400 bg-amber-50/50' : 'border-slate-300'}`}
           >
             <option value="">— Không chọn —</option>
             {modulesGrouped.map((group) => (
@@ -239,6 +270,12 @@ export default function AdminExamFormPage() {
           <p className="text-xs text-slate-500 mt-1">
             Danh sách mô-đun được group theo nghề đào tạo (courses) giống app quản lý.
           </p>
+          {(!module_id || !module_id.trim()) && (
+            <div className="mt-2 p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 text-sm">
+              <p className="font-semibold">Bắt buộc chọn Mô-đun để ghi nhận điểm</p>
+              <p className="mt-1">Nếu không chọn, học viên nộp bài sẽ <strong>không được đồng bộ điểm sang TTDT</strong> — điểm coi như không ghi nhận. Vui lòng chọn Mô-đun trước khi lưu/Cập nhật.</p>
+            </div>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">

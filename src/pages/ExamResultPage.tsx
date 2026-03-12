@@ -83,6 +83,18 @@ export default function ExamResultPage() {
   if (error) return <p className="p-4 text-red-600">{error}</p>;
   if (!attempt || !exam) return null;
 
+  const state = location.state as {
+    syncSkipped?: boolean;
+    syncMissingModule?: boolean;
+    syncMissingStudentId?: boolean;
+    syncMissingClassId?: boolean;
+  } | null;
+  const search = new URLSearchParams(location.search ?? '');
+  const syncSkipped = state?.syncSkipped ?? search.has('syncSkipped');
+  const syncMissingModule = state?.syncMissingModule ?? search.has('syncMissingModule');
+  const syncMissingStudentId = state?.syncMissingStudentId ?? search.has('syncMissingStudentId');
+  const syncMissingClassId = state?.syncMissingClassId ?? search.has('syncMissingClassId');
+
   const denom = (attempt && typeof attempt.total_max === 'number' ? attempt.total_max : null) ?? totalMax ?? (typeof exam.total_questions === 'number' && exam.total_questions > 0 ? exam.total_questions : null);
   const earned = typeof attempt.raw_score === 'number'
     ? attempt.raw_score
@@ -119,21 +131,16 @@ export default function ExamResultPage() {
         {attempt.synced_to_ttdt_at && (
           <p className="text-sm text-green-600 mt-2">Đã đồng bộ điểm sang hệ thống TTDT.</p>
         )}
-        {(location.state as {
-          syncSkipped?: boolean;
-          syncMissingModule?: boolean;
-          syncMissingStudentId?: boolean;
-          syncMissingClassId?: boolean;
-        } | null)?.syncSkipped &&
+        {syncSkipped &&
           !attempt.synced_to_ttdt_at && (
             <div className="text-sm text-amber-800 mt-2 bg-amber-50 border border-amber-200 rounded px-3 py-2">
               <p className="font-medium">Điểm chưa đồng bộ sang TTDT.</p>
               <p className="mt-1 text-amber-700">Thiếu cấu hình hoặc thông tin sau:</p>
               <ul className="list-disc pl-5 mt-1 text-amber-700">
-                {(location.state as any)?.syncMissingModule && <li>Đề thi chưa gắn mô-đun (module_id).</li>}
-                {(location.state as any)?.syncMissingClassId && <li>Kỳ thi chưa gắn lớp (class_id).</li>}
-                {(location.state as any)?.syncMissingStudentId && <li>Tài khoản thi chưa có student_id (chưa xác thực CCCD).</li>}
-                {!((location.state as any)?.syncMissingModule || (location.state as any)?.syncMissingClassId || (location.state as any)?.syncMissingStudentId) && (
+                {syncMissingModule && <li>Đề thi chưa gắn mô-đun (module_id).</li>}
+                {syncMissingClassId && <li>Kỳ thi chưa gắn lớp (class_id).</li>}
+                {syncMissingStudentId && <li>Tài khoản thi chưa có student_id (chưa xác thực CCCD).</li>}
+                {!syncMissingModule && !syncMissingClassId && !syncMissingStudentId && (
                   <li>Chưa đủ điều kiện đồng bộ (kiểm tra mô-đun, lớp, CCCD/student_id).</li>
                 )}
               </ul>

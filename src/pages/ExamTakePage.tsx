@@ -52,7 +52,7 @@ function formatRemaining(ms: number): string {
 export default function ExamTakePage() {
   const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, studentSession } = useAuth();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [exam, setExam] = useState<Exam | null>(null);
   const [questions, setQuestions] = useState<QuestionForStudent[]>([]);
@@ -219,33 +219,44 @@ export default function ExamTakePage() {
         setSubmitting(false);
         return;
       }
-      const updated = await getAttempt(attemptId);
+      // Đã chấm xong — luôn chuyển sang trang kết quả (kể cả khi sync lỗi), dùng full page redirect để ổn định trên mobile
       let syncSkipped = false;
       let syncMissingModule = false;
       let syncMissingStudentId = false;
       let syncMissingClassId = false;
-      if (updated && exam && isTtdtSyncConfigured()) {
-        const win = await getExamWindow(updated.window_id);
-        const hasModule = exam.module_id != null && String(exam.module_id).trim() !== '';
-        const hasStudentId = Boolean(user?.student_id && String(user?.student_id).trim() !== '');
-        const hasClassId = Boolean(win?.class_id && String(win?.class_id).trim() !== '');
-        const hasEnrollmentInfo = (hasStudentId && hasClassId) || undefined;
-        if (hasModule && hasEnrollmentInfo) {
-          await syncAttemptToTtdt(updated, exam, {
-            studentId: user?.student_id ?? undefined,
-            classId: win?.class_id ?? undefined,
-          });
-        } else {
-          syncSkipped = true;
-          syncMissingModule = !hasModule;
-          syncMissingStudentId = !hasStudentId;
-          syncMissingClassId = !hasClassId;
+      try {
+        const updated = await getAttempt(attemptId);
+        if (updated && exam && isTtdtSyncConfigured()) {
+          const win = await getExamWindow(updated.window_id);
+          const hasModule = exam.module_id != null && String(exam.module_id).trim() !== '';
+          const hasStudentId = Boolean((user?.student_id ?? studentSession?.student_id) && String(user?.student_id ?? studentSession?.student_id).trim() !== '');
+          const hasClassId = Boolean(win?.class_id && String(win?.class_id).trim() !== '');
+          const hasEnrollmentInfo = (hasStudentId && hasClassId) || undefined;
+          if (hasModule && hasEnrollmentInfo) {
+            await syncAttemptToTtdt(updated, exam, {
+              studentId: user?.student_id ?? studentSession?.student_id ?? undefined,
+              classId: win?.class_id ?? undefined,
+            });
+          } else {
+            syncSkipped = true;
+            syncMissingModule = !hasModule;
+            syncMissingStudentId = !hasStudentId;
+            syncMissingClassId = !hasClassId;
+          }
         }
+      } catch (_) {
+        syncSkipped = true;
       }
-      navigate(`/exam/${attemptId}/result`, {
-        replace: true,
-        state: { syncSkipped, syncMissingModule, syncMissingStudentId, syncMissingClassId },
-      });
+      const base = (import.meta.env.BASE_URL || '').replace(/\/$/, '');
+      const resultPath = `${base}/exam/${attemptId}/result`;
+      const url = new URL(resultPath, window.location.origin);
+      if (syncSkipped || syncMissingModule || syncMissingStudentId || syncMissingClassId) {
+        url.searchParams.set('syncSkipped', '1');
+        if (syncMissingModule) url.searchParams.set('syncMissingModule', '1');
+        if (syncMissingStudentId) url.searchParams.set('syncMissingStudentId', '1');
+        if (syncMissingClassId) url.searchParams.set('syncMissingClassId', '1');
+      }
+      window.location.replace(url.pathname + url.search);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi nộp bài.');
     } finally {

@@ -62,7 +62,7 @@ export default function ExamTakePage() {
   const [error, setError] = useState('');
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(!!document.fullscreenElement);
-  const [fullscreenSupported, setFullscreenSupported] = useState<boolean>(() => {
+  const [fullscreenSupported] = useState<boolean>(() => {
     if (typeof document === 'undefined') return false;
     const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
     const hasStandard = typeof el.requestFullscreen === 'function';

@@ -63,10 +63,15 @@ export default function DashboardPage() {
         setEnterError('Hiện không trong thời gian làm bài của kỳ thi này.');
         return;
       }
-      // Với schema hiện tại, attempts.user_id phải là Supabase auth user (auth.uid()).
-      // Vì vậy vẫn cần tài khoản đăng nhập Supabase; CCCD chỉ là lớp kiểm tra bổ sung.
       if (!user?.id) {
         setEnterError('Bạn chưa đăng nhập tài khoản thi. Vui lòng đăng nhập rồi thử lại.');
+        setEnteringWindowId(null);
+        return;
+      }
+      // Đồng bộ chiều công việc: bước 1 CCCD, bước 2 chụp ảnh khuôn mặt (trên trang thi). Chặn vào thi nếu chưa xác thực CCCD.
+      if (!user?.student_id && !studentSession?.student_id) {
+        setEnterError('Vui lòng xác thực CCCD trước khi vào phòng thi (bấm "Xác thực CCCD" bên trên).');
+        setEnteringWindowId(null);
         return;
       }
       const attempt = await createAttempt(user.id, windowId, getExamIdForNewAttempt(win));
@@ -103,6 +108,12 @@ export default function DashboardPage() {
       }
       if (!user?.id) {
         setEnterError('Bạn chưa đăng nhập tài khoản thi. Vui lòng đăng nhập rồi thử lại.');
+        setEnteringPracticalId(null);
+        return;
+      }
+      if (!user?.student_id && !studentSession?.student_id) {
+        setEnterError('Vui lòng xác thực CCCD trước khi vào phòng thi (bấm "Xác thực CCCD" bên trên).');
+        setEnteringPracticalId(null);
         return;
       }
       const attempt = await createPracticalAttempt(sessionId, user.id);

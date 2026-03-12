@@ -104,7 +104,7 @@ export function parseFileToRows(
           const topic = cell(row, map.topic);
           const difficulty = normalizeDifficulty(cell(row, map.difficulty));
           const pointsRaw = cell(row, map.points);
-          const points = pointsRaw ? Math.max(1, parseInt(pointsRaw, 10) || 1) : 1;
+          const points = pointsRaw ? Math.max(1, parseInt(pointsRaw, 10) || 2) : 2;
           result.push({
             stem,
             optionA,

@@ -47,7 +47,7 @@ export async function createQuestion(input: CreateQuestionInput): Promise<Questi
     stem: input.stem,
     options: input.options,
     answer_key: input.answer_key,
-    points: input.points ?? 1,
+    points: input.points ?? 2,
     topic: input.topic ?? '',
     difficulty: input.difficulty ?? 'medium',
     image_url: input.image_url ?? null,
@@ -110,7 +110,7 @@ export async function createQuestionsBulk(
       stem: it.stem,
       options: it.options,
       answer_key: it.answer_key,
-      points: it.points ?? 1,
+      points: it.points ?? 2,
       topic: it.topic ?? '',
       difficulty: it.difficulty ?? 'medium',
     };
@@ -223,7 +223,7 @@ export async function generateQuestionsFromBankForExam(params: {
           text: string;
         }[],
         answer_key: q.answer_key,
-        points: q.points ?? 1,
+        points: q.points ?? 2,
         topic: q.topic ?? '',
         difficulty: q.difficulty ?? 'medium',
         image_url: q.image_url ?? null,

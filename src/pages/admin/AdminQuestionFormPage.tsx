@@ -49,7 +49,7 @@ export default function AdminQuestionFormPage() {
   const [questionType, setQuestionType] = useState<QuestionType>('single_choice');
   const [answer_key, setAnswerKey] = useState('A');
   const [answerMultiple, setAnswerMultiple] = useState<string[]>([]);
-  const [points, setPoints] = useState(1);
+  const [points, setPoints] = useState(2);
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -94,7 +94,7 @@ export default function AdminQuestionFormPage() {
       } else if (qType === 'drag_drop') {
         setZoneAnswers(['A', 'B', 'C', 'D']);
       }
-      setPoints(q.points ?? 1);
+      setPoints(q.points ?? 2);
       setTopic(q.topic ?? '');
       setDifficulty(q.difficulty ?? 'medium');
       setExistingImageUrl(q.image_url ?? null);

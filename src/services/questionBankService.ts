@@ -66,7 +66,7 @@ export async function createQuestionBankItem(input: CreateQuestionBankInput): Pr
     stem: input.stem,
     options: input.options,
     answer_key: input.answer_key,
-    points: input.points ?? 1,
+    points: input.points ?? 2,
     topic: input.topic ?? '',
     difficulty: input.difficulty ?? 'medium',
     image_url: input.image_url ?? null,
@@ -132,7 +132,7 @@ export async function createQuestionBankBulk(
       stem: it.stem,
       options: it.options,
       answer_key: it.answer_key,
-      points: it.points ?? 1,
+      points: it.points ?? 2,
       topic: it.topic ?? '',
       difficulty: it.difficulty ?? 'medium',
     };

@@ -42,7 +42,7 @@ DECLARE
   r RECORD;
   q RECORD;
   total_earned NUMERIC := 0;
-  total_max NUMERIC := 0;
+  v_total_max NUMERIC := 0;
   ans TEXT;
   ans_json JSONB;
   key_json JSONB;
@@ -69,7 +69,7 @@ BEGIN
     FROM questions
     WHERE exam_id = r.exam_id
   LOOP
-    total_max := total_max + COALESCE(q.points, 0);
+    v_total_max := v_total_max + COALESCE(q.points, 0);
     -- Lưu answers theo key là question_id dạng string, nên phải cast UUID -> text
     ans := r.answers->>(q.id::text);
 
@@ -120,8 +120,8 @@ BEGIN
     status = 'completed',
     auto_earned = total_earned,
     raw_score = total_earned + essay_sum,
-    total_max = total_max,
-    score = CASE WHEN total_max > 0 THEN (total_earned + essay_sum) / total_max ELSE 0 END,
+    total_max = v_total_max,
+    score = CASE WHEN v_total_max > 0 THEN (total_earned + essay_sum) / v_total_max ELSE 0 END,
     completed_at = (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT,
     updated_at = now()
   WHERE id = aid;
@@ -129,8 +129,8 @@ BEGIN
   RETURN jsonb_build_object(
     'ok', true,
     'raw_score', total_earned + essay_sum,
-    'total_max', total_max,
-    'score', CASE WHEN total_max > 0 THEN (total_earned + essay_sum) / total_max ELSE 0 END
+    'total_max', v_total_max,
+    'score', CASE WHEN v_total_max > 0 THEN (total_earned + essay_sum) / v_total_max ELSE 0 END
   );
 END;
 $$;

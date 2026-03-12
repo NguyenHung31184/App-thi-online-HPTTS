@@ -150,8 +150,31 @@ export default function ExamTakePage() {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       ctx.drawImage(video, 0, 0);
-      const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.8));
-      if (!blob) return;
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        if (canvas.toBlob) {
+          canvas.toBlob((b) => {
+            if (b) resolve(b);
+            else reject(new Error('Không thể tạo ảnh từ camera.'));
+          }, 'image/jpeg', 0.8);
+        } else {
+          // Fallback cho iOS cũ không hỗ trợ canvas.toBlob
+          try {
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            const arr = dataUrl.split(',');
+            const mimeMatch = arr[0].match(/:(.*?);/);
+            const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            const bstr = atob(arr[1]);
+            const n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            for (let i = 0; i < n; i++) {
+              u8arr[i] = bstr.charCodeAt(i);
+            }
+            resolve(new Blob([u8arr], { type: mime }));
+          } catch (e) {
+            reject(e instanceof Error ? e : new Error('Không thể tạo ảnh từ camera.'));
+          }
+        }
+      });
       const path = `proctoring/${attemptId}/start.jpg`;
       const { error: uploadErr } = await supabase.storage.from('exam-uploads').upload(path, blob, { upsert: true });
       if (uploadErr) throw new Error(uploadErr.message);

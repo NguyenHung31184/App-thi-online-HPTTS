@@ -216,6 +216,13 @@ export default function AdminQuestionBankFormPage() {
       }
 
       const baseUrl = `/admin/questions/occupation/${occupationId}`;
+      const searchParams = new URLSearchParams(location.search);
+      const returnModuleId = (moduleId ?? searchParams.get('moduleId')) || '';
+      const returnToList = () =>
+        navigate({
+          pathname: baseUrl,
+          search: returnModuleId ? `?moduleId=${encodeURIComponent(returnModuleId)}` : '',
+        });
       if (isEdit && qId) {
         await updateQuestionBankItem(qId, {
           question_type: questionType,
@@ -230,7 +237,7 @@ export default function AdminQuestionBankFormPage() {
           media_url: isEssay ? media_url : undefined,
           rubric: isEssay ? rubricVal : (questionType === 'drag_drop' && opts.length === 4 ? rubricVal : undefined),
         });
-        navigate(baseUrl);
+        returnToList();
       } else {
         await createQuestionBankItem({
           occupation_id: occupationId,
@@ -246,7 +253,7 @@ export default function AdminQuestionBankFormPage() {
           media_url: isEssay ? media_url : undefined,
           rubric: isEssay ? rubricVal : (questionType === 'drag_drop' && opts.length === 4 ? rubricVal : undefined),
         });
-        navigate(baseUrl);
+        returnToList();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi lưu câu hỏi.');
@@ -493,7 +500,19 @@ export default function AdminQuestionBankFormPage() {
           <button type="submit" disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
             {loading ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Thêm câu hỏi'}
           </button>
-          <button type="button" onClick={() => navigate(`/admin/questions/occupation/${occupationId}`)} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={() => {
+              const baseUrl = `/admin/questions/occupation/${occupationId}`;
+              const searchParams = new URLSearchParams(location.search);
+              const returnModuleId = (moduleId ?? searchParams.get('moduleId')) || '';
+              navigate({
+                pathname: baseUrl,
+                search: returnModuleId ? `?moduleId=${encodeURIComponent(returnModuleId)}` : '',
+              });
+            }}
+            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
+          >
             Hủy
           </button>
         </div>

@@ -1,5 +1,10 @@
--- Chạy toàn bộ script này trong Supabase SQL Editor (project App Thi: vmtztbmlzszuxkglubro)
--- để sửa lỗi 404 khi nộp bài (POST .../rpc/grade_attempt 404 Not Found).
+-- SỬA LỖI 404 KHI NỘP BÀI (POST .../rpc/grade_attempt 404 Not Found)
+--
+-- Quan trọng: Chạy script này trên ĐÚNG project Supabase mà app đang gọi.
+-- Xem URL lỗi: https://XXXX.supabase.co/rest/v1/rpc/grade_attempt → project là XXXX.
+-- Chi tiết: xem file docs/HUONG_DAN_SUA_404_NOP_BAI.md
+--
+-- Cách chạy: Supabase Dashboard → chọn project XXXX → SQL Editor → New query → dán toàn bộ file → Run.
 
 -- 1. Cột bảng attempts (nếu chưa có)
 ALTER TABLE attempts ADD COLUMN IF NOT EXISTS auto_earned NUMERIC(5,4);
@@ -65,7 +70,8 @@ BEGIN
     WHERE exam_id = r.exam_id
   LOOP
     total_max := total_max + COALESCE(q.points, 0);
-    ans := r.answers->>q.id;
+    -- Lưu answers theo key là question_id dạng string, nên phải cast UUID -> text
+    ans := r.answers->>(q.id::text);
 
     IF q.question_type = 'multiple_choice' THEN
       ans_json := ans::jsonb;

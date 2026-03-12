@@ -62,6 +62,17 @@ export default function ExamTakePage() {
   const [error, setError] = useState('');
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(!!document.fullscreenElement);
+  const [fullscreenSupported, setFullscreenSupported] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return false;
+    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
+    const hasStandard = typeof el.requestFullscreen === 'function';
+    const hasWebkit = typeof el.webkitRequestFullscreen === 'function';
+    // iOS Safari thường chỉ có webkit* và vẫn không hoạt động ổn định cho exam; tắt bắt buộc fullscreen trên iOS.
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+    if (isIOS) return false;
+    return hasStandard || hasWebkit;
+  });
   const [fullscreenError, setFullscreenError] = useState<string>('');
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<Record<string, string>>({});
@@ -85,8 +96,10 @@ export default function ExamTakePage() {
   const enterFullscreen = useCallback(async () => {
     setFullscreenError('');
     const el = document.documentElement;
-    if (!el.requestFullscreen) {
-      setFullscreenError('Trình duyệt không hỗ trợ toàn màn hình.');
+    if (!fullscreenSupported || !el.requestFullscreen) {
+      setFullscreenError('Trình duyệt không hỗ trợ toàn màn hình. Bạn vẫn có thể tiếp tục làm bài bình thường.');
+      // Nếu không hỗ trợ, không bắt buộc fullscreen nữa.
+      setIsFullscreen(true);
       return;
     }
     try {
@@ -97,7 +110,7 @@ export default function ExamTakePage() {
       // Thường xảy ra khi không có thao tác người dùng hoặc user từ chối
       setFullscreenError('Không thể bật toàn màn hình. Hãy bấm nút lần nữa hoặc kiểm tra quyền/trình duyệt.');
     }
-  }, []);
+  }, [fullscreenSupported]);
 
   /** Yêu cầu học viên chụp ảnh khuôn mặt trước khi làm bài. Bật camera khi vào bước này; chỉ cho vào đề sau khi chụp thành công. */
   const showCameraStep = Boolean(attempt && exam && questions.length > 0 && !photoVerified);
@@ -404,7 +417,7 @@ export default function ExamTakePage() {
         </div>
       )}
 
-      {photoVerified && !isFullscreen && (
+      {photoVerified && fullscreenSupported && !isFullscreen && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl p-5">
             <div className="font-semibold text-slate-900 text-lg mb-1">Bắt buộc chế độ toàn màn hình</div>

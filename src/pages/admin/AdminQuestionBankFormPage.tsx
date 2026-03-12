@@ -218,11 +218,17 @@ export default function AdminQuestionBankFormPage() {
       const baseUrl = `/admin/questions/occupation/${occupationId}`;
       const searchParams = new URLSearchParams(location.search);
       const returnModuleId = (moduleId ?? searchParams.get('moduleId')) || '';
-      const returnToList = () =>
+      const returnToList = () => {
+        // Nếu đi từ màn danh sách sang màn sửa, quay lại history sẽ giữ nguyên module/filter.
+        if (!returnModuleId) {
+          navigate(-1);
+          return;
+        }
         navigate({
           pathname: baseUrl,
-          search: returnModuleId ? `?moduleId=${encodeURIComponent(returnModuleId)}` : '',
+          search: `?moduleId=${encodeURIComponent(returnModuleId)}`,
         });
+      };
       if (isEdit && qId) {
         await updateQuestionBankItem(qId, {
           question_type: questionType,
@@ -506,10 +512,11 @@ export default function AdminQuestionBankFormPage() {
               const baseUrl = `/admin/questions/occupation/${occupationId}`;
               const searchParams = new URLSearchParams(location.search);
               const returnModuleId = (moduleId ?? searchParams.get('moduleId')) || '';
-              navigate({
-                pathname: baseUrl,
-                search: returnModuleId ? `?moduleId=${encodeURIComponent(returnModuleId)}` : '',
-              });
+              if (!returnModuleId) {
+                navigate(-1);
+                return;
+              }
+              navigate({ pathname: baseUrl, search: `?moduleId=${encodeURIComponent(returnModuleId)}` });
             }}
             className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
           >

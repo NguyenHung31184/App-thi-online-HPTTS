@@ -9,7 +9,9 @@ export interface ExamWindowWithExam extends ExamWindow {
 
 export async function listExamWindows(filters?: { exam_id?: string; class_id?: string }): Promise<ExamWindow[]> {
   let q = supabase.from('exam_windows').select('*').order('start_at', { ascending: false });
-  if (filters?.exam_id) q = q.eq('exam_id', filters.exam_id);
+  if (filters?.exam_id) {
+    q = q.or(`exam_id.eq.${filters.exam_id},exam_ids.ov.{"${filters.exam_id}"}`);
+  }
   if (filters?.class_id) q = q.eq('class_id', filters.class_id);
   const { data, error } = await q;
   if (error) throw error;

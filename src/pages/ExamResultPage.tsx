@@ -83,10 +83,10 @@ export default function ExamResultPage() {
   if (error) return <p className="p-4 text-red-600">{error}</p>;
   if (!attempt || !exam) return null;
 
+  const denom = (attempt && typeof attempt.total_max === 'number' ? attempt.total_max : null) ?? totalMax ?? (typeof exam.total_questions === 'number' && exam.total_questions > 0 ? exam.total_questions : null);
   const earned = typeof attempt.raw_score === 'number'
     ? attempt.raw_score
-    : (typeof attempt.score === 'number' && typeof totalMax === 'number' ? attempt.score * totalMax : 0);
-  const denom = typeof totalMax === 'number' ? totalMax : (typeof exam.total_questions === 'number' && exam.total_questions > 0 ? exam.total_questions : null);
+    : (typeof attempt.score === 'number' && typeof denom === 'number' ? attempt.score * denom : 0);
   const passValue = typeof denom === 'number' ? (exam.pass_threshold ?? 0.7) * denom : null;
   const passed = (exam.pass_threshold ?? 0.7) <= (attempt.score ?? 0);
 

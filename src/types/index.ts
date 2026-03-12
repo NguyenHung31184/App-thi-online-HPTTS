@@ -91,6 +91,7 @@ export interface Attempt {
   answers: Record<string, string>; // questionId -> optionId hoặc JSON string
   score?: number | null;
   raw_score?: number | null;
+  total_max?: number | null;
   penalty_applied?: number | null;
   disqualified?: boolean | null;
   started_at: number;

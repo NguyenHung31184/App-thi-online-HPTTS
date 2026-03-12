@@ -201,7 +201,7 @@ export default function AdminReportPage() {
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
                   <th className="px-3 py-2">Mã bài làm</th>
-                  <th className="px-3 py-2">User ID</th>
+                  <th className="px-3 py-2">Học viên</th>
                   <th className="px-3 py-2">Đề thi</th>
                   <th className="px-3 py-2">Kỳ / Lớp</th>
                   <th className="px-3 py-2">Điểm</th>
@@ -214,9 +214,20 @@ export default function AdminReportPage() {
                 {rows.map((r) => (
                   <tr key={r.id} className="border-t border-slate-100">
                     <td className="px-3 py-2 font-mono text-xs">{r.id.slice(0, 8)}…</td>
-                    <td className="px-3 py-2 font-mono text-xs">{r.user_id.slice(0, 8)}…</td>
+                    <td className="px-3 py-2">
+                      <div className="text-sm font-medium text-slate-800">{r.user_name || r.user_email || '—'}</div>
+                      {r.user_email && <div className="text-[11px] text-slate-500">{r.user_email}</div>}
+                      {!r.user_email && r.user_id && <div className="font-mono text-[11px] text-slate-500">{r.user_id.slice(0, 8)}…</div>}
+                    </td>
                     <td className="px-3 py-2">{r.exam_title}</td>
-                    <td className="px-3 py-2 font-mono text-xs">{r.window_id.slice(0, 8)}… / {r.class_id ? r.class_id.slice(0, 8) + '…' : '—'}</td>
+                    <td className="px-3 py-2">
+                      <span className="font-mono text-xs">{r.window_id.slice(0, 8)}…</span>
+                      {r.class_name || r.class_id ? (
+                        <span className="text-slate-700"> / <strong>{r.class_name || r.class_id}</strong></span>
+                      ) : (
+                        ' / —'
+                      )}
+                    </td>
                     <td className="px-3 py-2">
                       {r.score != null ? (r.score * 100).toFixed(1) + '%' : '—'}
                       {r.raw_score != null && ` (${r.raw_score})`}
@@ -283,7 +294,7 @@ export default function AdminReportPage() {
                 <tr>
                   <th className="px-3 py-2">Mã log</th>
                   <th className="px-3 py-2">Mã bài làm</th>
-                  <th className="px-3 py-2">User ID</th>
+                  <th className="px-3 py-2">Học viên</th>
                   <th className="px-3 py-2">Đề thi</th>
                   <th className="px-3 py-2">Kỳ / Lớp</th>
                   <th className="px-3 py-2">Sự kiện</th>
@@ -295,22 +306,31 @@ export default function AdminReportPage() {
                   <tr key={r.id} className="border-t border-slate-100">
                     <td className="px-3 py-2 font-mono text-xs">{r.id.slice(0, 8)}…</td>
                     <td className="px-3 py-2 font-mono text-xs">{r.attempt_id.slice(0, 8)}…</td>
-                    <td className="px-3 py-2 font-mono text-xs">{r.user_id.slice(0, 8)}…</td>
+                    <td className="px-3 py-2">
+                      <div className="text-sm font-medium text-slate-800">{r.user_name || r.user_email || '—'}</div>
+                      {r.user_email && <div className="text-[11px] text-slate-500">{r.user_email}</div>}
+                      {!r.user_email && r.user_id && <div className="font-mono text-[11px] text-slate-500">{r.user_id.slice(0, 8)}…</div>}
+                    </td>
                     <td className="px-3 py-2">{r.exam_title}</td>
-                    <td className="px-3 py-2 font-mono text-xs">
-                      {r.window_id.slice(0, 8)}… / {r.class_id ? r.class_id.slice(0, 8) + '…' : '—'}
+                    <td className="px-3 py-2">
+                      <span className="font-mono text-xs">{r.window_id.slice(0, 8)}…</span>
+                      {r.class_name || r.class_id ? (
+                        <span className="text-slate-700"> / <strong>{r.class_name || r.class_id}</strong></span>
+                      ) : (
+                        ' / —'
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       {r.event === 'focus_lost'
-                        ? 'Mất focus'
+                        ? 'Mất focus (chuyển sang cửa sổ / ứng dụng khác)'
                         : r.event === 'visibility_hidden'
-                        ? 'Ẩn tab'
+                        ? 'Ẩn tab (thu nhỏ trình duyệt hoặc chuyển tab khác)'
                         : r.event === 'copy_paste_blocked'
-                        ? 'Copy/Paste'
+                        ? 'Copy/Paste bị chặn (cố gắng sao chép / dán trong đề thi)'
                         : r.event === 'photo_taken'
-                        ? 'Ảnh webcam'
+                        ? 'Ảnh webcam (hệ thống tự chụp khi giám sát)'
                         : r.event === 'fullscreen_exited'
-                        ? 'Thoát fullscreen'
+                        ? 'Thoát fullscreen khi đang làm bài'
                         : r.event}
                     </td>
                     <td className="px-3 py-2 text-slate-600">{r.created_at}</td>

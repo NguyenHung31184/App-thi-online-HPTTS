@@ -272,14 +272,14 @@ async function fetchStudentNamesById(
   if (studentIds.length === 0) return map;
   const { data, error } = await supabase
     .from('students')
-    .select('id, full_name, name, code')
+    .select('id, name, code')
     .in('id', studentIds);
   if (error) {
     console.warn('fetchStudentNamesById:', error.message);
     return map;
   }
-  (data ?? []).forEach((s: { id: string; full_name?: string | null; name?: string | null; code?: string | null }) => {
-    const name = (s.full_name || s.name || '').trim();
+  (data ?? []).forEach((s: { id: string; name?: string | null; code?: string | null }) => {
+    const name = (s.name || '').trim();
     const code = (s.code ?? undefined) || undefined;
     map.set(s.id, { name, code });
   });

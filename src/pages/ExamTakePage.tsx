@@ -242,7 +242,13 @@ export default function ExamTakePage() {
   }, [remainingMs, attempt?.id, exam?.id]);
 
   const handleSubmit = async () => {
-    if (!attemptId || !attempt || attempt.status !== 'in_progress') return;
+    if (!attemptId || !attempt) return;
+    if (attempt.status !== 'in_progress') {
+      // Nếu trên server bài đã ở trạng thái completed (vd: auto-nộp do hết giờ / vi phạm)
+      // thì chuyển thẳng sang trang kết quả để tránh việc nút "Nộp bài" không phản hồi.
+      navigate(`/exam/${attemptId}/result`, { replace: true });
+      return;
+    }
     setShowSubmitConfirm(false);
     setSubmitting(true);
     setError('');

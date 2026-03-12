@@ -106,9 +106,14 @@ export async function listAttemptsForReport(
 
   const userIds = [...new Set((rows as any[]).map((r) => r.user_id).filter(Boolean))];
   const classIds = [...new Set((rows as any[]).map((r) => r.exam_windows?.class_id).filter(Boolean))];
-  const [profileByUserId, classNamesById] = await Promise.all([
-    fetchProfilesById(userIds),
+
+  const profileByUserId = await fetchProfilesById(userIds);
+  const studentIds = [...new Set(Array.from(profileByUserId.values()).map((p) => p.student_id).filter(Boolean))] as string[];
+  const emails = [...new Set(Array.from(profileByUserId.values()).map((p) => p.email).filter(Boolean))] as string[];
+  const [classNamesById, studentNamesById, studentNamesByExamEmail] = await Promise.all([
     fetchClassNamesById(classIds),
+    fetchStudentNamesById(studentIds),
+    fetchStudentNamesByExamEmail(emails),
   ]);
 
   return rows.map((r: any) => {
@@ -116,7 +121,14 @@ export async function listAttemptsForReport(
     const window = r.exam_windows;
     const classId = window?.class_id ?? '';
     const profile = profileByUserId.get(r.user_id);
-    const displayName = profile ? (profile.name || profile.email || '') : '';
+    const studentInfoById = profile?.student_id ? studentNamesById.get(profile.student_id) : undefined;
+    const studentInfoByEmail = profile?.email ? studentNamesByExamEmail.get(profile.email) : undefined;
+    const displayName =
+      studentInfoById?.name ||
+      studentInfoByEmail?.name ||
+      profile?.name ||
+      profile?.email ||
+      '';
     const threshold =
       exam?.pass_threshold ?? 0.7;
     const score = r.score != null ? Number(r.score) : null;
@@ -141,19 +153,26 @@ export async function listAttemptsForReport(
   });
 }
 
-/** Lấy map user_id -> { name, email } từ bảng profiles. */
-async function fetchProfilesById(userIds: string[]): Promise<Map<string, { name: string; email: string }>> {
-  const map = new Map<string, { name: string; email: string }>();
+interface ProfileInfo {
+  name: string;
+  email: string;
+  student_id?: string;
+}
+
+/** Lấy map user_id -> { name, email, student_id } từ bảng profiles. */
+async function fetchProfilesById(userIds: string[]): Promise<Map<string, ProfileInfo>> {
+  const map = new Map<string, ProfileInfo>();
   if (userIds.length === 0) return map;
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, email')
+    .select('id, name, email, student_id')
     .in('id', userIds);
   if (error) return map;
-  (data ?? []).forEach((p: { id: string; name: string | null; email?: string | null }) => {
+  (data ?? []).forEach((p: { id: string; name: string | null; email?: string | null; student_id?: string | null }) => {
     const name = p?.name?.trim() ?? '';
     const email = (p?.email ?? '').trim();
-    map.set(p.id, { name, email });
+    const student_id = (p?.student_id ?? undefined) || undefined;
+    map.set(p.id, { name, email, student_id });
   });
   return map;
 }
@@ -206,9 +225,13 @@ export async function listViolationsForReport(
 
   const userIds = [...new Set((rows as any[]).map((r) => r.attempts?.user_id).filter(Boolean))];
   const classIds = [...new Set((rows as any[]).map((r) => r.attempts?.exam_windows?.class_id).filter(Boolean))];
-  const [profileByUserId, classNamesById] = await Promise.all([
-    fetchProfilesById(userIds),
+  const profileByUserId = await fetchProfilesById(userIds);
+  const studentIds = [...new Set(Array.from(profileByUserId.values()).map((p) => p.student_id).filter(Boolean))] as string[];
+  const emails = [...new Set(Array.from(profileByUserId.values()).map((p) => p.email).filter(Boolean))] as string[];
+  const [classNamesById, studentNamesById, studentNamesByExamEmail] = await Promise.all([
     fetchClassNamesById(classIds),
+    fetchStudentNamesById(studentIds),
+    fetchStudentNamesByExamEmail(emails),
   ]);
 
   return rows.map((r: any) => {
@@ -218,7 +241,12 @@ export async function listViolationsForReport(
     const userId = attempt?.user_id ?? '';
     const classId = window?.class_id ?? '';
     const profile = profileByUserId.get(userId);
-    const displayName = profile ? (profile.name || profile.email || '') : '';
+    const studentInfoById = profile?.student_id ? studentNamesById.get(profile.student_id) : undefined;
+    const studentInfoByEmail = profile?.email ? studentNamesByExamEmail.get(profile.email) : undefined;
+    const displayName =
+      studentInfoById?.name ||
+      studentInfoByEmail?.name ||
+      (profile ? (profile.name || profile.email || '') : '');
     return {
       id: r.id,
       attempt_id: r.attempt_id,
@@ -234,6 +262,52 @@ export async function listViolationsForReport(
       created_at: r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : '',
     } as ViolationReportRow;
   });
+}
+
+/** Lấy map student_id -> { name, code } từ bảng students (TTDT). */
+async function fetchStudentNamesById(
+  studentIds: string[]
+): Promise<Map<string, { name: string; code?: string }>> {
+  const map = new Map<string, { name: string; code?: string }>();
+  if (studentIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, full_name, name, code')
+    .in('id', studentIds);
+  if (error) {
+    console.warn('fetchStudentNamesById:', error.message);
+    return map;
+  }
+  (data ?? []).forEach((s: { id: string; full_name?: string | null; name?: string | null; code?: string | null }) => {
+    const name = (s.full_name || s.name || '').trim();
+    const code = (s.code ?? undefined) || undefined;
+    map.set(s.id, { name, code });
+  });
+  return map;
+}
+
+/** Lấy map exam_account_email -> { name, code } từ bảng students (TTDT). */
+async function fetchStudentNamesByExamEmail(
+  emails: string[]
+): Promise<Map<string, { name: string; code?: string }>> {
+  const map = new Map<string, { name: string; code?: string }>();
+  if (emails.length === 0) return map;
+  const { data, error } = await supabase
+    .from('students')
+    .select('exam_account_email, name, student_code')
+    .in('exam_account_email', emails);
+  if (error) {
+    console.warn('fetchStudentNamesByExamEmail:', error.message);
+    return map;
+  }
+  (data ?? []).forEach((s: { exam_account_email?: string | null; name?: string | null; student_code?: string | null }) => {
+    const email = (s.exam_account_email ?? '').trim();
+    if (!email) return;
+    const name = (s.name ?? '').trim();
+    const code = (s.student_code ?? undefined) || undefined;
+    map.set(email, { name, code });
+  });
+  return map;
 }
 
 /** Xuất danh sách ra CSV (BOM UTF-8 để Excel mở đúng tiếng Việt). */

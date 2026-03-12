@@ -24,6 +24,7 @@ export default function AdminReportPage() {
   const [violationRows, setViolationRows] = useState<ViolationReportRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingViolations, setLoadingViolations] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     listExams().then(setExams).catch(() => {});
@@ -56,7 +57,7 @@ export default function AdminReportPage() {
       .then(setRows)
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
-  }, [selectedExamId, selectedWindowId, activeTab]);
+  }, [selectedExamId, selectedWindowId, activeTab, reloadKey]);
 
   useEffect(() => {
     const filters: ReportFilters = {};
@@ -75,7 +76,7 @@ export default function AdminReportPage() {
       .then(setViolationRows)
       .catch(() => setViolationRows([]))
       .finally(() => setLoadingViolations(false));
-  }, [selectedExamId, selectedWindowId, activeTab]);
+  }, [selectedExamId, selectedWindowId, activeTab, reloadKey]);
 
   const handleExportCsv = () => {
     exportReportToCsv(rows);
@@ -97,9 +98,24 @@ export default function AdminReportPage() {
     window.print();
   };
 
+  const handleReload = () => {
+    if (!selectedExamId) return;
+    setReloadKey((k) => k + 1);
+  };
+
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-800 mb-2">Báo cáo thi</h1>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-xl font-semibold text-slate-800">Báo cáo thi</h1>
+        <button
+          type="button"
+          onClick={handleReload}
+          disabled={!selectedExamId || loading || loadingViolations}
+          className="px-3 py-1.5 text-xs font-medium rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Nạp lại dữ liệu
+        </button>
+      </div>
       <div className="mb-4 flex gap-2">
         <button
           type="button"

@@ -310,50 +310,6 @@ async function fetchStudentNamesByExamEmail(
   return map;
 }
 
-/** Xuất danh sách ra CSV (BOM UTF-8 để Excel mở đúng tiếng Việt). */
-export function exportReportToCsv(rows: AttemptReportRow[], filename?: string): void {
-  const headers = [
-    'Mã bài làm',
-    'Họ tên',
-    'Email',
-    'User ID',
-    'Đề thi',
-    'Mã kỳ',
-    'Tên lớp',
-    'Điểm (0-1)',
-    'Điểm thô',
-    'Đạt',
-    'Loại',
-    'Hoàn thành lúc',
-    'Đồng bộ TTDT',
-  ];
-  const csvRows = rows.map((r) => [
-    r.id,
-    r.user_name,
-    r.user_email,
-    r.user_id,
-    r.exam_title,
-    r.window_id,
-    r.class_name || r.class_id,
-    r.score ?? '',
-    r.raw_score ?? '',
-    r.passed ? 'Đạt' : 'Chưa đạt',
-    r.disqualified ? 'Loại' : '',
-    r.completed_at ?? '',
-    r.synced_to_ttdt_at ? 'Có' : 'Chưa',
-  ]);
-  const csv = [headers, ...csvRows]
-    .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename ?? `ket-qua-thi-${Date.now()}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 /** Xuất danh sách ra Excel (xlsx). */
 export function exportReportToExcel(rows: AttemptReportRow[], filename?: string): void {
   const wsData = [
@@ -361,29 +317,23 @@ export function exportReportToExcel(rows: AttemptReportRow[], filename?: string)
       'Mã bài làm',
       'Họ tên',
       'Email',
-      'User ID',
       'Đề thi',
-      'Mã kỳ',
-      'Tên lớp',
-      'Điểm (0-1)',
-      'Điểm thô',
+      'Kỳ / Lớp',
+      'Điểm',
       'Đạt',
-      'Loại',
-      'Hoàn thành lúc',
+      'Hoàn thành',
       'Đồng bộ TTDT',
     ],
     ...rows.map((r) => [
       r.id,
       r.user_name,
       r.user_email,
-      r.user_id,
       r.exam_title,
-      r.window_id,
-      r.class_name || r.class_id,
-      r.score ?? '',
-      r.raw_score ?? '',
-      r.passed ? 'Đạt' : 'Chưa đạt',
-      r.disqualified ? 'Loại' : '',
+      `${r.window_id} / ${r.class_name || r.class_id}`,
+      r.score != null
+        ? `${(r.score * 100).toFixed(1)}%${r.raw_score != null ? ` (${r.raw_score})` : ''}`
+        : '',
+      r.disqualified ? 'Loại' : r.passed ? 'Đạt' : 'Chưa đạt',
       r.completed_at ?? '',
       r.synced_to_ttdt_at ? 'Có' : 'Chưa',
     ]),
@@ -394,70 +344,37 @@ export function exportReportToExcel(rows: AttemptReportRow[], filename?: string)
   XLSX.writeFile(wb, filename ?? `ket-qua-thi-${Date.now()}.xlsx`);
 }
 
-/** Xuất danh sách vi phạm ra CSV. */
-export function exportViolationsToCsv(rows: ViolationReportRow[], filename?: string): void {
-  const headers = [
-    'Mã log',
-    'Mã bài làm',
-    'Họ tên',
-    'Email',
-    'User ID',
-    'Đề thi',
-    'Mã kỳ',
-    'Tên lớp',
-    'Sự kiện',
-    'Thời điểm',
-  ];
-  const csvRows = rows.map((r) => [
-    r.id,
-    r.attempt_id,
-    r.user_name,
-    r.user_email,
-    r.user_id,
-    r.exam_title,
-    r.window_id,
-    r.class_name || r.class_id,
-    r.event,
-    r.created_at,
-  ]);
-  const csv = [headers, ...csvRows]
-    .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename ?? `bao-cao-vi-pham-${Date.now()}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 /** Xuất danh sách vi phạm ra Excel (xlsx). */
-export function exportViolationsToExcel(rows: ViolationReportRow[], filename?: string): void {
+export function exportViolationsToExcel(
+  rows: {
+    user_name: string;
+    user_email: string;
+    focusLostCount: number;
+    visibilityHiddenCount: number;
+    fullscreenExitedCount: number;
+    copyPasteBlockedCount: number;
+    photoTakenCount: number;
+  }[],
+  filename?: string
+): void {
   const wsData = [
     [
-      'Mã log',
-      'Mã bài làm',
       'Họ tên',
       'Email',
-      'User ID',
-      'Đề thi',
-      'Mã kỳ',
-      'Tên lớp',
-      'Sự kiện',
-      'Thời điểm',
+      'Mất focus',
+      'Ẩn tab / thu nhỏ',
+      'Thoát fullscreen',
+      'Copy/Paste bị chặn',
+      'Ảnh webcam',
     ],
     ...rows.map((r) => [
-      r.id,
-      r.attempt_id,
       r.user_name,
       r.user_email,
-      r.user_id,
-      r.exam_title,
-      r.window_id,
-      r.class_name || r.class_id,
-      r.event,
-      r.created_at,
+      r.focusLostCount,
+      r.visibilityHiddenCount,
+      r.fullscreenExitedCount,
+      r.copyPasteBlockedCount,
+      r.photoTakenCount,
     ]),
   ];
   const wb = XLSX.utils.book_new();

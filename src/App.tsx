@@ -28,10 +28,14 @@ import AdminPracticalSessionFormPage from './pages/admin/AdminPracticalSessionFo
 import AdminPracticalGradingPage from './pages/admin/AdminPracticalGradingPage';
 import AdminPracticalGradingDetailPage from './pages/admin/AdminPracticalGradingDetailPage';
 import AdminReportPage from './pages/admin/AdminReportPage';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminSyncPage from './pages/admin/AdminSyncPage';
 import ExamTakePage from './pages/ExamTakePage';
+import ExamIntroPage from './pages/ExamIntroPage';
 import ExamResultPage from './pages/ExamResultPage';
 import PracticalTakePage from './pages/PracticalTakePage';
+import StudentExamsPage from './pages/StudentExamsPage';
+import StudentResultsPage from './pages/StudentResultsPage';
 
 function App() {
   return (
@@ -44,7 +48,8 @@ function App() {
           {/* Thí sinh vào thi: xác thực CCCD không yêu cầu Supabase auth */}
           <Route path="/verify-cccd" element={<VerifyCccdPage />} />
           <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/exams" replace />} />
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="exams" element={<AdminExamsPage />} />
             <Route path="exams/new" element={<AdminExamFormPage />} />
             <Route path="questions" element={<AdminQuestionHomePage />} />
@@ -77,6 +82,9 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="student/exams" element={<StudentExamsPage />} />
+            <Route path="student/results" element={<StudentResultsPage />} />
+            <Route path="exam/:attemptId/intro" element={<ExamIntroPage />} />
             <Route path="exam/:attemptId" element={<ExamTakePage />} />
             <Route path="exam/:attemptId/result" element={<ExamResultPage />} />
             <Route path="practical/:attemptId" element={<PracticalTakePage />} />

@@ -10,6 +10,8 @@ import { SortableOptionList } from '../components/SortableOptionList';
 import { LabelOnImageDrop } from '../components/LabelOnImageDrop';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { CheckCircle } from 'lucide-react';
+import { ProctoringEvidenceCapture, type ProctoringEvidenceCaptureRef, type EvidenceKind } from '../components/proctoring/ProctoringEvidenceCapture';
+import { AiObjectProctorBurst } from '../components/proctoring/AiObjectProctorBurst';
 import type { Attempt, Exam, QuestionForStudent } from '../types';
 
 function hashStringToSeed(s: string): number {
@@ -92,6 +94,23 @@ export default function ExamTakePage() {
   const [cameraError, setCameraError] = useState<string>('');
   const [capturing, setCapturing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const evidenceRef = useRef<ProctoringEvidenceCaptureRef | null>(null);
+
+  const captureViolationEvidence = useCallback(
+    async (kind: EvidenceKind) => {
+      if (!attemptId || !attempt) return;
+      try {
+        const res = await evidenceRef.current?.captureAndUpload(kind, { toastOnceKey: `evidence_${kind}` });
+        await logAuditEvent(attemptId, kind, res?.ok ? { evidence_url: res.publicUrl, evidence_path: res.path } : undefined);
+      } catch {
+        // Không làm hỏng luồng thi nếu capture/upload/log bị lỗi
+        await logAuditEvent(attemptId, kind, { evidence_error: true });
+      }
+    },
+    [attempt, attemptId]
+  );
+
+  const aiEnabled = (import.meta.env.VITE_AI_PROCTORING_ENABLED ?? '') === '1';
 
   const enterFullscreen = useCallback(async () => {
     setFullscreenError('');
@@ -331,6 +350,7 @@ export default function ExamTakePage() {
     const onVisibility = () => {
       if (document.visibilityState === 'hidden' && attemptId) {
         logAuditEvent(attemptId, 'visibility_hidden').catch(() => {});
+        captureViolationEvidence('visibility_hidden').catch(() => {});
         violationCountRef.current += 1;
         if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
           submittedDueToViolationRef.current = true;
@@ -348,6 +368,7 @@ export default function ExamTakePage() {
     const onBlur = () => {
       if (attemptId) {
         logAuditEvent(attemptId, 'focus_lost').catch(() => {});
+        captureViolationEvidence('focus_lost').catch(() => {});
         violationCountRef.current += 1;
         if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
           submittedDueToViolationRef.current = true;
@@ -386,6 +407,7 @@ export default function ExamTakePage() {
       if (document.fullscreenElement) return;
       if (fullscreenRequestedRef.current && attemptId) {
         logAuditEvent(attemptId, 'fullscreen_exited').catch(() => {});
+        captureViolationEvidence('fullscreen_exited').catch(() => {});
         violationCountRef.current += 1;
         if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
           submittedDueToViolationRef.current = true;
@@ -395,7 +417,7 @@ export default function ExamTakePage() {
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, [attemptId, attempt?.id, questions.length]);
+  }, [attemptId, attempt?.id, questions.length, captureViolationEvidence]);
 
   if (error && !attempt) return <p className="p-4 text-red-600">{error}</p>;
   if (!attempt || !exam) return <p className="p-4 text-slate-500">Đang tải...</p>;
@@ -409,6 +431,31 @@ export default function ExamTakePage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4">
+      {/* Camera evidence: chạy nền để chụp ảnh khi vi phạm (blur/tab hidden/fullscreen exit/AI events). */}
+      <ProctoringEvidenceCapture
+        ref={evidenceRef}
+        enabled={photoVerified && Boolean(attemptId && attempt && exam)}
+        attemptId={attemptId ?? ''}
+        examId={attempt?.exam_id ?? ''}
+        studentKey={(user?.student_id ?? studentSession?.student_id ?? user?.id ?? attempt?.user_id ?? 'unknown') as string}
+      />
+      {/* AI proctoring (burst): chỉ bật khi VITE_AI_PROCTORING_ENABLED=1 */}
+      {aiEnabled && (
+        <AiObjectProctorBurst
+          enabled={photoVerified && Boolean(attemptId && attempt && exam)}
+          evidenceRef={evidenceRef}
+          // Burst mặc định: mỗi 60s chạy 5s; có thể chỉnh bằng env về sau
+          burstEveryMs={60_000}
+          burstDurationMs={5_000}
+          detectIntervalMs={1_000}
+          minScore={0.6}
+          notify={false}
+          onViolation={(kind, evidence) => {
+            if (!attemptId) return;
+            logAuditEvent(attemptId, kind, evidence ? { evidence_url: evidence.publicUrl, evidence_path: evidence.path } : undefined).catch(() => {});
+          }}
+        />
+      )}
       {/* Bước 1: Chụp ảnh khuôn mặt — bắt buộc trước khi làm bài */}
       {showCameraStep && (
         <div className="fixed inset-0 z-[60] bg-slate-900/90 flex items-center justify-center p-4">

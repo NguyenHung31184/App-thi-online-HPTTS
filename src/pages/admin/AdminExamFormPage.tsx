@@ -168,18 +168,29 @@ export default function AdminExamFormPage() {
   }, [modules]);
 
   return (
-    <div>
-      <h1 className="text-xl font-semibold text-slate-800 mb-4">
-        {isEdit ? 'Sửa đề thi' : 'Thêm đề thi'}
-      </h1>
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+    <div className="max-w-3xl mx-auto">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-slate-900">
+            {isEdit ? 'Cập nhật đề thi' : 'Tạo đề thi mới'}
+          </h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Khai báo thông tin đề thi, gắn đúng mô-đun TTDT và thiết lập ma trận câu hỏi theo chủ đề/độ khó.
+          </p>
+        </div>
+
+        {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
         {isEdit && loadedExamMissingModule && (
-          <div className="p-4 rounded-lg bg-amber-50 border border-amber-400 text-amber-900 text-sm">
+          <div className="p-4 rounded-lg bg-amber-50 border border-amber-400 text-amber-900 text-sm mb-4">
             <p className="font-semibold">Đề thi này đang thiếu Mô-đun (theo dữ liệu từ hệ thống)</p>
-            <p className="mt-1">Điểm của bài làm đã nộp sẽ không được đồng bộ sang TTDT cho đến khi bạn chọn Mô-đun bên dưới và bấm <strong>Cập nhật</strong>. Vui lòng chọn Mô-đun rồi lưu lại.</p>
+            <p className="mt-1">
+              Điểm của bài làm đã nộp sẽ không được đồng bộ sang TTDT cho đến khi bạn chọn Mô-đun bên dưới và bấm{' '}
+              <strong>Cập nhật</strong>. Vui lòng chọn Mô-đun rồi lưu lại.
+            </p>
           </div>
         )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Tiêu đề *</label>
           <input
@@ -199,7 +210,7 @@ export default function AdminExamFormPage() {
             className="w-full border border-slate-300 rounded-lg px-3 py-2"
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian (phút)</label>
             <input
@@ -378,23 +389,24 @@ export default function AdminExamFormPage() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {loading ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Tạo đề thi'}
-          </button>
+        <div className="flex gap-3 justify-end pt-2">
           <button
             type="button"
             onClick={() => navigate('/admin/exams')}
-            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
+            className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             Hủy
           </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {loading ? 'Đang lưu...' : isEdit ? 'Cập nhật đề thi' : 'Tạo đề thi'}
+          </button>
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

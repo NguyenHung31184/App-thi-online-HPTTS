@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { listExams } from '../../services/examService';
 import { listExamWindows } from '../../services/examWindowService';
+import { listClasses } from '../../services/ttdtDataService';
 import {
   listAttemptsForReport,
   listViolationsForReport,
-  exportReportToCsv,
   exportReportToExcel,
-  exportViolationsToCsv,
   exportViolationsToExcel,
   type AttemptReportRow,
   type ViolationReportRow,
@@ -25,9 +24,20 @@ export default function AdminReportPage() {
   const [loading, setLoading] = useState(false);
   const [loadingViolations, setLoadingViolations] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [resultSearch, setResultSearch] = useState('');
+  const [violationSearch, setViolationSearch] = useState('');
+  const [classNames, setClassNames] = useState<Record<string, { name: string; code?: string }>>({});
 
   useEffect(() => {
     listExams().then(setExams).catch(() => {});
+    listClasses()
+      .then((cls) => {
+        const map = Object.fromEntries(cls.map((c) => [c.id, { name: c.name, code: c.code }]));
+        setClassNames(map);
+      })
+      .catch(() => {
+        setClassNames({});
+      });
   }, []);
 
   useEffect(() => {
@@ -78,30 +88,93 @@ export default function AdminReportPage() {
       .finally(() => setLoadingViolations(false));
   }, [selectedExamId, selectedWindowId, activeTab, reloadKey]);
 
-  const handleExportCsv = () => {
-    exportReportToCsv(rows);
-  };
-
   const handleExportExcel = () => {
     exportReportToExcel(rows);
   };
 
-  const handleExportViolationsCsv = () => {
-    exportViolationsToCsv(violationRows);
-  };
-
   const handleExportViolationsExcel = () => {
-    exportViolationsToExcel(violationRows);
-  };
-
-  const handlePrint = () => {
-    window.print();
+    exportViolationsToExcel(aggregatedViolationRows);
   };
 
   const handleReload = () => {
     if (!selectedExamId) return;
     setReloadKey((k) => k + 1);
   };
+
+  const aggregatedViolationRows = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        id: string;
+        user_id: string;
+        user_name: string;
+        user_email: string;
+        focusLostCount: number;
+        visibilityHiddenCount: number;
+        fullscreenExitedCount: number;
+        copyPasteBlockedCount: number;
+        photoTakenCount: number;
+      }
+    >();
+
+    violationRows.forEach((r) => {
+      const key = r.user_id || r.user_email;
+      if (!key) return;
+
+      const existing =
+        map.get(key) ??
+        {
+          id: key,
+          user_id: r.user_id,
+          user_name: r.user_name,
+          user_email: r.user_email,
+          focusLostCount: 0,
+          visibilityHiddenCount: 0,
+          fullscreenExitedCount: 0,
+          copyPasteBlockedCount: 0,
+          photoTakenCount: 0,
+        };
+
+      if (!map.has(key)) {
+        map.set(key, existing);
+      }
+
+      if (r.event === 'focus_lost') existing.focusLostCount += 1;
+      if (r.event === 'visibility_hidden') existing.visibilityHiddenCount += 1;
+      if (r.event === 'fullscreen_exited') existing.fullscreenExitedCount += 1;
+      if (r.event === 'copy_paste_blocked') existing.copyPasteBlockedCount += 1;
+      if (r.event === 'photo_taken') existing.photoTakenCount += 1;
+    });
+
+    const list = Array.from(map.values());
+
+    if (!violationSearch.trim()) return list;
+
+    const q = violationSearch.trim().toLowerCase();
+    return list.filter((row) => {
+      const name = row.user_name?.toLowerCase() ?? '';
+      const email = row.user_email?.toLowerCase() ?? '';
+      return name.includes(q) || email.includes(q);
+    });
+  }, [violationRows, violationSearch]);
+
+  const filteredResultRows = useMemo(() => {
+    if (!resultSearch.trim()) return rows;
+    const q = resultSearch.trim().toLowerCase();
+    return rows.filter((r) => {
+      const name = r.user_name?.toLowerCase() ?? '';
+      const email = r.user_email?.toLowerCase() ?? '';
+      const exam = r.exam_title?.toLowerCase() ?? '';
+      const cls = (r.class_name || r.class_id || '').toLowerCase();
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        exam.includes(q) ||
+        cls.includes(q) ||
+        r.id.toLowerCase().includes(q)
+      );
+    });
+  }, [rows, resultSearch]);
 
   return (
     <div>
@@ -165,15 +238,25 @@ export default function AdminReportPage() {
           <select
             value={selectedWindowId}
             onChange={(e) => setSelectedWindowId(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-2 min-w-[200px]"
+            className="border border-slate-300 rounded-lg px-3 py-2 min-w-[260px]"
           >
             <option value="">-- Tất cả kỳ --</option>
             {windows.map((w) => (
               <option key={w.id} value={w.id}>
                 {new Date(w.start_at).toLocaleDateString('vi-VN')} – {w.access_code}
+                {w.class_id
+                  ? ` • Lớp: ${
+                      classNames[w.class_id]?.code ||
+                      classNames[w.class_id]?.name ||
+                      w.class_id
+                    }`
+                  : ''}
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-slate-500 max-w-xs">
+            Gợi ý: mỗi dòng gồm <strong>ngày thi – mã truy cập – lớp</strong> để dễ nhận diện.
+          </p>
         </div>
       </div>
 
@@ -184,33 +267,33 @@ export default function AdminReportPage() {
           <div className="flex flex-wrap gap-2 mb-4 print:hidden">
             <button
               type="button"
-              onClick={handleExportCsv}
-              disabled={rows.length === 0}
-              className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Xuất CSV
-            </button>
-            <button
-              type="button"
               onClick={handleExportExcel}
               disabled={rows.length === 0}
               className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Xuất Excel
             </button>
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={rows.length === 0}
-              className="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              In / PDF
-            </button>
           </div>
 
-          <p className="text-slate-600 text-sm mb-2">
-            Số bài làm: <strong>{rows.length}</strong>
-          </p>
+          <div className="flex flex-col gap-2 mb-3">
+            <p className="text-slate-600 text-sm">
+              Số bài làm: <strong>{rows.length}</strong>
+              {resultSearch.trim() && (
+                <span className="ml-2 text-xs text-slate-500">
+                  (phù hợp bộ lọc: <strong>{filteredResultRows.length}</strong>)
+                </span>
+              )}
+            </p>
+            <div className="max-w-md">
+              <input
+                type="text"
+                value={resultSearch}
+                onChange={(e) => setResultSearch(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="Lọc theo tên, email, lớp, đề thi hoặc mã bài làm"
+              />
+            </div>
+          </div>
 
           <div className="overflow-x-auto border border-slate-200 rounded-lg">
             <table className="w-full text-sm text-left">
@@ -227,7 +310,7 @@ export default function AdminReportPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {filteredResultRows.map((r) => (
                   <tr key={r.id} className="border-t border-slate-100">
                     <td className="px-3 py-2 font-mono text-xs">{r.id.slice(0, 8)}…</td>
                     <td className="px-3 py-2">
@@ -239,7 +322,7 @@ export default function AdminReportPage() {
                     <td className="px-3 py-2">
                       <span className="font-mono text-xs">{r.window_id.slice(0, 8)}…</span>
                       {r.class_name || r.class_id ? (
-                        <span className="text-slate-700"> / <strong>{r.class_name || r.class_id}</strong></span>
+                        <span className="text-slate-700"> / {r.class_name || r.class_id}</span>
                       ) : (
                         ' / —'
                       )}
@@ -268,6 +351,11 @@ export default function AdminReportPage() {
           {rows.length === 0 && (
             <p className="text-slate-500 text-sm mt-2">Chưa có bài làm nào đã nộp với bộ lọc đã chọn.</p>
           )}
+          {rows.length > 0 && filteredResultRows.length === 0 && (
+            <p className="text-slate-500 text-sm mt-2">
+              Không có bài làm nào phù hợp với từ khóa lọc hiện tại.
+            </p>
+          )}
         </>
       )}
 
@@ -276,89 +364,67 @@ export default function AdminReportPage() {
           <div className="flex flex-wrap gap-2 mb-4 print:hidden">
             <button
               type="button"
-              onClick={handleExportViolationsCsv}
-              disabled={violationRows.length === 0}
-              className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Xuất CSV
-            </button>
-            <button
-              type="button"
               onClick={handleExportViolationsExcel}
               disabled={violationRows.length === 0}
               className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Xuất Excel
             </button>
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={violationRows.length === 0}
-              className="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              In / PDF
-            </button>
           </div>
-
-          <p className="text-slate-600 text-sm mb-2">
-            Số log vi phạm: <strong>{violationRows.length}</strong>
-          </p>
+          <div className="flex flex-col gap-2 mb-3">
+            <p className="text-slate-600 text-sm">
+              Số log vi phạm (tổng tất cả sự kiện): <strong>{violationRows.length}</strong>
+            </p>
+            <div className="max-w-md">
+              <input
+                type="text"
+                value={violationSearch}
+                onChange={(e) => setViolationSearch(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="Lọc theo tên hoặc email học viên"
+              />
+            </div>
+          </div>
 
           <div className="overflow-x-auto border border-slate-200 rounded-lg">
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
-                  <th className="px-3 py-2">Mã log</th>
-                  <th className="px-3 py-2">Mã bài làm</th>
+                  <th className="px-3 py-2 w-16 text-center">STT</th>
                   <th className="px-3 py-2">Học viên</th>
-                  <th className="px-3 py-2">Đề thi</th>
-                  <th className="px-3 py-2">Kỳ / Lớp</th>
-                  <th className="px-3 py-2">Sự kiện</th>
-                  <th className="px-3 py-2">Thời điểm</th>
+                  <th className="px-3 py-2">Email</th>
+                  <th className="px-3 py-2 text-center">Mất focus</th>
+                  <th className="px-3 py-2 text-center">Ẩn tab / thu nhỏ</th>
+                  <th className="px-3 py-2 text-center">Thoát fullscreen</th>
+                  <th className="px-3 py-2 text-center">Copy/Paste bị chặn</th>
+                  <th className="px-3 py-2 text-center">Ảnh webcam</th>
                 </tr>
               </thead>
               <tbody>
-                {violationRows.map((r) => (
+                {aggregatedViolationRows.map((r, idx) => (
                   <tr key={r.id} className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-mono text-xs">{r.id.slice(0, 8)}…</td>
-                    <td className="px-3 py-2 font-mono text-xs">{r.attempt_id.slice(0, 8)}…</td>
+                    <td className="px-3 py-2 text-center text-xs text-slate-500">{idx + 1}</td>
                     <td className="px-3 py-2">
                       <div className="text-sm font-medium text-slate-800">{r.user_name || r.user_email || '—'}</div>
-                      {r.user_email && <div className="text-[11px] text-slate-500">{r.user_email}</div>}
-                      {!r.user_email && r.user_id && <div className="font-mono text-[11px] text-slate-500">{r.user_id.slice(0, 8)}…</div>}
                     </td>
-                    <td className="px-3 py-2">{r.exam_title}</td>
-                    <td className="px-3 py-2">
-                      <span className="font-mono text-xs">{r.window_id.slice(0, 8)}…</span>
-                      {r.class_name || r.class_id ? (
-                        <span className="text-slate-700"> / <strong>{r.class_name || r.class_id}</strong></span>
-                      ) : (
-                        ' / —'
-                      )}
-                    </td>
-                    <td className="px-3 py-2">
-                      {r.event === 'focus_lost'
-                        ? 'Mất focus (chuyển sang cửa sổ / ứng dụng khác)'
-                        : r.event === 'visibility_hidden'
-                        ? 'Ẩn tab (thu nhỏ trình duyệt hoặc chuyển tab khác)'
-                        : r.event === 'copy_paste_blocked'
-                        ? 'Copy/Paste bị chặn (cố gắng sao chép / dán trong đề thi)'
-                        : r.event === 'photo_taken'
-                        ? 'Ảnh webcam (hệ thống tự chụp khi giám sát)'
-                        : r.event === 'fullscreen_exited'
-                        ? 'Thoát fullscreen khi đang làm bài'
-                        : r.event}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">{r.created_at}</td>
+                    <td className="px-3 py-2 text-slate-600">{r.user_email || '—'}</td>
+                    <td className="px-3 py-2 text-center font-mono text-xs">{r.focusLostCount}</td>
+                    <td className="px-3 py-2 text-center font-mono text-xs">{r.visibilityHiddenCount}</td>
+                    <td className="px-3 py-2 text-center font-mono text-xs">{r.fullscreenExitedCount}</td>
+                    <td className="px-3 py-2 text-center font-mono text-xs">{r.copyPasteBlockedCount}</td>
+                    <td className="px-3 py-2 text-center font-mono text-xs">{r.photoTakenCount}</td>
                   </tr>
                 ))}
+                {aggregatedViolationRows.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-3 py-4 text-center text-sm text-slate-500">
+                      Chưa có log vi phạm nào phù hợp với bộ lọc đã chọn.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-
-          {violationRows.length === 0 && (
-            <p className="text-slate-500 text-sm mt-2">Chưa có log vi phạm nào với bộ lọc đã chọn.</p>
-          )}
         </>
       )}
     </div>

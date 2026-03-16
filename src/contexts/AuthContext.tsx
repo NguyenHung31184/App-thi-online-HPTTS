@@ -13,6 +13,32 @@ function getRoleFromRaw(raw: unknown): UserRole {
   return 'student';
 }
 
+async function maybeUpgradeToTeacherByInstructor(
+  email: string | null | undefined,
+  currentRole: UserRole
+): Promise<UserRole> {
+  if (!email) return currentRole;
+  if (currentRole === 'admin') return currentRole;
+  try {
+    const { data, error } = await supabase
+      .from('instructors')
+      .select('specialization, is_deleted')
+      // email trong instructors có thể khác hoa/thường → so sánh không phân biệt case
+      .ilike('email', email)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data?.specialization) return currentRole;
+    if (data.is_deleted === true) return currentRole;
+    const spec = String(data.specialization).toLowerCase();
+    if (spec.includes('lý thuyết') || spec.includes('ly thuyet')) {
+      return 'teacher';
+    }
+  } catch (_) {
+    // ignore
+  }
+  return currentRole;
+}
+
 async function mapUserWithProfile(u: SupabaseUser): Promise<User | null> {
   const studentIdStorage = sessionStorage.getItem(STORAGE_STUDENT_ID) ?? undefined;
   const studentCodeStorage = sessionStorage.getItem(STORAGE_STUDENT_CODE) ?? undefined;
@@ -25,6 +51,8 @@ async function mapUserWithProfile(u: SupabaseUser): Promise<User | null> {
       if (profile.student_id) studentId = profile.student_id;
     }
   } catch (_) {}
+  // Nếu chưa phải admin mà email thuộc giảng viên có chuyên ngành Lý thuyết thì nâng role lên teacher.
+  role = await maybeUpgradeToTeacherByInstructor(u.email, role);
   return {
     id: u.id,
     email: u.email ?? undefined,

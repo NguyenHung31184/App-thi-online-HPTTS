@@ -10,6 +10,9 @@ WHERE routine_name = 'grade_attempt';
 -- ========== BƯỚC 2: Tạo function (chỉ cần có bảng attempts, questions) ==========
 -- Copy từ dòng dưới đến hết, Run. Nếu báo lỗi "relation attempts does not exist" thì project này chưa có bảng thi → cần chạy migration 001_mvp_tables.sql trước.
 
+-- Lưu tổng điểm tối đa vào attempts để các màn hình hiển thị/pass tính toán đúng.
+ALTER TABLE attempts ADD COLUMN IF NOT EXISTS total_max NUMERIC;
+
 CREATE OR REPLACE FUNCTION public.grade_attempt(aid UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -51,6 +54,7 @@ BEGIN
   SET
     status = 'completed',
     raw_score = total_earned,
+    total_max = total_max,
     score = CASE WHEN total_max > 0 THEN total_earned / total_max ELSE 0 END,
     completed_at = (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT,
     updated_at = now()

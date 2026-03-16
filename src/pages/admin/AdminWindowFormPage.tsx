@@ -108,15 +108,16 @@ export default function AdminWindowFormPage() {
     setSelectedExamIds((prev) => prev.filter((id) => id !== examId));
   };
 
-  /** Đề trong danh sách quay 1 trong N mà chưa gắn mô-đun → đồng bộ điểm TTDT sẽ lỗi. */
-  const selectedExamsWithoutModule = selectedExamIds.filter((eid) => {
+  /** Kiểm tra đề đang dùng (một đề hoặc nhiều đề) đã gắn mô-đun chưa. Nếu thiếu → đồng bộ điểm TTDT sẽ lỗi. */
+  const currentExamIds = useMultiExams ? selectedExamIds : exam_id ? [exam_id] : [];
+  const examsWithoutModule = currentExamIds.filter((eid) => {
     const ex = exams.find((e) => e.id === eid);
     return !ex?.module_id || String(ex.module_id).trim() === '';
   });
-  const examTitlesWithoutModule = selectedExamsWithoutModule
+  const examTitlesWithoutModule = examsWithoutModule
     .map((eid) => exams.find((e) => e.id === eid)?.title ?? eid)
     .filter(Boolean);
-  const hasMissingModule = useMultiExams && selectedExamIds.length > 0 && selectedExamsWithoutModule.length > 0;
+  const hasMissingModule = currentExamIds.length > 0 && examsWithoutModule.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,12 +190,46 @@ export default function AdminWindowFormPage() {
   };
 
   return (
-    <div>
-      <h1 className="text-xl font-semibold text-slate-800 mb-4">
-        {isEdit ? 'Sửa kỳ thi' : 'Thêm kỳ thi'}
-      </h1>
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+    <div className="max-w-3xl mx-auto">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">
+              {isEdit ? 'Cập nhật kỳ thi' : 'Tạo kỳ thi mới'}
+            </h1>
+            <p className="text-sm text-slate-600 mt-1">
+              Chọn đề thi, lớp TTDT, thời gian thi và mã truy cập. Kỳ thi chỉ đồng bộ điểm đúng khi đề có mô-đun và kỳ thi gắn lớp.
+            </p>
+          </div>
+        </div>
+
+        {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
+
+        <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-sm">
+          <p className="font-semibold">Bắt buộc cấu hình đầy đủ để ghi nhận điểm</p>
+          <p className="mt-1">
+            Kỳ thi chỉ đồng bộ điểm sang TTDT khi hội đủ 3 điều kiện:
+          </p>
+          <ul className="list-disc list-inside mt-1 space-y-1">
+            <li>
+              Mọi <strong>đề thi</strong> dùng trong kỳ đều đã gắn <strong>Mô-đun (module_id)</strong>.
+              {hasMissingModule && examTitlesWithoutModule.length > 0 && (
+                <> Đề thiếu mô-đun: <strong>{examTitlesWithoutModule.join(', ')}</strong>.</>
+              )}
+            </li>
+            <li>
+              Kỳ thi đã gắn đúng <strong>Lớp TTDT (class_id)</strong>.
+              {!class_id && ' (hiện chưa chọn lớp)'}
+            </li>
+            <li>
+              Tài khoản thi của học viên đã có <strong>student_id</strong> (được xác thực từ CCCD) — phần này kiểm tra ở luồng thí sinh.
+            </li>
+          </ul>
+          <p className="mt-1">
+            Nếu thiếu một trong các thông tin trên, học viên nộp bài sẽ <strong>không được ghi nhận điểm trên TTDT</strong>.
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
         {!isEdit && (
           <>
             <div>
@@ -460,23 +495,24 @@ export default function AdminWindowFormPage() {
           </div>
           <p className="text-xs text-slate-500 mt-1">Bấm biểu tượng xoay tròn để tạo mã 4 ký tự ngẫu nhiên.</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {loading ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Tạo kỳ thi'}
-          </button>
+        <div className="flex gap-3 justify-end pt-2">
           <button
             type="button"
             onClick={() => navigate('/admin/windows')}
-            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
+            className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             Hủy
           </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {loading ? 'Đang lưu...' : isEdit ? 'Cập nhật kỳ thi' : 'Tạo kỳ thi'}
+          </button>
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

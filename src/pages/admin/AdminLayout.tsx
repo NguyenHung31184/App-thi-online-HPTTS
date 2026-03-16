@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import AppLayout from '../../components/AppLayout';
+import AppLayout, { type NavSection } from '../../components/AppLayout';
 import {
   ExamIcon,
   CalendarIcon,
@@ -13,18 +13,9 @@ import {
   QuestionBankIcon,
 } from '../../components/Icons';
 
-const adminNavItems = [
-  { to: '/admin/exams', label: 'Đề thi', icon: ExamIcon },
-  { to: '/admin/questions', label: 'Soạn câu hỏi', icon: QuestionBankIcon },
-  { to: '/admin/windows', label: 'Kỳ thi', icon: CalendarIcon },
-  { to: '/admin/practical-templates', label: 'Thi thực hành', icon: PracticalIcon },
-  { to: '/admin/essay-grading', label: 'Chấm tự luận', icon: EssayGradingIcon },
-  { to: '/admin/report', label: 'Báo cáo', icon: ReportIcon },
-  { to: '/admin/sync', label: 'Đồng bộ điểm', icon: SyncIcon },
-];
-
 const adminTitles: Record<string, string> = {
-  '/admin': 'Quản trị',
+  '/admin': 'Dashboard',
+  '/admin/dashboard': 'Dashboard',
   '/admin/exams': 'Đề thi',
   '/admin/questions': 'Soạn câu hỏi',
   '/admin/windows': 'Kỳ thi',
@@ -49,10 +40,59 @@ export default function AdminLayout() {
   const location = useLocation();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
 
-  const navWithHome = useMemo(
-    () => [{ to: '/dashboard', label: 'Trang chủ', icon: DashboardIcon }, ...adminNavItems],
-    []
-  );
+  const isTeacher = (user as { role?: string })?.role === 'teacher';
+
+  const navSections: NavSection[] = useMemo(() => {
+    if (isTeacher) {
+      return [
+        {
+          id: 'home',
+          title: 'HOME',
+          items: [{ to: '/admin/dashboard', label: 'Dashboard', icon: DashboardIcon }],
+        },
+        {
+          id: 'theory',
+          title: 'THI LÝ THUYẾT',
+          items: [
+            { to: '/admin/exams', label: 'Đề thi', icon: ExamIcon },
+            { to: '/admin/questions', label: 'Soạn câu hỏi', icon: QuestionBankIcon },
+            { to: '/admin/report', label: 'Báo cáo', icon: ReportIcon },
+          ],
+        },
+      ];
+    }
+    return [
+      {
+        id: 'home',
+        title: 'HOME',
+        items: [{ to: '/admin/dashboard', label: 'Dashboard', icon: DashboardIcon }],
+      },
+      {
+        id: 'theory',
+        title: 'THI LÝ THUYẾT',
+        items: [
+          { to: '/admin/exams', label: 'Đề thi', icon: ExamIcon },
+          { to: '/admin/questions', label: 'Soạn câu hỏi', icon: QuestionBankIcon },
+          { to: '/admin/windows', label: 'Kỳ thi', icon: CalendarIcon },
+          { to: '/admin/essay-grading', label: 'Chấm tự luận', icon: EssayGradingIcon },
+          { to: '/admin/report', label: 'Báo cáo', icon: ReportIcon },
+        ],
+      },
+      {
+        id: 'practical',
+        title: 'THI THỰC HÀNH',
+        items: [
+          { to: '/admin/practical-templates', label: 'Đề thực hành', icon: PracticalIcon },
+          { to: '/admin/practical-grading', label: 'Chấm thực hành', icon: PracticalIcon },
+        ],
+      },
+      {
+        id: 'integration',
+        title: 'TÍCH HỢP',
+        items: [{ to: '/admin/sync', label: 'Đồng bộ điểm', icon: SyncIcon }],
+      },
+    ];
+  }, [isTeacher]);
 
   const title = useMemo(() => getAdminTitle(location.pathname), [location.pathname]);
 
@@ -65,16 +105,23 @@ export default function AdminLayout() {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'admin' && user.role !== 'teacher') {
+  const role = (user as { role?: string }).role;
+  if (role !== 'admin' && role !== 'teacher') {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Giáo viên chỉ được vào: dashboard, đề thi, soạn câu hỏi, báo cáo (có tab Kết quả)
+  const teacherAllowedPrefixes = ['/admin', '/admin/dashboard', '/admin/exams', '/admin/questions', '/admin/report'];
+  if (isTeacher && !teacherAllowedPrefixes.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))) {
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return (
     <AppLayout
-      navItems={navWithHome}
+      navSections={navSections}
       title={title}
       userEmail={user.email}
-      userRole={user.role === 'admin' ? 'Admin' : 'Giáo viên'}
+      userRole={isTeacher ? 'Giáo viên' : 'Admin'}
       onLogout={() => signOut()}
       isSidebarOpen={isSidebarOpen}
       setSidebarOpen={setSidebarOpen}

@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import AppLayout from '../components/AppLayout';
-import { DashboardIcon, IdCardIcon, SettingsIcon } from '../components/Icons';
+import AppLayout, { type NavSection } from '../components/AppLayout';
+import { DashboardIcon, IdCardIcon, SettingsIcon, ExamIcon, GradingIcon } from '../components/Icons';
 
 const viewTitles: Record<string, string> = {
   '/dashboard': 'Trang chủ',
@@ -15,16 +15,45 @@ export default function Layout() {
   const { user, studentSession, loading, signOut } = useAuth();
   const location = useLocation();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const isAdmin = (user as any)?.role === 'admin';
 
-  const navItems = useMemo(() => {
-    const items = [
-      { to: '/dashboard', label: 'Trang chủ', icon: DashboardIcon },
-      { to: '/verify-cccd', label: 'Xác thực CCCD', icon: IdCardIcon },
-    ];
-    if (user?.role === 'admin' || user?.role === 'teacher') {
-      items.push({ to: '/admin', label: 'Quản trị', icon: SettingsIcon });
+  const navSections: NavSection[] = useMemo(() => {
+    // Nếu là Admin, ẩn hoàn toàn các mục HOME/STUDENT và để họ dùng khu Quản trị riêng.
+    if (isAdmin) {
+      return [
+        {
+          id: 'home',
+          title: 'HOME',
+          items: [{ to: '/dashboard', label: 'Dashboard', icon: DashboardIcon }],
+        },
+      ];
     }
-    return items;
+
+    const sections: NavSection[] = [
+      {
+        id: 'home',
+        title: 'HOME',
+        items: [{ to: '/dashboard', label: 'Dashboard', icon: DashboardIcon }],
+      },
+      {
+        id: 'student',
+        title: 'STUDENT',
+        items: [
+          { to: '/student/exams', label: 'Exams', icon: ExamIcon },
+          { to: '/student/results', label: 'Result', icon: GradingIcon },
+          { to: '/verify-cccd', label: 'Xác thực CCCD', icon: IdCardIcon },
+        ],
+      },
+    ];
+    // Chỉ Admin có nhóm ADMIN, chuẩn bị sẵn để sau này map với app quản lý.
+    if (isAdmin) {
+      sections.push({
+        id: 'admin',
+        title: 'ADMIN',
+        items: [{ to: '/admin', label: 'Quản trị', icon: SettingsIcon }],
+      });
+    }
+    return sections;
   }, [user?.role]);
 
   const title = useMemo(() => {
@@ -48,7 +77,7 @@ export default function Layout() {
   const displayEmail =
     user?.email ?? studentSession?.student_code ?? studentSession?.student_id ?? 'Thí sinh';
   const displayRole =
-    user?.role === 'admin'
+    isAdmin
       ? 'Admin'
       : user?.role === 'teacher'
       ? 'Giáo viên'
@@ -56,7 +85,7 @@ export default function Layout() {
 
   return (
     <AppLayout
-      navItems={navItems}
+      navSections={navSections}
       title={title}
       userEmail={displayEmail}
       userRole={displayRole}

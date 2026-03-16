@@ -5,6 +5,7 @@ import { listExams } from '../../services/examService';
 import { listClasses } from '../../services/ttdtDataService';
 import type { ExamWindow } from '../../types';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import { ExamCard } from '../../components/ExamCard';
 
 export default function AdminWindowsPage() {
   const [windows, setWindows] = useState<ExamWindow[]>([]);
@@ -61,13 +62,15 @@ export default function AdminWindowsPage() {
     return d.toLocaleString('vi-VN');
   };
 
-  if (loading) return <p className="text-slate-500">Đang tải...</p>;
-  if (error) return <p className="text-red-600">{error}</p>;
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-slate-800">Kỳ thi</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-slate-800">Kỳ thi</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Danh sách cửa sổ thi (kỳ thi) đang được cấu hình, gắn với đề thi và lớp TTDT.
+          </p>
+        </div>
         <Link
           to="/admin/windows/new"
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
@@ -76,50 +79,44 @@ export default function AdminWindowsPage() {
         </Link>
       </div>
 
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Đề thi</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Lớp</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Bắt đầu</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Kết thúc</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Mã truy cập</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-slate-500 uppercase">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {windows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-                  Chưa có kỳ thi. Nhấn "Thêm kỳ thi" để tạo cửa sổ thi.
-                </td>
-              </tr>
-            ) : (
-              windows.map((w) => (
-                <tr key={w.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-2">{exams[w.exam_id] ?? w.exam_id}</td>
-                  <td className="px-4 py-2">{classes[w.class_id] ?? w.class_id}</td>
-                  <td className="px-4 py-2 text-slate-600">{formatTime(w.start_at)}</td>
-                  <td className="px-4 py-2 text-slate-600">{formatTime(w.end_at)}</td>
-                  <td className="px-4 py-2 font-mono text-sm">{w.access_code}</td>
-                  <td className="px-4 py-2 text-right">
-                    <Link to={`/admin/windows/${w.id}`} className="text-indigo-600 hover:underline mr-3">
-                      Sửa
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(w.id)}
-                      className="text-red-600 hover:underline"
-                    >
-                      Xóa
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {loading && <p className="text-slate-500">Đang tải...</p>}
+      {error && <p className="text-red-600">{error}</p>}
+
+      {!loading && !error && windows.length === 0 && (
+        <p className="text-slate-500 mb-4">
+          Chưa có kỳ thi nào. Nhấn <strong>Thêm kỳ thi</strong> để tạo cửa sổ thi đầu tiên.
+        </p>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {windows.map((w) => (
+          <ExamCard
+            key={w.id}
+            title={exams[w.exam_id] ?? 'Kỳ thi'}
+            subtitle={classes[w.class_id] ? `Lớp: ${classes[w.class_id]}` : undefined}
+            meta={`Mã: ${w.access_code}`}
+            footerLeft={
+              <span className="text-slate-600 text-xs">
+                {formatTime(w.start_at)} – {formatTime(w.end_at)}
+              </span>
+            }
+            footerRight={
+              <div className="flex items-center gap-2 text-xs">
+                <Link to={`/admin/windows/${w.id}`} className="text-indigo-600 hover:underline">
+                  Sửa
+                </Link>
+                <span className="text-slate-300">·</span>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(w.id)}
+                  className="text-red-600 hover:underline"
+                >
+                  Xóa
+                </button>
+              </div>
+            }
+          />
+        ))}
       </div>
 
       <ConfirmationModal

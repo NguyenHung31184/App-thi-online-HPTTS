@@ -68,6 +68,12 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'already_completed');
   END IF;
 
+  -- Tổng điểm tối đa phải tính theo TOÀN BỘ câu của đề (không phụ thuộc số câu đã làm),
+  -- nếu không thí sinh làm đúng vài câu cũng có thể "Đạt" vì mẫu số nhỏ.
+  SELECT COALESCE(SUM(points), 0) INTO v_total_max
+  FROM questions
+  WHERE exam_id = r.exam_id;
+
   -- Chỉ chấm những câu có trong answers (tránh lặp toàn bộ câu hỏi của đề → timeout khi đề nhiều câu).
   FOR q IN
     SELECT q2.id, q2.question_type, q2.answer_key, q2.points
@@ -75,7 +81,6 @@ BEGIN
     WHERE q2.exam_id = r.exam_id
       AND (r.answers ? q2.id::text)
   LOOP
-    v_total_max := v_total_max + COALESCE(q.points, 0);
     -- Lưu answers theo key là question_id dạng string, nên phải cast UUID -> text
     ans := r.answers->>(q.id::text);
 

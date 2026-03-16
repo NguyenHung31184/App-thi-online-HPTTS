@@ -9,9 +9,15 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
+export interface NavSection {
+  id: string;
+  title: string;
+  items: NavItem[];
+}
+
 interface AppLayoutProps {
   children: ReactNode;
-  navItems: NavItem[];
+  navSections: NavSection[];
   title: string;
   userEmail?: string;
   userRole?: string;
@@ -51,7 +57,7 @@ function NavLink({
 
 export default function AppLayout({
   children,
-  navItems,
+  navSections,
   title,
   userEmail,
   userRole,
@@ -85,21 +91,28 @@ export default function AppLayout({
         </div>
 
         <nav className="flex-1 space-y-4 overflow-y-auto pr-1">
-          <div className="space-y-1">
-            <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-300/80">Menu</p>
-            <div className="space-y-1">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  label={item.label}
-                  icon={item.icon}
-                  isActive={location.pathname === item.to || (item.to !== '/' && location.pathname.startsWith(item.to))}
-                  onClick={() => setSidebarOpen(false)}
-                />
-              ))}
+          {navSections.map((section) => (
+            <div key={section.id} className="space-y-1">
+              <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-300/80">
+                {section.title}
+              </p>
+              <div className="space-y-1">
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    label={item.label}
+                    icon={item.icon}
+                    isActive={
+                      location.pathname === item.to ||
+                      (item.to !== '/' && location.pathname.startsWith(item.to))
+                    }
+                    onClick={() => setSidebarOpen(false)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          ))}
         </nav>
 
         <div className="mt-auto pt-4 border-t border-white/10 bg-white/5 rounded-xl p-2">

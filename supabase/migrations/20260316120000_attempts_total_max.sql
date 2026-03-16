@@ -14,7 +14,7 @@ DECLARE
   r RECORD;
   q RECORD;
   total_earned NUMERIC := 0;
-  total_max NUMERIC := 0;
+  v_total_max NUMERIC := 0;
   ans TEXT;
   ans_json JSONB;
   key_json JSONB;
@@ -36,6 +36,12 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'already_completed');
   END IF;
 
+  -- Tổng điểm tối đa phải tính theo TOÀN BỘ câu của đề (không phụ thuộc số câu đã làm),
+  -- nếu không thí sinh làm đúng vài câu cũng có thể "Đạt" vì mẫu số nhỏ.
+  SELECT COALESCE(SUM(points), 0) INTO v_total_max
+  FROM questions
+  WHERE exam_id = r.exam_id;
+
   -- Chỉ chấm những câu có trong answers (tránh timeout khi đề có nhiều câu trong DB).
   FOR q IN
     SELECT q2.id, q2.question_type, q2.answer_key, q2.points
@@ -43,7 +49,6 @@ BEGIN
     WHERE q2.exam_id = r.exam_id
       AND (r.answers ? q2.id::text)
   LOOP
-    total_max := total_max + COALESCE(q.points, 0);
     ans := r.answers->>(q.id::text);
 
     IF q.question_type = 'multiple_choice' THEN
@@ -93,8 +98,8 @@ BEGIN
     status = 'completed',
     auto_earned = total_earned,
     raw_score = total_earned + essay_sum,
-    total_max = total_max,
-    score = CASE WHEN total_max > 0 THEN (total_earned + essay_sum) / total_max ELSE 0 END,
+    total_max = v_total_max,
+    score = CASE WHEN v_total_max > 0 THEN (total_earned + essay_sum) / v_total_max ELSE 0 END,
     completed_at = (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT,
     updated_at = now()
   WHERE id = aid;
@@ -102,8 +107,8 @@ BEGIN
   RETURN jsonb_build_object(
     'ok', true,
     'raw_score', total_earned + essay_sum,
-    'total_max', total_max,
-    'score', CASE WHEN total_max > 0 THEN (total_earned + essay_sum) / total_max ELSE 0 END
+    'total_max', v_total_max,
+    'score', CASE WHEN v_total_max > 0 THEN (total_earned + essay_sum) / v_total_max ELSE 0 END
   );
 END;
 $$;

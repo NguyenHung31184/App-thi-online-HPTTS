@@ -17,8 +17,8 @@ export default function StudentExamsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const sid = user?.student_id ?? studentSession?.student_id ?? undefined;
-    getAllowedWindows(sid)
+    // Chế độ tối giản: hiển thị tất cả kỳ thi đang mở (không lọc theo lớp/TTDT).
+    getAllowedWindows(undefined)
       .then((rows) => {
         if (!cancelled) setWindows(rows);
       })
@@ -31,7 +31,7 @@ export default function StudentExamsPage() {
     return () => {
       cancelled = true;
     };
-  }, [user?.student_id, studentSession?.student_id]);
+  }, []);
 
   const formatTime = (ts: number) => new Date(ts).toLocaleString('vi-VN');
 
@@ -44,12 +44,9 @@ export default function StudentExamsPage() {
     setEnterError('');
     setEnteringId(windowId);
     try {
-      if (!user?.id) {
-        setEnterError('Bạn chưa đăng nhập tài khoản thi. Vui lòng đăng nhập rồi thử lại.');
-        return;
-      }
-      if (!user?.student_id && !studentSession?.student_id) {
-        setEnterError('Vui lòng xác thực CCCD trước khi vào phòng thi (menu STUDENT → Xác thực CCCD).');
+      if (!user && !studentSession) {
+        setEnterError('Vui lòng nhập thông tin thí sinh trước khi vào thi.');
+        navigate('/student-info');
         return;
       }
       const win = windows.find((w) => w.id === windowId);
@@ -66,7 +63,7 @@ export default function StudentExamsPage() {
         setEnterError('Hiện không trong thời gian làm bài của kỳ thi này.');
         return;
       }
-      const attempt = await createAttempt(user.id, windowId, getExamIdForNewAttempt(win));
+      const attempt = await createAttempt(user?.id ?? null, windowId, getExamIdForNewAttempt(win), studentSession);
       navigate(`/exam/${attempt.id}/intro`);
     } catch (e) {
       setEnterError(e instanceof Error ? e.message : 'Lỗi tạo bài làm.');

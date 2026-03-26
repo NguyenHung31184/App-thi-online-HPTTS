@@ -7,7 +7,7 @@ import { DashboardIcon, IdCardIcon, SettingsIcon, ExamIcon, GradingIcon } from '
 const viewTitles: Record<string, string> = {
   '/dashboard': 'Trang chủ',
   '/': 'Trang chủ',
-  '/verify-cccd': 'Xác thực CCCD',
+  '/student-info': 'Thông tin thí sinh',
   '/admin': 'Quản trị',
 };
 
@@ -41,7 +41,7 @@ export default function Layout() {
         items: [
           { to: '/student/exams', label: 'Exams', icon: ExamIcon },
           { to: '/student/results', label: 'Result', icon: GradingIcon },
-          { to: '/verify-cccd', label: 'Xác thực CCCD', icon: IdCardIcon },
+          { to: '/student-info', label: 'Thông tin thí sinh', icon: IdCardIcon },
         ],
       },
     ];
@@ -74,8 +74,7 @@ export default function Layout() {
     return <Navigate to="/start" replace />;
   }
 
-  const displayEmail =
-    user?.email ?? studentSession?.student_code ?? studentSession?.student_id ?? 'Thí sinh';
+  const displayEmail = user?.email ?? studentSession?.student_name ?? 'Thí sinh';
   const displayRole =
     isAdmin
       ? 'Admin'

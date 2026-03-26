@@ -29,8 +29,8 @@ export default function LoginPage() {
         // Giáo viên: vào khu quản trị với sidebar giới hạn (Dashboard, Đề thi, Soạn câu hỏi, Báo cáo), bỏ qua CCCD
         navigate('/admin/dashboard', { replace: true });
       } else {
-        // Mặc định: thí sinh → đi thẳng đến bước xác thực CCCD
-        navigate('/verify-cccd', { replace: true });
+        // Mặc định: thí sinh → đi tới màn nhập thông tin tối giản
+        navigate('/student-info', { replace: true });
       }
     }
   };
@@ -83,7 +83,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-xs text-slate-400 text-center">
-          Trước khi thi có thể cần xác thực CCCD (màn hình kế tiếp).
+          (Chế độ tối giản) Thí sinh chỉ cần nhập họ tên + ngày sinh để vào thi.
         </p>
       </div>
     </div>

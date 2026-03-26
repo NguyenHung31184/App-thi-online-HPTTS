@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-import { getMyProfile, updateMyStudentId } from '../services/profileService';
+import { getMyProfile } from '../services/profileService';
 import type { User, UserRole, StudentSession } from '../types';
 
 const STORAGE_STUDENT_ID = 'exam_student_id';
 const STORAGE_STUDENT_CODE = 'exam_student_code';
 const STORAGE_STUDENT_NAME = 'exam_student_name';
+const STORAGE_STUDENT_DOB = 'exam_student_dob';
 
 function getRoleFromRaw(raw: unknown): UserRole {
   if (raw === 'admin' || raw === 'teacher' || raw === 'proctor') return raw;
@@ -42,6 +43,8 @@ async function maybeUpgradeToTeacherByInstructor(
 async function mapUserWithProfile(u: SupabaseUser): Promise<User | null> {
   const studentIdStorage = sessionStorage.getItem(STORAGE_STUDENT_ID) ?? undefined;
   const studentCodeStorage = sessionStorage.getItem(STORAGE_STUDENT_CODE) ?? undefined;
+  const studentNameStorage = sessionStorage.getItem(STORAGE_STUDENT_NAME) ?? undefined;
+  const studentDobStorage = sessionStorage.getItem(STORAGE_STUDENT_DOB) ?? undefined;
   let role: UserRole = getRoleFromRaw((u.user_metadata as Record<string, unknown>)?.role);
   let studentId = studentIdStorage;
   try {
@@ -60,6 +63,8 @@ async function mapUserWithProfile(u: SupabaseUser): Promise<User | null> {
     name: (u.user_metadata?.name as string) ?? u.email ?? undefined,
     student_id: studentId,
     student_code: studentCodeStorage,
+    student_name: studentNameStorage,
+    student_dob: studentDobStorage,
   };
 }
 
@@ -67,11 +72,12 @@ interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  /** Phiên học viên dựa trên CCCD (không cần Supabase auth). */
+  /** Phiên thí sinh tối giản (không cần Supabase auth). */
   studentSession: StudentSession | null;
   signIn: (email: string, password: string) => Promise<{ error?: string; user?: User | null }>;
   signOut: () => Promise<void>;
-  setStudentInfo: (studentId: string, studentCode: string, studentName?: string) => void;
+  /** Lưu thông tin thí sinh để vào thi (họ tên + ngày sinh). */
+  setStudentIdentity: (studentName: string, studentDob: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -90,16 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mapUserWithProfile(u).then(set);
   }, []);
 
-  // Khởi tạo phiên học viên từ sessionStorage (trường hợp thí sinh vào bằng CCCD, không dùng Supabase auth).
+  // Khởi tạo phiên thí sinh từ sessionStorage (không dùng Supabase auth).
   useEffect(() => {
-    const sid = sessionStorage.getItem(STORAGE_STUDENT_ID) ?? undefined;
-    const scode = sessionStorage.getItem(STORAGE_STUDENT_CODE) ?? undefined;
     const sname = sessionStorage.getItem(STORAGE_STUDENT_NAME) ?? undefined;
-    if (sid || scode || sname) {
+    const sdob = sessionStorage.getItem(STORAGE_STUDENT_DOB) ?? undefined;
+    if (sname || sdob) {
       setStudentSession({
-        student_id: sid,
-        student_code: scode,
         student_name: sname,
+        student_dob: sdob,
       });
     }
   }, []);
@@ -151,24 +155,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem(STORAGE_STUDENT_ID);
     sessionStorage.removeItem(STORAGE_STUDENT_CODE);
     sessionStorage.removeItem(STORAGE_STUDENT_NAME);
+    sessionStorage.removeItem(STORAGE_STUDENT_DOB);
     setStudentSession(null);
   }, []);
 
-  const setStudentInfo = useCallback((studentId: string, studentCode: string, studentName?: string) => {
-    sessionStorage.setItem(STORAGE_STUDENT_ID, studentId);
-    sessionStorage.setItem(STORAGE_STUDENT_CODE, studentCode);
-    if (studentName) {
-      sessionStorage.setItem(STORAGE_STUDENT_NAME, studentName);
-    }
+  const setStudentIdentity = useCallback((studentName: string, studentDob: string) => {
+    const name = studentName.trim();
+    const dob = studentDob.trim();
+    sessionStorage.setItem(STORAGE_STUDENT_NAME, name);
+    sessionStorage.setItem(STORAGE_STUDENT_DOB, dob);
     setStudentSession({
-      student_id: studentId,
-      student_code: studentCode,
-      student_name: studentName,
+      student_name: name,
+      student_dob: dob,
     });
     setUser((prev) =>
-      prev ? { ...prev, student_id: studentId, student_code: studentCode, student_name: studentName } : null
+      prev ? { ...prev, student_name: name, student_dob: dob } : null
     );
-    updateMyStudentId(studentId).catch(() => {});
+    // Không cập nhật profile student_id trong chế độ tối giản.
   }, []);
 
   const value: AuthContextValue = {
@@ -178,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     studentSession,
     signIn,
     signOut,
-    setStudentInfo,
+    setStudentIdentity,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

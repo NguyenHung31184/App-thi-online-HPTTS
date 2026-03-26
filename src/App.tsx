@@ -3,8 +3,8 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import Layout from './pages/Layout';
-import VerifyCccdPage from './pages/VerifyCccdPage';
 import RoleSelectPage from './pages/RoleSelectPage';
+import StudentInfoPage from './pages/StudentInfoPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminExamsPage from './pages/admin/AdminExamsPage';
@@ -19,21 +19,11 @@ import AdminQuestionFormPage from './pages/admin/AdminQuestionFormPage';
 import AdminQuestionImportPage from './pages/admin/AdminQuestionImportPage';
 import AdminWindowsPage from './pages/admin/AdminWindowsPage';
 import AdminWindowFormPage from './pages/admin/AdminWindowFormPage';
-import AdminEssayGradingPage from './pages/admin/AdminEssayGradingPage';
-import AdminEssayGradingDetailPage from './pages/admin/AdminEssayGradingDetailPage';
-import AdminPracticalTemplatesPage from './pages/admin/AdminPracticalTemplatesPage';
-import AdminPracticalTemplateFormPage from './pages/admin/AdminPracticalTemplateFormPage';
-import AdminPracticalSessionsPage from './pages/admin/AdminPracticalSessionsPage';
-import AdminPracticalSessionFormPage from './pages/admin/AdminPracticalSessionFormPage';
-import AdminPracticalGradingPage from './pages/admin/AdminPracticalGradingPage';
-import AdminPracticalGradingDetailPage from './pages/admin/AdminPracticalGradingDetailPage';
 import AdminReportPage from './pages/admin/AdminReportPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
-import AdminSyncPage from './pages/admin/AdminSyncPage';
 import ExamTakePage from './pages/ExamTakePage';
 import ExamIntroPage from './pages/ExamIntroPage';
 import ExamResultPage from './pages/ExamResultPage';
-import PracticalTakePage from './pages/PracticalTakePage';
 import StudentExamsPage from './pages/StudentExamsPage';
 import StudentResultsPage from './pages/StudentResultsPage';
 
@@ -45,8 +35,7 @@ function App() {
         <Routes>
           <Route path="/start" element={<RoleSelectPage />} />
           <Route path="/login" element={<LoginPage />} />
-          {/* Thí sinh vào thi: xác thực CCCD không yêu cầu Supabase auth */}
-          <Route path="/verify-cccd" element={<VerifyCccdPage />} />
+          <Route path="/student-info" element={<StudentInfoPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboardPage />} />
@@ -66,18 +55,7 @@ function App() {
             <Route path="windows" element={<AdminWindowsPage />} />
             <Route path="windows/new" element={<AdminWindowFormPage />} />
             <Route path="windows/:id" element={<AdminWindowFormPage />} />
-            <Route path="essay-grading" element={<AdminEssayGradingPage />} />
-            <Route path="essay-grading/:attemptId" element={<AdminEssayGradingDetailPage />} />
-            <Route path="practical-templates" element={<AdminPracticalTemplatesPage />} />
-            <Route path="practical-templates/new" element={<AdminPracticalTemplateFormPage />} />
-            <Route path="practical-templates/:id" element={<AdminPracticalTemplateFormPage />} />
-            <Route path="practical-sessions" element={<AdminPracticalSessionsPage />} />
-            <Route path="practical-sessions/new" element={<AdminPracticalSessionFormPage />} />
-            <Route path="practical-sessions/:id" element={<AdminPracticalSessionFormPage />} />
-            <Route path="practical-grading" element={<AdminPracticalGradingPage />} />
-            <Route path="practical-grading/:attemptId" element={<AdminPracticalGradingDetailPage />} />
             <Route path="report" element={<AdminReportPage />} />
-            <Route path="sync" element={<AdminSyncPage />} />
           </Route>
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
@@ -87,7 +65,6 @@ function App() {
             <Route path="exam/:attemptId/intro" element={<ExamIntroPage />} />
             <Route path="exam/:attemptId" element={<ExamTakePage />} />
             <Route path="exam/:attemptId/result" element={<ExamResultPage />} />
-            <Route path="practical/:attemptId" element={<PracticalTakePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

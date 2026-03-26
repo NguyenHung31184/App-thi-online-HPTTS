@@ -13,13 +13,14 @@ export interface User {
   student_id?: string; // map với TTDT students.id khi đã verify CCCD
   student_code?: string;
   student_name?: string;
-  student_dob?: string;
 }
 
-/** Phiên thí sinh tối giản (không cần Supabase auth). */
+/** Phiên đăng nhập của học viên dựa trên CCCD (không cần Supabase auth). */
 export interface StudentSession {
+  id_card_number?: string;
+  student_id?: string;
+  student_code?: string;
   student_name?: string;
-  student_dob?: string; // YYYY-MM-DD
 }
 
 export interface Exam {
@@ -83,13 +84,11 @@ export type AttemptStatus = 'in_progress' | 'completed';
 
 export interface Attempt {
   id: string;
-  user_id?: string | null;
+  user_id: string;
   exam_id: string;
   window_id: string;
   status: AttemptStatus;
   answers: Record<string, string>; // questionId -> optionId hoặc JSON string
-  student_name?: string | null;
-  student_dob?: string | null;
   score?: number | null;
   raw_score?: number | null;
   total_max?: number | null;
@@ -219,8 +218,6 @@ export interface PracticalExamCriteria {
   created_at?: string;
 }
 
-export type PracticalSessionMode = 'student_upload' | 'teacher_grading';
-
 export interface PracticalExamSession {
   id: string;
   template_id: string;
@@ -228,8 +225,6 @@ export interface PracticalExamSession {
   start_at: number;
   end_at: number;
   access_code: string;
-  /** Cách tổ chức kỳ thi: student_upload (HV tự upload) hoặc teacher_grading (GV chấm trực tiếp). */
-  mode?: PracticalSessionMode;
   created_at?: string;
 }
 

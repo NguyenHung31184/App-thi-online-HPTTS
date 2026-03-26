@@ -9,21 +9,20 @@ interface AttemptWithExam extends Attempt {
 }
 
 export default function StudentResultsPage() {
-  const { user, studentSession } = useAuth();
+  const { user } = useAuth();
   const [attempts, setAttempts] = useState<AttemptWithExam[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    const hasStudentIdentity = Boolean(studentSession?.student_name && studentSession?.student_dob);
-    if (!user?.id && !hasStudentIdentity) {
+    if (!user?.id) {
       setLoading(false);
       return;
     }
     (async () => {
       try {
-        let q = supabase
+        const { data, error: err } = await supabase
           .from('attempts')
           .select(
             `
@@ -31,19 +30,9 @@ export default function StudentResultsPage() {
             exams (title, duration_minutes, pass_threshold)
           `
           )
+          .eq('user_id', user.id)
           .eq('status', 'completed')
           .order('completed_at', { ascending: false });
-
-        if (user?.id) {
-          q = q.eq('user_id', user.id);
-        } else {
-          q = q
-            .is('user_id', null)
-            .eq('student_name', studentSession!.student_name!)
-            .eq('student_dob', studentSession!.student_dob!);
-        }
-
-        const { data, error: err } = await q;
         if (cancelled) return;
         if (err) {
           setError(err.message);
@@ -60,7 +49,7 @@ export default function StudentResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, studentSession?.student_name, studentSession?.student_dob]);
+  }, [user?.id]);
 
   const formatTime = (ts?: number | null) =>
     ts != null ? new Date(ts).toLocaleString('vi-VN') : '—';

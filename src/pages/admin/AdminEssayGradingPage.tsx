@@ -78,16 +78,7 @@ export default function AdminEssayGradingPage() {
                 <span className="text-slate-700">
                   Bài làm <code className="text-xs bg-slate-100 px-1 rounded">{a.id.slice(0, 8)}...</code>
                   {' — '}
-                  {a.user_id ? (
-                    <>user {a.user_id.slice(0, 8)}...</>
-                  ) : a.student_name ? (
-                    <>
-                      thí sinh {a.student_name}
-                      {a.student_dob ? <span className="text-slate-500"> ({a.student_dob})</span> : null}
-                    </>
-                  ) : (
-                    <>thí sinh (ẩn danh)</>
-                  )}
+                  user {a.user_id.slice(0, 8)}...
                   {a.completed_at != null && (
                     <span className="text-slate-500 text-sm ml-1">
                       ({new Date(a.completed_at).toLocaleString('vi-VN')})

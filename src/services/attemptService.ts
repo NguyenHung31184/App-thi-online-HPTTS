@@ -1,11 +1,10 @@
 import { supabase } from '../lib/supabaseClient';
-import type { Attempt, QuestionForStudent, StudentSession } from '../types';
+import type { Attempt, QuestionForStudent } from '../types';
 
 export async function createAttempt(
-  userId: string | null,
+  userId: string,
   windowId: string,
-  examId: string,
-  studentSession?: StudentSession | null
+  examId: string
 ): Promise<Attempt> {
   const started_at = Date.now();
   const { data, error } = await supabase
@@ -17,8 +16,6 @@ export async function createAttempt(
       status: 'in_progress',
       answers: {},
       started_at,
-      student_name: studentSession?.student_name ?? null,
-      student_dob: studentSession?.student_dob ?? null,
     })
     .select()
     .single();

@@ -25,7 +25,7 @@ export default function ExamIntroPage() {
           if (!cancelled) setError('Không tìm thấy bài làm.');
           return;
         }
-        if (user?.id && a.user_id && a.user_id !== user.id) {
+        if (user?.id && a.user_id !== user.id) {
           if (!cancelled) setError('Bạn không có quyền làm bài này.');
           return;
         }
@@ -85,13 +85,24 @@ export default function ExamIntroPage() {
 
           <section>
             <h2 className="text-sm font-semibold text-slate-800 uppercase tracking-wide mb-1">
-              Hướng dẫn nhanh
+              Quy định trong phòng thi
             </h2>
-            <ul className="list-disc list-inside space-y-1 text-sm text-slate-600">
-              <li>Nhập mã truy cập đúng để vào phòng thi.</li>
-              <li>Chọn đáp án và nộp bài trước khi hết giờ.</li>
-              <li>Bạn có thể bắt đầu ngay khi sẵn sàng.</li>
-            </ul>
+            <ol className="list-decimal list-inside space-y-1 text-sm text-slate-600">
+              <li>Không được chia sẻ mã truy cập cho người khác.</li>
+              <li>
+                Hệ thống chỉ cho thi khi bạn đã{' '}
+                <span className="font-semibold">xác thực CCCD và được xếp đúng lớp/kỳ thi</span>.
+              </li>
+              <li>
+                Trong quá trình làm bài, hệ thống có thể yêu cầu{' '}
+                <span className="font-semibold">chụp ảnh khuôn mặt</span> để đối chiếu danh tính.
+              </li>
+              <li>
+                Trình duyệt sẽ bị giám sát: <span className="font-semibold">chuyển tab, thu nhỏ, thoát fullscreen</span>{' '}
+                nhiều lần có thể dẫn tới tự động nộp bài.
+              </li>
+              <li>Không được chép câu hỏi/đáp án ra ngoài hoặc sử dụng tài liệu hỗ trợ nếu không được phép.</li>
+            </ol>
           </section>
 
           <section>
@@ -114,7 +125,8 @@ export default function ExamIntroPage() {
                 className="mt-1"
               />
               <span>
-                Tôi đã đọc hướng dẫn và sẵn sàng bắt đầu.
+                Tôi xác nhận đã đọc và hiểu toàn bộ hướng dẫn, quy định phòng thi ở trên, đồng thời đồng ý để hệ thống
+                ghi nhận log giám sát trong suốt quá trình làm bài.
               </span>
             </label>
             <div className="mt-4 flex justify-end">

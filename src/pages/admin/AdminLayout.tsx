@@ -5,7 +5,10 @@ import AppLayout, { type NavSection } from '../../components/AppLayout';
 import {
   ExamIcon,
   CalendarIcon,
+  PracticalIcon,
+  EssayGradingIcon,
   ReportIcon,
+  SyncIcon,
   DashboardIcon,
   QuestionBankIcon,
 } from '../../components/Icons';
@@ -16,7 +19,12 @@ const adminTitles: Record<string, string> = {
   '/admin/exams': 'Đề thi',
   '/admin/questions': 'Soạn câu hỏi',
   '/admin/windows': 'Kỳ thi',
+  '/admin/practical-templates': 'Thi thực hành',
+  '/admin/practical-sessions': 'Ca thi thực hành',
+  '/admin/essay-grading': 'Chấm tự luận',
+  '/admin/practical-grading': 'Chấm thi thực hành',
   '/admin/report': 'Báo cáo',
+  '/admin/sync': 'Đồng bộ điểm',
 };
 
 function getAdminTitle(pathname: string): string {
@@ -48,7 +56,6 @@ export default function AdminLayout() {
           items: [
             { to: '/admin/exams', label: 'Đề thi', icon: ExamIcon },
             { to: '/admin/questions', label: 'Soạn câu hỏi', icon: QuestionBankIcon },
-            { to: '/admin/windows', label: 'Kỳ thi', icon: CalendarIcon },
             { to: '/admin/report', label: 'Báo cáo', icon: ReportIcon },
           ],
         },
@@ -67,8 +74,22 @@ export default function AdminLayout() {
           { to: '/admin/exams', label: 'Đề thi', icon: ExamIcon },
           { to: '/admin/questions', label: 'Soạn câu hỏi', icon: QuestionBankIcon },
           { to: '/admin/windows', label: 'Kỳ thi', icon: CalendarIcon },
+          { to: '/admin/essay-grading', label: 'Chấm tự luận', icon: EssayGradingIcon },
           { to: '/admin/report', label: 'Báo cáo', icon: ReportIcon },
         ],
+      },
+      {
+        id: 'practical',
+        title: 'THI THỰC HÀNH',
+        items: [
+          { to: '/admin/practical-templates', label: 'Đề thực hành', icon: PracticalIcon },
+          { to: '/admin/practical-grading', label: 'Chấm thực hành', icon: PracticalIcon },
+        ],
+      },
+      {
+        id: 'integration',
+        title: 'TÍCH HỢP',
+        items: [{ to: '/admin/sync', label: 'Đồng bộ điểm', icon: SyncIcon }],
       },
     ];
   }, [isTeacher]);

@@ -38,13 +38,13 @@ export default function RoleSelectPage() {
 
           <button
             type="button"
-            onClick={() => navigate('/student-info')}
+            onClick={() => navigate('/login')}
             className="group rounded-xl border border-slate-200 p-4 text-left hover:border-emerald-500 hover:shadow-md transition-all bg-emerald-50/60"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-500 mb-1">Thí sinh</p>
             <p className="font-semibold text-slate-800 mb-1">Student</p>
             <p className="text-xs text-slate-500">
-              Nhập họ tên và ngày sinh để vào thi trắc nghiệm.
+              Đăng nhập bằng tài khoản thi (mã học viên/email + mật khẩu). Sau khi đăng nhập, vào mục \"Xác thực CCCD\" để hệ thống kiểm tra rồi vào phòng thi.
             </p>
           </button>
         </div>

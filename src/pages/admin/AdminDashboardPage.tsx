@@ -1,24 +1,37 @@
 import { useEffect, useState } from 'react';
-import { getAdminDashboardStats, type AdminDashboardStats } from '../../services/dashboardService';
+import {
+  getAdminDashboardStats,
+  listRecentCompletedAttemptsForDashboard,
+  type AdminDashboardStats,
+  type DashboardRecentAttemptRow,
+} from '../../services/dashboardService';
+import DashboardRecentAttemptsTable from '../../components/DashboardRecentAttemptsTable';
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
+  const [recentRows, setRecentRows] = useState<DashboardRecentAttemptRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    getAdminDashboardStats()
-      .then((res) => {
-        if (!cancelled) setStats(res);
-      })
-      .catch((e) => {
+    const run = async () => {
+      try {
+        const [statsRes, rows] = await Promise.all([
+          getAdminDashboardStats(),
+          listRecentCompletedAttemptsForDashboard(80),
+        ]);
+        if (!cancelled) {
+          setStats(statsRes);
+          setRecentRows(rows);
+        }
+      } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Lỗi tải thống kê.');
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+    run();
     return () => {
       cancelled = true;
     };
@@ -65,9 +78,7 @@ export default function AdminDashboardPage() {
               ) : (
                 <div className="h-40 flex items-end gap-2">
                   {stats.attemptsPerDay.map((d) => {
-                    const max = Math.max(
-                      ...stats.attemptsPerDay.map((x) => x.completed || 1)
-                    );
+                    const max = Math.max(...stats.attemptsPerDay.map((x) => x.completed || 1));
                     const height = (d.completed / max) * 100;
                     return (
                       <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
@@ -124,9 +135,20 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Bảng bài làm gần đây */}
+          <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-semibold text-slate-800">Bài làm gần đây (đã nộp)</p>
+              <span className="text-xs text-slate-400">{recentRows.length} bài</span>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">
+              Đề thi, kỳ thi, thời gian làm, điểm, kết quả — bấm <strong>Xem</strong> để xem chi tiết từng câu.
+            </p>
+            <DashboardRecentAttemptsTable rows={recentRows} showAdminLinks />
+          </div>
         </>
       )}
     </div>
   );
 }
-

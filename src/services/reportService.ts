@@ -102,10 +102,23 @@ export async function listAttemptsForReport(
   const { data, error } = await q;
   if (error) throw error;
 
-  const rows = (data ?? []) as (typeof data extends (infer R)[] ? R : never)[];
+  type AttemptRow = {
+    id: string;
+    user_id: string | null;
+    exam_id: string | null;
+    window_id: string | null;
+    score: number | null;
+    raw_score: number | null;
+    disqualified: boolean | null;
+    completed_at: number | null;
+    synced_to_ttdt_at: string | null;
+    exams?: { title?: string | null; pass_threshold?: number | null } | null;
+    exam_windows?: { class_id?: string | null } | null;
+  };
+  const rows = (data ?? []) as AttemptRow[];
 
-  const userIds = [...new Set((rows as any[]).map((r) => r.user_id).filter(Boolean))];
-  const classIds = [...new Set((rows as any[]).map((r) => r.exam_windows?.class_id).filter(Boolean))];
+  const userIds = [...new Set(rows.map((r) => r.user_id).filter((id): id is string => Boolean(id)))];
+  const classIds = [...new Set(rows.map((r) => r.exam_windows?.class_id).filter((id): id is string => Boolean(id)))];
 
   const profileByUserId = await fetchProfilesById(userIds);
   const studentIds = [...new Set(Array.from(profileByUserId.values()).map((p) => p.student_id).filter(Boolean))] as string[];
@@ -116,7 +129,7 @@ export async function listAttemptsForReport(
     fetchStudentNamesByExamEmail(emails),
   ]);
 
-  return rows.map((r: any) => {
+  return rows.map((r) => {
     const exam = r.exams;
     const window = r.exam_windows;
     const classId = window?.class_id ?? '';
@@ -221,10 +234,23 @@ export async function listViolationsForReport(
   const { data, error } = await q;
   if (error) throw error;
 
-  const rows = (data ?? []) as (typeof data extends (infer R)[] ? R : never)[];
+  type ViolationRow = {
+    id: string;
+    attempt_id: string;
+    event: string;
+    created_at: string | null;
+    attempts?: {
+      user_id?: string | null;
+      exam_id?: string | null;
+      window_id?: string | null;
+      exams?: { title?: string | null } | null;
+      exam_windows?: { class_id?: string | null } | null;
+    } | null;
+  };
+  const rows = (data ?? []) as ViolationRow[];
 
-  const userIds = [...new Set((rows as any[]).map((r) => r.attempts?.user_id).filter(Boolean))];
-  const classIds = [...new Set((rows as any[]).map((r) => r.attempts?.exam_windows?.class_id).filter(Boolean))];
+  const userIds = [...new Set(rows.map((r) => r.attempts?.user_id).filter((id): id is string => Boolean(id)))];
+  const classIds = [...new Set(rows.map((r) => r.attempts?.exam_windows?.class_id).filter((id): id is string => Boolean(id)))];
   const profileByUserId = await fetchProfilesById(userIds);
   const studentIds = [...new Set(Array.from(profileByUserId.values()).map((p) => p.student_id).filter(Boolean))] as string[];
   const emails = [...new Set(Array.from(profileByUserId.values()).map((p) => p.email).filter(Boolean))] as string[];
@@ -234,7 +260,7 @@ export async function listViolationsForReport(
     fetchStudentNamesByExamEmail(emails),
   ]);
 
-  return rows.map((r: any) => {
+  return rows.map((r) => {
     const attempt = r.attempts;
     const exam = attempt?.exams;
     const window = attempt?.exam_windows;

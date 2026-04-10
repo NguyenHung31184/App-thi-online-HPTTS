@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { listExams } from '../../services/examService';
 import { listExamWindows } from '../../services/examWindowService';
 import { listClasses } from '../../services/ttdtDataService';
@@ -41,89 +42,98 @@ export default function AdminReportPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedExamId) {
-      setWindows([]);
+    const run = async () => {
+      if (!selectedExamId) {
+        setWindows([]);
+        setSelectedWindowId('');
+        return;
+      }
       setSelectedWindowId('');
-      return;
-    }
-    listExamWindows({ exam_id: selectedExamId }).then(setWindows).catch(() => setWindows([]));
-    setSelectedWindowId('');
+      try {
+        const ws = await listExamWindows({ exam_id: selectedExamId });
+        setWindows(ws);
+      } catch {
+        setWindows([]);
+      }
+    };
+    run();
   }, [selectedExamId]);
 
   useEffect(() => {
     const filters: ReportFilters = {};
     if (selectedExamId) filters.exam_id = selectedExamId;
     if (selectedWindowId) filters.window_id = selectedWindowId;
-    if (activeTab !== 'results') {
-      setRows([]);
-      return;
-    }
-    if (!selectedExamId) {
-      setRows([]);
-      return;
-    }
-    setLoading(true);
-    listAttemptsForReport(filters)
-      .then(setRows)
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false));
+
+    const run = async () => {
+      if (activeTab !== 'results' || !selectedExamId) {
+        setRows([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await listAttemptsForReport(filters);
+        setRows(data);
+      } catch {
+        setRows([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
   }, [selectedExamId, selectedWindowId, activeTab, reloadKey]);
 
   useEffect(() => {
     const filters: ReportFilters = {};
     if (selectedExamId) filters.exam_id = selectedExamId;
     if (selectedWindowId) filters.window_id = selectedWindowId;
-    if (activeTab !== 'violations') {
-      setViolationRows([]);
-      return;
-    }
-    if (!selectedExamId) {
-      setViolationRows([]);
-      return;
-    }
-    setLoadingViolations(true);
-    listViolationsForReport(filters)
-      .then(setViolationRows)
-      .catch(() => setViolationRows([]))
-      .finally(() => setLoadingViolations(false));
+
+    const run = async () => {
+      if (activeTab !== 'violations' || !selectedExamId) {
+        setViolationRows([]);
+        return;
+      }
+      setLoadingViolations(true);
+      try {
+        const data = await listViolationsForReport(filters);
+        setViolationRows(data);
+      } catch {
+        setViolationRows([]);
+      } finally {
+        setLoadingViolations(false);
+      }
+    };
+    run();
   }, [selectedExamId, selectedWindowId, activeTab, reloadKey]);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = useCallback(() => {
     exportReportToExcel(rows);
-  };
+  }, [rows]);
 
-  const handleExportViolationsExcel = () => {
-    exportViolationsToExcel(aggregatedViolationRows);
-  };
-
-  const handleReload = () => {
+  const handleReload = useCallback(() => {
     if (!selectedExamId) return;
     setReloadKey((k) => k + 1);
-  };
+  }, [selectedExamId]);
 
+  /** Tổng hợp vi phạm theo user: đếm từng loại event. */
   const aggregatedViolationRows = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        id: string;
-        user_id: string;
-        user_name: string;
-        user_email: string;
-        focusLostCount: number;
-        visibilityHiddenCount: number;
-        fullscreenExitedCount: number;
-        copyPasteBlockedCount: number;
-        photoTakenCount: number;
-      }
-    >();
+    type AggRow = {
+      id: string;
+      user_id: string;
+      user_name: string;
+      user_email: string;
+      focusLostCount: number;
+      visibilityHiddenCount: number;
+      fullscreenExitedCount: number;
+      copyPasteBlockedCount: number;
+      photoTakenCount: number;
+    };
+    const map = new Map<string, AggRow>();
 
-    violationRows.forEach((r) => {
+    for (const r of violationRows) {
       const key = r.user_id || r.user_email;
-      if (!key) return;
-
-      const existing =
-        map.get(key) ??
-        {
+      if (!key) continue;
+      if (!map.has(key)) {
+        map.set(key, {
           id: key,
           user_id: r.user_id,
           user_name: r.user_name,
@@ -133,23 +143,18 @@ export default function AdminReportPage() {
           fullscreenExitedCount: 0,
           copyPasteBlockedCount: 0,
           photoTakenCount: 0,
-        };
-
-      if (!map.has(key)) {
-        map.set(key, existing);
+        });
       }
-
-      if (r.event === 'focus_lost') existing.focusLostCount += 1;
-      if (r.event === 'visibility_hidden') existing.visibilityHiddenCount += 1;
-      if (r.event === 'fullscreen_exited') existing.fullscreenExitedCount += 1;
-      if (r.event === 'copy_paste_blocked') existing.copyPasteBlockedCount += 1;
-      if (r.event === 'photo_taken') existing.photoTakenCount += 1;
-    });
+      const row = map.get(key)!;
+      if (r.event === 'focus_lost') row.focusLostCount += 1;
+      else if (r.event === 'visibility_hidden') row.visibilityHiddenCount += 1;
+      else if (r.event === 'fullscreen_exited') row.fullscreenExitedCount += 1;
+      else if (r.event === 'copy_paste_blocked') row.copyPasteBlockedCount += 1;
+      else if (r.event === 'photo_taken') row.photoTakenCount += 1;
+    }
 
     const list = Array.from(map.values());
-
     if (!violationSearch.trim()) return list;
-
     const q = violationSearch.trim().toLowerCase();
     return list.filter((row) => {
       const name = row.user_name?.toLowerCase() ?? '';
@@ -157,6 +162,10 @@ export default function AdminReportPage() {
       return name.includes(q) || email.includes(q);
     });
   }, [violationRows, violationSearch]);
+
+  const handleExportViolationsExcel = useCallback(() => {
+    exportViolationsToExcel(aggregatedViolationRows);
+  }, [aggregatedViolationRows]);
 
   const filteredResultRows = useMemo(() => {
     if (!resultSearch.trim()) return rows;
@@ -299,49 +308,61 @@ export default function AdminReportPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
-                  <th className="px-3 py-2">Mã bài làm</th>
                   <th className="px-3 py-2">Học viên</th>
                   <th className="px-3 py-2">Đề thi</th>
                   <th className="px-3 py-2">Kỳ / Lớp</th>
                   <th className="px-3 py-2">Điểm</th>
-                  <th className="px-3 py-2">Đạt</th>
+                  <th className="px-3 py-2">Kết quả</th>
                   <th className="px-3 py-2">Hoàn thành</th>
-                  <th className="px-3 py-2">Đồng bộ TTDT</th>
+                  <th className="px-3 py-2">Đồng bộ</th>
+                  <th className="px-3 py-2 w-16">Chi tiết</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredResultRows.map((r) => (
-                  <tr key={r.id} className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-mono text-xs">{r.id.slice(0, 8)}…</td>
+                  <tr key={r.id} className="border-t border-slate-100 hover:bg-slate-50/70 transition-colors">
                     <td className="px-3 py-2">
                       <div className="text-sm font-medium text-slate-800">{r.user_name || r.user_email || '—'}</div>
                       {r.user_email && <div className="text-[11px] text-slate-500">{r.user_email}</div>}
-                      {!r.user_email && r.user_id && <div className="font-mono text-[11px] text-slate-500">{r.user_id.slice(0, 8)}…</div>}
-                    </td>
-                    <td className="px-3 py-2">{r.exam_title}</td>
-                    <td className="px-3 py-2">
-                      <span className="font-mono text-xs">{r.window_id.slice(0, 8)}…</span>
-                      {r.class_name || r.class_id ? (
-                        <span className="text-slate-700"> / {r.class_name || r.class_id}</span>
-                      ) : (
-                        ' / —'
+                      {!r.user_email && r.user_id && (
+                        <div className="font-mono text-[11px] text-slate-500">{r.user_id.slice(0, 8)}…</div>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 text-sm text-slate-700">{r.exam_title}</td>
+                    <td className="px-3 py-2 text-xs text-slate-600">
+                      {r.class_name || r.class_id || '—'}
+                    </td>
+                    <td className="px-3 py-2 font-medium tabular-nums text-slate-800">
                       {r.score != null ? (r.score * 100).toFixed(1) + '%' : '—'}
-                      {r.raw_score != null && ` (${r.raw_score})`}
+                      {r.raw_score != null && (
+                        <span className="text-slate-500 font-normal"> ({r.raw_score})</span>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       {r.disqualified ? (
-                        <span className="text-red-600">Loại</span>
+                        <span className="text-amber-700 font-medium">Loại</span>
                       ) : r.passed ? (
-                        <span className="text-green-600">Đạt</span>
+                        <span className="text-emerald-600 font-medium">Đạt</span>
                       ) : (
-                        <span className="text-amber-600">Chưa đạt</span>
+                        <span className="text-red-600 font-medium">Chưa đạt</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-slate-600">{r.completed_at ?? '—'}</td>
-                    <td className="px-3 py-2">{r.synced_to_ttdt_at ? 'Có' : 'Chưa'}</td>
+                    <td className="px-3 py-2 text-xs text-slate-500">{r.completed_at ?? '—'}</td>
+                    <td className="px-3 py-2 text-xs">
+                      {r.synced_to_ttdt_at ? (
+                        <span className="text-emerald-600">✓ Có</span>
+                      ) : (
+                        <span className="text-slate-400">Chưa</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <Link
+                        to={`/admin/attempts/${r.id}/result`}
+                        className="text-indigo-600 hover:underline text-xs font-medium"
+                      >
+                        Xem
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

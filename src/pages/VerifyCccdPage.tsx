@@ -7,8 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import { analyzeCccdByImageUrl } from '../services/ocrService';
 import { verifyCccdForExam } from '../services/verifyCccdService';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { uploadExamFileViaEdge } from '../services/examUploadService';
 import type { OcrCccdResult } from '../types';
+import CccdCameraCapture from '../components/CccdCameraCapture';
 
 export default function VerifyCccdPage() {
   const navigate = useNavigate();
@@ -23,6 +25,7 @@ export default function VerifyCccdPage() {
   const [manualCccd, setManualCccd] = useState('');
   const [manualName, setManualName] = useState('');
   const [manualDob, setManualDob] = useState('');
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canManualOverride = user?.role === 'admin' || user?.role === 'teacher';
@@ -48,26 +51,26 @@ export default function VerifyCccdPage() {
     setLoading(true);
     try {
       if (!isSupabaseConfigured()) {
-        setError('Chưa cấu hình Supabase. Cần Supabase + bucket "exam-uploads" để tải ảnh lên và gọi OCR.');
-        setLoading(false);
-        return;
-      }
-      const bucket = 'exam-uploads';
-      const fileName = `cccd/${Date.now()}_${imageFile.name}`;
-      const { data: uploadData, error: uploadErr } = await supabase.storage
-        .from(bucket)
-        .upload(fileName, imageFile, { upsert: true });
-
-      if (uploadErr) {
-        setError('Không thể tải ảnh lên. Bạn đã cấu hình Storage bucket "exam-uploads" chưa?');
+        setError('Chưa cấu hình Supabase. Cần Supabase để upload ảnh (qua Edge) và gọi OCR.');
         setLoading(false);
         return;
       }
 
-      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(uploadData.path);
-      const publicUrl = urlData.publicUrl;
+      // Upload qua Edge → nhận signed URL ngắn hạn để gửi OCR
+      const attemptId = user?.id || 'anonymous';
+      const up = await uploadExamFileViaEdge({
+        category: 'cccd',
+        attemptId,
+        kind: `verify_cccd_${Date.now()}`,
+        file: imageFile,
+      });
+      if (!up.ok) {
+        setError(up.error || 'Không thể tải ảnh lên (Edge).');
+        setLoading(false);
+        return;
+      }
 
-      const result = await analyzeCccdByImageUrl(publicUrl);
+      const result = await analyzeCccdByImageUrl(up.signedUrl);
       if (!result.success || !result.data) {
         setError(result.error || 'Không đọc được thông tin từ ảnh CCCD.');
         setLoading(false);
@@ -136,10 +139,27 @@ export default function VerifyCccdPage() {
     setLoading(false);
   };
 
+  /** Nhận file từ camera (đã crop+encode) → set vào state, bỏ qua FileReader vì có URL tạm */
+  const handleCameraCapture = (file: File) => {
+    setIsCameraOpen(false);
+    setError('');
+    setImageFile(file);
+    const url = URL.createObjectURL(file);
+    setImagePreviewUrl(url);
+    setStep('upload');
+  };
+
   const handleSkip = () => navigate('/dashboard', { replace: true });
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 flex items-center justify-center">
+      {/* Camera modal — hiện đè lên toàn màn hình */}
+      <CccdCameraCapture
+        isOpen={isCameraOpen}
+        onCancel={() => setIsCameraOpen(false)}
+        onCapture={handleCameraCapture}
+      />
+
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg p-6">
         <h1 className="text-xl font-bold text-slate-800 mb-1">Xác thực CCCD trước khi thi</h1>
         <p className="text-slate-500 text-sm mb-6">
@@ -158,12 +178,28 @@ export default function VerifyCccdPage() {
           <>
             {!imagePreviewUrl ? (
               <>
+                {/* Nút chụp camera có khung hướng dẫn */}
+                <button
+                  type="button"
+                  onClick={() => setIsCameraOpen(true)}
+                  className="w-full py-5 mb-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <span>📷</span> Chụp CCCD bằng camera (có khung)
+                </button>
+
+                {/* Divider */}
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1 border-t border-slate-200" />
+                  <span className="text-xs text-slate-400">hoặc</span>
+                  <div className="flex-1 border-t border-slate-200" />
+                </div>
+
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-8 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:border-indigo-400 hover:text-indigo-600"
+                  className="w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
                 >
-                  Chọn ảnh CCCD (mặt trước)
+                  Chọn ảnh từ thư viện / file
                 </button>
                 {canManualOverride && (
                   <div className="mt-4 pt-4 border-t border-slate-200">
@@ -208,11 +244,18 @@ export default function VerifyCccdPage() {
                   alt="CCCD"
                   className="w-full max-h-64 object-contain rounded-lg border border-slate-200 mb-4"
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCameraOpen(true)}
+                    className="flex-1 py-2 border border-indigo-400 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors text-sm"
+                  >
+                    📷 Chụp lại
+                  </button>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700"
+                    className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700 text-sm hover:bg-slate-50 transition-colors"
                   >
                     Chọn ảnh khác
                   </button>
@@ -220,7 +263,7 @@ export default function VerifyCccdPage() {
                     type="button"
                     onClick={handleRunOcr}
                     disabled={loading}
-                    className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                    className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm"
                   >
                     {loading ? 'Đang đọc...' : 'Đọc CCCD'}
                   </button>

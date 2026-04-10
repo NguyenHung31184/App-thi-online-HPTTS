@@ -29,6 +29,7 @@ import AdminPracticalGradingPage from './pages/admin/AdminPracticalGradingPage';
 import AdminPracticalGradingDetailPage from './pages/admin/AdminPracticalGradingDetailPage';
 import AdminReportPage from './pages/admin/AdminReportPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
+import AdminAttemptResultPage from './pages/admin/AdminAttemptResultPage';
 import AdminSyncPage from './pages/admin/AdminSyncPage';
 import ExamTakePage from './pages/ExamTakePage';
 import ExamIntroPage from './pages/ExamIntroPage';
@@ -77,6 +78,7 @@ function App() {
             <Route path="practical-grading" element={<AdminPracticalGradingPage />} />
             <Route path="practical-grading/:attemptId" element={<AdminPracticalGradingDetailPage />} />
             <Route path="report" element={<AdminReportPage />} />
+            <Route path="attempts/:attemptId/result" element={<AdminAttemptResultPage />} />
             <Route path="sync" element={<AdminSyncPage />} />
           </Route>
           <Route path="/" element={<Layout />}>

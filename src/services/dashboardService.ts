@@ -1,5 +1,156 @@
 import { supabase } from '../lib/supabaseClient';
 
+/** Một dòng bài đã nộp trên dashboard báo cáo (đề + kỳ thi + thời gian làm + điểm + đạt). */
+export interface DashboardRecentAttemptRow {
+  id: string;
+  exam_id: string;
+  exam_title: string;
+  window_id: string;
+  window_label: string;
+  student_label: string;
+  started_at: number;
+  completed_at: number;
+  duration_label: string;
+  score: number | null;
+  raw_display: string;
+  passed: boolean;
+  disqualified: boolean;
+}
+
+function formatDurationMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '—';
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  if (m >= 120) {
+    const h = Math.floor(m / 60);
+    const rm = m % 60;
+    return `${h} giờ ${rm} phút`;
+  }
+  return `${m} phút ${s} giây`;
+}
+
+function formatWindowRange(startAt: number, endAt: number): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  };
+  try {
+    const a = new Date(Number(startAt)).toLocaleString('vi-VN', opts);
+    const b = new Date(Number(endAt)).toLocaleString('vi-VN', opts);
+    return `${a} → ${b}`;
+  } catch {
+    return '—';
+  }
+}
+
+/** Danh sách bài làm đã hoàn thành gần đây (admin/teacher). Hiển thị trực tiếp trên dashboard. */
+export async function listRecentCompletedAttemptsForDashboard(
+  limit: number,
+): Promise<DashboardRecentAttemptRow[]> {
+  const cap = Math.min(200, Math.max(1, Math.floor(limit) || 80));
+  const { data, error } = await supabase
+    .from('attempts')
+    .select(
+      `
+      id,
+      exam_id,
+      window_id,
+      started_at,
+      completed_at,
+      score,
+      raw_score,
+      total_max,
+      disqualified,
+      student_name,
+      student_dob,
+      user_id,
+      exams ( title, pass_threshold ),
+      exam_windows ( id, start_at, end_at, access_code )
+    `,
+    )
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false })
+    .limit(cap);
+
+  if (error) throw error;
+
+  const rows = (data ?? []) as {
+    id: string;
+    exam_id: string;
+    window_id: string;
+    started_at: number;
+    completed_at: number | null;
+    score: number | null;
+    raw_score: number | null;
+    total_max: number | null;
+    disqualified: boolean | null;
+    student_name: string | null;
+    student_dob: string | null;
+    user_id: string | null;
+    exams?: { title?: string | null; pass_threshold?: number | null } | null;
+    exam_windows?: {
+      id?: string;
+      start_at?: number;
+      end_at?: number;
+      access_code?: string | null;
+    } | null;
+  }[];
+
+  return rows.map((r) => {
+    const exam = r.exams;
+    const win = r.exam_windows;
+    const threshold = exam?.pass_threshold ?? 0.7;
+    const scoreNum = r.score != null ? Number(r.score) : null;
+    const passed = Boolean(!r.disqualified && scoreNum != null && scoreNum >= threshold);
+    const completedAt = r.completed_at != null ? Number(r.completed_at) : 0;
+    const startedAt = Number(r.started_at);
+    const durationMs = completedAt > 0 && startedAt > 0 ? completedAt - startedAt : -1;
+    const raw = r.raw_score != null ? Number(r.raw_score) : null;
+    const max = r.total_max != null ? Number(r.total_max) : null;
+    const rawDisplay =
+      raw != null && max != null && max > 0
+        ? `${Math.round(raw * 10) / 10} / ${Math.round(max * 10) / 10}`
+        : scoreNum != null
+          ? `${Math.round(scoreNum * 1000) / 10}%`
+          : '—';
+    const st = (r.student_name ?? '').trim();
+    const studentLabel =
+      st !== ''
+        ? st
+        : r.user_id
+          ? 'Tài khoản đăng nhập'
+          : '—';
+    const winStart = win?.start_at != null ? Number(win.start_at) : 0;
+    const winEnd = win?.end_at != null ? Number(win.end_at) : 0;
+    const windowLabel =
+      winStart > 0 && winEnd > 0
+        ? formatWindowRange(winStart, winEnd)
+        : win?.access_code
+          ? `Mã ${win.access_code}`
+          : '—';
+
+    return {
+      id: r.id,
+      exam_id: r.exam_id,
+      exam_title: exam?.title ?? '—',
+      window_id: r.window_id,
+      window_label: windowLabel,
+      student_label: studentLabel,
+      started_at: startedAt,
+      completed_at: completedAt,
+      duration_label: formatDurationMs(durationMs),
+      score: scoreNum,
+      raw_display: rawDisplay,
+      passed,
+      disqualified: Boolean(r.disqualified),
+    };
+  });
+}
+
 export interface AttemptsPerDay {
   date: string; // YYYY-MM-DD
   completed: number;

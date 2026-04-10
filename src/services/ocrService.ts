@@ -1,11 +1,12 @@
 /**
  * OCR CCCD — tận dụng server mà Chatbot tuyển sinh đang gọi.
- * Gọi proxy: https://chatbot-hptts-2025.vercel.app/api/ocr
+ * Khuyến nghị: trỏ tới OCR proxy service độc lập (deploy riêng).
  * Body: { image_url: string } (ảnh phải có URL public — upload Supabase Storage trước).
  */
 import type { OcrCccdResult } from '../types';
 
-const OCR_URL = import.meta.env.VITE_OCR_CCCD_URL || 'https://chatbot-hptts-2025.vercel.app/api/ocr';
+const OCR_URL = import.meta.env.VITE_OCR_CCCD_URL || '';
+const OCR_API_KEY = import.meta.env.VITE_OCR_CCCD_API_KEY || '';
 
 export function isOcrConfigured(): boolean {
   return Boolean(OCR_URL && OCR_URL.length > 0);
@@ -24,7 +25,10 @@ export async function analyzeCccdByImageUrl(
   try {
     const res = await fetch(OCR_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(OCR_API_KEY ? { 'x-api-key': OCR_API_KEY } : {}),
+      },
       body: JSON.stringify({ image_url: imageUrl }),
     });
 

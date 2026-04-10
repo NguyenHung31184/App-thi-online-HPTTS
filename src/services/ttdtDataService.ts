@@ -109,10 +109,11 @@ export async function listModulesByOccupationId(occupationId: string): Promise<M
     console.warn('listModulesByOccupationId:', error.message);
     return [];
   }
+  type CourseModuleRow = { modules?: { id: string; name?: string | null; code?: string | null; is_deleted?: boolean | null } | null };
   const modules =
-    data
-      ?.map((row: any) => row.modules)
-      ?.filter((m: any) => m && !m.is_deleted) ?? [];
+    (data as CourseModuleRow[] ?? [])
+      .map((row) => row.modules)
+      .filter((m): m is NonNullable<CourseModuleRow['modules']> => Boolean(m) && !m?.is_deleted);
 
   const seen = new Set<string>();
   const unique: { id: string; name: string; code?: string }[] = [];
@@ -134,6 +135,7 @@ export async function listModulesByOccupationId(occupationId: string): Promise<M
  * Khi app quản lý đã cập nhật quan hệ lớp–mô-đun (vd: bảng class_modules), gọi API tương ứng ở đây.
  * Hiện tại chưa có dữ liệu theo lớp → trả toàn bộ kho mô-đun.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- classId sẽ dùng khi có bảng class_modules
 export async function listModulesByClassId(_classId: string): Promise<ModuleItem[]> {
   // TODO: khi có bảng class_modules hoặc API lọc mô-đun theo lớp, thay bằng query tương ứng
   return listModules();

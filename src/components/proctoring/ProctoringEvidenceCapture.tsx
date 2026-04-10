@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
 import { toast } from 'sonner';
+import { uploadExamFileViaEdge } from '../../services/examUploadService';
 
 export type EvidenceKind =
   | 'focus_lost'
@@ -20,6 +20,8 @@ export interface CaptureEvidenceResult {
 
 export interface ProctoringEvidenceCaptureRef {
   captureAndUpload: (kind: EvidenceKind, opts?: { toastOnceKey?: string }) => Promise<CaptureEvidenceResult>;
+  /** Trả về video element nội bộ để AiObjectProctorBurst tái dụng, tránh mở 2 luồng camera */
+  getVideoElement: () => HTMLVideoElement | null;
 }
 
 export interface ProctoringEvidenceCaptureProps {
@@ -27,7 +29,6 @@ export interface ProctoringEvidenceCaptureProps {
   attemptId: string;
   examId: string;
   studentKey: string; // student_id nếu có, fallback user_id
-  bucket?: string; // mặc định exam-uploads
 }
 
 function ensureSafeKey(s: string): string {
@@ -46,7 +47,7 @@ async function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.85): Promise<
 
 export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef, ProctoringEvidenceCaptureProps>(
   function ProctoringEvidenceCapture(props, ref) {
-    const { enabled, attemptId, examId, studentKey, bucket = 'exam-uploads' } = props;
+    const { enabled, attemptId, examId, studentKey } = props;
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const [ready, setReady] = useState(false);
@@ -107,28 +108,35 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
         const safeStudent = ensureSafeKey(studentKey);
         const safeAttempt = ensureSafeKey(attemptId);
         const filename = `${kind}_${Date.now()}.jpg`;
-        const path = `exam_uploads/${safeExam}/${safeStudent}/${safeAttempt}/${filename}`;
-
-        const { error: uploadErr } = await supabase.storage.from(bucket).upload(path, blob, {
-          upsert: true,
-          contentType: 'image/jpeg',
+        // Path thực sẽ được Edge quyết định; client chỉ gửi context để audit/debug.
+        const res = await uploadExamFileViaEdge({
+          category: 'proctoring',
+          attemptId: safeAttempt,
+          kind: `${safeExam}_${safeStudent}_${filename}`,
+          file: new Blob([blob], { type: 'image/jpeg' }),
         });
-        if (uploadErr) return { ok: false, error: uploadErr.message };
-
-        const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
-        return { ok: true, path, publicUrl: urlData?.publicUrl };
+        if (!res.ok) return { ok: false, error: res.error };
+        return { ok: true, path: res.path, publicUrl: res.signedUrl };
       },
-      [attemptId, bucket, enabled, ensureStarted, examId, ready, studentKey]
+      [attemptId, enabled, ensureStarted, examId, ready, studentKey]
     );
 
-    useImperativeHandle(ref, () => ({ captureAndUpload }), [captureAndUpload]);
+    useImperativeHandle(ref, () => ({
+      captureAndUpload,
+      getVideoElement: () => videoRef.current,
+    }), [captureAndUpload]);
 
     useEffect(() => {
       if (!enabled) {
-        stop();
+        // Dừng stream trực tiếp tại đây — không gọi stop() để tránh setState đồng bộ trong body effect
+        // (gây cascading render). setReady sẽ được gọi trong cleanup của lần enabled=true trước đó.
+        const s = streamRef.current;
+        if (s) s.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
         return;
       }
       // Khởi động camera sớm để khi vi phạm có thể chụp ngay.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- setState gọi bất đồng bộ sau getUserMedia resolve, không phải synchronously
       ensureStarted();
       return () => stop();
     }, [enabled, ensureStarted, stop]);

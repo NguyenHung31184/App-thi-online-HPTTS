@@ -95,10 +95,20 @@ export async function deleteQuestionsBulk(ids: string[]): Promise<void> {
   if (error) throw error;
 }
 
-/** Nhập hàng loạt câu hỏi single_choice vào một đề (dùng sau khi parse Excel). */
+export interface BulkQuestionItem {
+  stem: string;
+  options: { id: string; text: string }[];
+  answer_key: string;
+  points?: number;
+  topic?: string;
+  difficulty?: string;
+  image_url?: string | null;
+}
+
+/** Nhập hàng loạt câu hỏi single_choice vào một đề (dùng sau khi parse Excel hoặc ZIP). */
 export async function createQuestionsBulk(
   examId: string,
-  items: Array<{ stem: string; options: { id: string; text: string }[]; answer_key: string; points?: number; topic?: string; difficulty?: string }>
+  items: BulkQuestionItem[],
 ): Promise<{ created: number; errors: string[] }> {
   const errors: string[] = [];
   let created = 0;
@@ -113,6 +123,7 @@ export async function createQuestionsBulk(
       points: it.points ?? 2,
       topic: it.topic ?? '',
       difficulty: it.difficulty ?? 'medium',
+      image_url: it.image_url ?? null,
     };
     const { error } = await supabase.from('questions').insert(row);
     if (error) errors.push(`Dòng ${i + 1}: ${error.message}`);

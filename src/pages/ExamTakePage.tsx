@@ -5,14 +5,16 @@ import { getAttempt, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt
 import { getExam } from '../services/examService';
 import { getExamWindow } from '../services/examWindowService';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
-import { supabase } from '../lib/supabaseClient';
+import { uploadExamFileViaEdge } from '../services/examUploadService';
 import { SortableOptionList } from '../components/SortableOptionList';
 import { LabelOnImageDrop } from '../components/LabelOnImageDrop';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { CheckCircle } from 'lucide-react';
 import { ProctoringEvidenceCapture, type ProctoringEvidenceCaptureRef, type EvidenceKind } from '../components/proctoring/ProctoringEvidenceCapture';
 import { AiObjectProctorBurst } from '../components/proctoring/AiObjectProctorBurst';
+import { ViolationAlertModal } from '../components/proctoring/ViolationAlertModal';
 import type { Attempt, Exam, QuestionForStudent } from '../types';
+import { loadBlazeFaceModel, validateAndBuildStartExamPortrait } from '../utils/blazeFaceProctor';
 
 function hashStringToSeed(s: string): number {
   // FNV-1a 32-bit
@@ -96,6 +98,21 @@ export default function ExamTakePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const evidenceRef = useRef<ProctoringEvidenceCaptureRef | null>(null);
 
+  // ── Violation alert modal ─────────────────────────────────────────────────
+  const [violationAlert, setViolationAlert] = useState<EvidenceKind | null>(null);
+  // Khi tab bị ẩn (visibility_hidden / focus_lost), học viên không thấy modal ngay.
+  // Lưu vào ref và hiển thị khi họ quay lại tab.
+  const pendingViolationRef = useRef<EvidenceKind | null>(null);
+
+  const showViolationAlert = useCallback((kind: EvidenceKind) => {
+    if (document.visibilityState === 'hidden') {
+      // Học viên đang rời tab → lưu lại, sẽ hiện khi họ quay lại
+      pendingViolationRef.current = kind;
+    } else {
+      setViolationAlert(kind);
+    }
+  }, []);
+
   const captureViolationEvidence = useCallback(
     async (kind: EvidenceKind) => {
       if (!attemptId || !attempt) return;
@@ -162,43 +179,35 @@ export default function ExamTakePage() {
     const video = videoRef.current;
     if (video.videoWidth === 0 || video.videoHeight === 0) return;
     setCapturing(true);
+    setCameraError('');
     try {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.drawImage(video, 0, 0);
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        if (canvas.toBlob) {
-          canvas.toBlob((b) => {
-            if (b) resolve(b);
-            else reject(new Error('Không thể tạo ảnh từ camera.'));
-          }, 'image/jpeg', 0.8);
-        } else {
-          // Fallback cho iOS cũ không hỗ trợ canvas.toBlob
-          try {
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            const arr = dataUrl.split(',');
-            const mimeMatch = arr[0].match(/:(.*?);/);
-            const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-            const bstr = atob(arr[1]);
-            const n = bstr.length;
-            const u8arr = new Uint8Array(n);
-            for (let i = 0; i < n; i++) {
-              u8arr[i] = bstr.charCodeAt(i);
-            }
-            resolve(new Blob([u8arr], { type: mime }));
-          } catch (e) {
-            reject(e instanceof Error ? e : new Error('Không thể tạo ảnh từ camera.'));
-          }
-        }
+      // Mục 1: crop chân dung 3:4 theo mặt. Mục 2a (lúc vào thi): chặn 0 mặt / nhiều mặt (BlazeFace).
+      const portrait = await validateAndBuildStartExamPortrait(video, {
+        flipHorizontal: true,
+        jpegQuality: 0.88,
+        maxLongSide: 720,
       });
-      const path = `proctoring/${attemptId}/start.jpg`;
-      const { error: uploadErr } = await supabase.storage.from('exam-uploads').upload(path, blob, { upsert: true });
-      if (uploadErr) throw new Error(uploadErr.message);
-      const { data: urlData } = supabase.storage.from('exam-uploads').getPublicUrl(path);
-      await logAuditEvent(attemptId, 'photo_taken', { url: urlData.publicUrl });
+      if (!portrait.ok) {
+        const msg =
+          portrait.reason === 'no_face'
+            ? 'Không phát hiện khuôn mặt. Hãy chỉnh ánh sáng, bỏ khẩu trang và đưa mặt vào khung oval.'
+            : portrait.reason === 'multiple_faces'
+              ? 'Phát hiện nhiều hơn một người trong khung hình. Chỉ một người được phép trước camera.'
+              : portrait.reason === 'not_ready'
+                ? 'Camera chưa sẵn sàng. Đợi 1–2 giây rồi thử lại.'
+                : 'Không phân tích được hình ảnh (BlazeFace). Thử lại hoặc tải lại trang.';
+        setCameraError(msg);
+        return;
+      }
+      const blob = portrait.blob;
+      const up = await uploadExamFileViaEdge({
+        category: 'proctoring',
+        attemptId,
+        kind: 'start_photo',
+        file: blob,
+      });
+      if (!up.ok) throw new Error(up.error || 'Upload ảnh giám sát thất bại.');
+      await logAuditEvent(attemptId, 'photo_taken', { url: up.signedUrl, path: up.path });
       cameraStream.getTracks().forEach((t) => t.stop());
       setCameraStream(null);
       proctoringDoneRef.current = true;
@@ -216,9 +225,17 @@ export default function ExamTakePage() {
     videoRef.current.play().catch(() => {});
   }, [cameraStream]);
 
+  /** Tải BlazeFace sớm khi hiện bước chụp — lần bấm Chụp sẽ nhanh hơn. */
+  useEffect(() => {
+    if (!showCameraStep) return;
+    loadBlazeFaceModel().catch(() => {});
+  }, [showCameraStep]);
+
   const load = useCallback(async () => {
     if (!attemptId || !user?.id) return;
-    const [a, e] = await Promise.all([getAttempt(attemptId), getAttempt(attemptId).then((at) => at && getExam(at.exam_id))]);
+    // getExam phụ thuộc vào exam_id từ attempt → không thể true-parallel, gọi tuần tự
+    const a = await getAttempt(attemptId);
+    const e = a ? await getExam(a.exam_id) : null;
     if (!a || !e) {
       setError('Không tìm thấy bài làm hoặc đề thi.');
       return;
@@ -246,19 +263,22 @@ export default function ExamTakePage() {
   }, [load]);
 
   useEffect(() => {
-    if (remainingMs === null) return;
+    if (!attempt || !exam) return;
+    // endTime tính một lần khi attempt/exam load — stable, không cần tính lại mỗi giây
+    const endTime = attempt.started_at + exam.duration_minutes * 60 * 1000;
     const t = setInterval(() => {
-      if (!attempt || !exam) return;
-      const endTime = attempt.started_at + exam.duration_minutes * 60 * 1000;
       const r = Math.max(0, endTime - Date.now());
       setRemainingMs(r);
-      if (r <= 0 && attempt.status === 'in_progress' && !timeUpSubmittedRef.current) {
+      if (r <= 0 && !timeUpSubmittedRef.current) {
         timeUpSubmittedRef.current = true;
-        handleSubmit();
+        // Dùng ref thay vì gọi handleSubmit() trực tiếp để tránh stale closure:
+        // handleSubmitRef.current luôn trỏ đến phiên bản mới nhất của hàm
+        handleSubmitRef.current?.();
       }
     }, 1000);
     return () => clearInterval(t);
-  }, [remainingMs, attempt?.id, exam?.id]);
+    // attempt và exam stable sau khi load (không bao giờ bị ghi đè), dùng làm deps thay vì chỉ .id
+  }, [attempt, exam]);
 
   const handleSubmit = async () => {
     if (!attemptId || !attempt) return;
@@ -310,7 +330,7 @@ export default function ExamTakePage() {
             syncMissingClassId = !hasClassId;
           }
         }
-      } catch (_) {
+      } catch {
         syncSkipped = true;
       }
       const base = (import.meta.env.BASE_URL || '').replace(/\/$/, '');
@@ -332,25 +352,36 @@ export default function ExamTakePage() {
 
   handleSubmitRef.current = handleSubmit;
 
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+
   useEffect(() => {
     if (!attemptId || Object.keys(answers).length === 0) return;
     autosaveRef.current = setInterval(async () => {
-      if (JSON.stringify(answers) === JSON.stringify(lastSavedRef.current)) return;
+      if (JSON.stringify(answersRef.current) === JSON.stringify(lastSavedRef.current)) return;
+      setAutosaveStatus('saving');
       try {
-        await updateAttemptAnswers(attemptId, answers);
-        lastSavedRef.current = { ...answers };
-      } catch (_) {}
+        await updateAttemptAnswers(attemptId, answersRef.current);
+        lastSavedRef.current = { ...answersRef.current };
+        setAutosaveStatus('idle');
+      } catch (err) {
+        // Ghi log để debug — không throw để không làm hỏng luồng thi
+        console.error('[Autosave] Lưu bài thất bại:', err);
+        setAutosaveStatus('error');
+      }
     }, 10000);
     return () => {
       if (autosaveRef.current) clearInterval(autosaveRef.current);
     };
-  }, [attemptId, answers]);
+  // Dùng answersRef thay vì answers trong callback để tránh stale closure
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attemptId]);
 
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState === 'hidden' && attemptId) {
         logAuditEvent(attemptId, 'visibility_hidden').catch(() => {});
         captureViolationEvidence('visibility_hidden').catch(() => {});
+        showViolationAlert('visibility_hidden');
         violationCountRef.current += 1;
         if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
           submittedDueToViolationRef.current = true;
@@ -358,6 +389,11 @@ export default function ExamTakePage() {
         }
       }
       if (document.visibilityState === 'visible' && attemptId) {
+        // Hiển thị modal bị trì hoãn (nếu có) khi học viên quay lại tab
+        if (pendingViolationRef.current) {
+          setViolationAlert(pendingViolationRef.current);
+          pendingViolationRef.current = null;
+        }
         getAttempt(attemptId).then((a) => {
           if (a?.status === 'completed') {
             navigate(`/exam/${attemptId}/result`, { replace: true });
@@ -369,6 +405,7 @@ export default function ExamTakePage() {
       if (attemptId) {
         logAuditEvent(attemptId, 'focus_lost').catch(() => {});
         captureViolationEvidence('focus_lost').catch(() => {});
+        showViolationAlert('focus_lost');
         violationCountRef.current += 1;
         if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
           submittedDueToViolationRef.current = true;
@@ -382,7 +419,7 @@ export default function ExamTakePage() {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('blur', onBlur);
     };
-  }, [attemptId]);
+  }, [attemptId, captureViolationEvidence, navigate, showViolationAlert]);
 
   /** Chặn copy/paste trên màn làm bài và ghi audit */
   useEffect(() => {
@@ -408,6 +445,7 @@ export default function ExamTakePage() {
       if (fullscreenRequestedRef.current && attemptId) {
         logAuditEvent(attemptId, 'fullscreen_exited').catch(() => {});
         captureViolationEvidence('fullscreen_exited').catch(() => {});
+        showViolationAlert('fullscreen_exited');
         violationCountRef.current += 1;
         if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
           submittedDueToViolationRef.current = true;
@@ -417,7 +455,13 @@ export default function ExamTakePage() {
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, [attemptId, attempt?.id, questions.length, captureViolationEvidence]);
+  }, [attemptId, attempt, questions.length, captureViolationEvidence, showViolationAlert]);
+
+  // Phải đặt useMemo TRƯỚC early return để tuân thủ Rules of Hooks (không gọi hook sau return có điều kiện)
+  const shuffledQuestions = useMemo(() => {
+    const qSeed = hashStringToSeed(attemptId ?? 'seed');
+    return shuffleWithSeed(questions, qSeed);
+  }, [questions, attemptId]);
 
   if (error && !attempt) return <p className="p-4 text-red-600">{error}</p>;
   if (!attempt || !exam) return <p className="p-4 text-slate-500">Đang tải...</p>;
@@ -439,30 +483,37 @@ export default function ExamTakePage() {
         examId={attempt?.exam_id ?? ''}
         studentKey={(user?.student_id ?? studentSession?.student_id ?? user?.id ?? attempt?.user_id ?? 'unknown') as string}
       />
-      {/* AI proctoring (burst): chỉ bật khi VITE_AI_PROCTORING_ENABLED=1 */}
-      {aiEnabled && (
-        <AiObjectProctorBurst
-          enabled={photoVerified && Boolean(attemptId && attempt && exam)}
-          evidenceRef={evidenceRef}
-          // Burst mặc định: mỗi 60s chạy 5s; có thể chỉnh bằng env về sau
-          burstEveryMs={60_000}
-          burstDurationMs={5_000}
-          detectIntervalMs={1_000}
-          minScore={0.6}
-          notify={false}
-          onViolation={(kind, evidence) => {
-            if (!attemptId) return;
-            logAuditEvent(attemptId, kind, evidence ? { evidence_url: evidence.publicUrl, evidence_path: evidence.path } : undefined).catch(() => {});
-          }}
-        />
-      )}
+      {/* BlazeFace (mục 2a): luôn bật sau khi đã chụp start_photo. COCO (điện thoại/vật cấm) chỉ khi VITE_AI_PROCTORING_ENABLED=1. */}
+      <AiObjectProctorBurst
+        enabled={photoVerified && Boolean(attemptId && attempt && exam)}
+        evidenceRef={evidenceRef}
+        detectObjects={aiEnabled}
+        burstEveryMs={60_000}
+        burstDurationMs={5_000}
+        detectIntervalMs={1_000}
+        minScore={0.6}
+        notify={false}
+        onViolation={(kind, evidence) => {
+          if (!attemptId) return;
+          logAuditEvent(attemptId, kind, evidence ? { evidence_url: evidence.publicUrl, evidence_path: evidence.path } : undefined).catch(() => {});
+          showViolationAlert(kind);
+        }}
+      />
+      {/* Modal cảnh báo vi phạm */}
+      <ViolationAlertModal
+        kind={violationAlert}
+        violationCount={violationCountRef.current}
+        maxViolations={MAX_VIOLATIONS}
+        onClose={() => setViolationAlert(null)}
+      />
+
       {/* Bước 1: Chụp ảnh khuôn mặt — bắt buộc trước khi làm bài */}
       {showCameraStep && (
         <div className="fixed inset-0 z-[60] bg-slate-900/90 flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl p-5">
             <div className="font-semibold text-slate-900 text-lg mb-1">Chụp ảnh khuôn mặt trước khi làm bài</div>
             <p className="text-slate-600 text-sm mb-4">
-              Vui lòng bật quyền camera và đưa khuôn mặt vào khung hình. Sau đó bấm <strong>Chụp ảnh và bắt đầu làm bài</strong>. Ảnh dùng để giám sát thi.
+              Đưa <strong>một mình bạn</strong> vào khung oval (ảnh sẽ được <strong>cắt chân dung 3:4</strong> để lưu và dùng cho phiếu kết quả). Hệ thống từ chối nếu không thấy mặt hoặc có nhiều người.
             </p>
             {cameraError && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
@@ -480,6 +531,20 @@ export default function ExamTakePage() {
                     className="w-full h-full object-cover"
                     style={{ transform: 'scaleX(-1)' }}
                   />
+                  {/* Khung oval hướng dẫn — khớp crop chân dung 3:4 */}
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div
+                      className="rounded-[50%] border-[3px] border-white/95 shadow-[0_0_0_2000px_rgba(0,0,0,0.42)]"
+                      style={{
+                        width: 'min(52%, 220px)',
+                        aspectRatio: '3 / 4',
+                        maxHeight: '88%',
+                      }}
+                    />
+                  </div>
+                  <p className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-[11px] text-white whitespace-nowrap">
+                    Căn mặt trong khung oval
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -520,9 +585,17 @@ export default function ExamTakePage() {
       )}
       <div className="flex items-center justify-between mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
         <span className="font-medium text-slate-800">{exam.title}</span>
-        <span className={`font-mono text-lg ${remainingMs !== null && remainingMs < 60000 ? 'text-red-600' : 'text-slate-700'}`}>
-          {remainingMs !== null ? formatRemaining(remainingMs) : '—'}
-        </span>
+        <div className="flex items-center gap-3">
+          {autosaveStatus === 'saving' && (
+            <span className="text-xs text-slate-500">Đang lưu...</span>
+          )}
+          {autosaveStatus === 'error' && (
+            <span className="text-xs text-red-600 font-medium">⚠ Lưu thất bại — kiểm tra mạng</span>
+          )}
+          <span className={`font-mono text-lg ${remainingMs !== null && remainingMs < 60000 ? 'text-red-600' : 'text-slate-700'}`}>
+            {remainingMs !== null ? formatRemaining(remainingMs) : '—'}
+          </span>
+        </div>
       </div>
 
       {error && (
@@ -551,11 +624,7 @@ export default function ExamTakePage() {
       <p className="text-slate-500 text-sm mb-4">Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu ẩn tab / thoát fullscreen 3 lần, bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.</p>
 
       <div className="space-y-6">
-        {(() => {
-          // Tráo thứ tự câu hỏi theo attemptId (ổn định cho thí sinh trong suốt lượt làm)
-          const qSeed = hashStringToSeed(attemptId ?? 'seed');
-          const shuffledQuestions = shuffleWithSeed(questions, qSeed);
-          return shuffledQuestions.map((q, idx) => {
+        {shuffledQuestions.map((q, idx) => {
             const rawOpts = (Array.isArray(q.options) ? q.options as { id: string; text: string }[] : []);
             // Tráo đáp án cho trắc nghiệm (giữ id, chỉ tráo thứ tự hiển thị)
             const optSeed = hashStringToSeed(`${attemptId ?? 'seed'}|${q.id}|opts`);
@@ -578,7 +647,7 @@ export default function ExamTakePage() {
               currentMultiple = [answers[q.id]];
               currentOrder = opts.length ? opts.map((o) => o.id) : [];
             }
-          } catch {}
+          } catch { /* JSON.parse lỗi → giữ giá trị default ở trên */ }
           if (isDragDrop && currentOrder.length === 0 && opts.length) currentOrder = opts.map((o) => o.id);
           const labelOnImageValue = isLabelOnImage
             ? (currentOrder.length >= 4 ? currentOrder : [...currentOrder, '', '', '', ''].slice(0, 4))
@@ -679,8 +748,7 @@ export default function ExamTakePage() {
               )}
             </div>
           );
-          });
-        })()}
+        })}
       </div>
 
       <div className="mt-8 flex justify-between items-center">

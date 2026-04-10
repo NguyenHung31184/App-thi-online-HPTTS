@@ -29,6 +29,7 @@ const adminTitles: Record<string, string> = {
 
 function getAdminTitle(pathname: string): string {
   if (pathname === '/admin' || pathname === '/admin/') return 'Quản trị';
+  if (pathname.startsWith('/admin/attempts/')) return 'Chi tiết bài làm';
   for (const [path, title] of Object.entries(adminTitles)) {
     if (pathname.startsWith(path)) return title;
   }
@@ -110,8 +111,8 @@ export default function AdminLayout() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Giáo viên chỉ được vào: dashboard, đề thi, soạn câu hỏi, báo cáo (có tab Kết quả)
-  const teacherAllowedPrefixes = ['/admin', '/admin/dashboard', '/admin/exams', '/admin/questions', '/admin/report'];
+  // Giáo viên chỉ được vào: dashboard, đề thi, soạn câu hỏi, báo cáo + xem chi tiết bài làm
+  const teacherAllowedPrefixes = ['/admin', '/admin/dashboard', '/admin/exams', '/admin/questions', '/admin/report', '/admin/attempts'];
   if (isTeacher && !teacherAllowedPrefixes.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))) {
     return <Navigate to="/admin/dashboard" replace />;
   }

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import type { BlazeFaceModel } from '@tensorflow-models/blazeface';
+import { loadBlazeFaceModel } from '../../utils/blazeFaceProctor';
 import type { ProctoringEvidenceCaptureRef } from './ProctoringEvidenceCapture';
 
 type CocoSsd = typeof import('@tensorflow-models/coco-ssd');
@@ -9,6 +11,11 @@ export interface AiObjectProctorBurstProps {
   enabled: boolean;
   evidenceRef: React.RefObject<ProctoringEvidenceCaptureRef | null>;
   onViolation?: (kind: 'ai_cell_phone' | 'ai_prohibited_object' | 'ai_no_face' | 'ai_multiple_face', evidence?: { path?: string; publicUrl?: string }) => void;
+  /**
+   * true (mặc định): COCO-SSD (điện thoại, vật cấm) + BlazeFace (mặt).
+   * false: chỉ BlazeFace — dùng khi tắt VITE_AI_PROCTORING_ENABLED nhưng vẫn muốn kiểm tra không mặt / nhiều mặt (mục 2a).
+   */
+  detectObjects?: boolean;
   /** Chu kỳ burst (ms). Ví dụ 60_000 */
   burstEveryMs?: number;
   /** Thời lượng burst (ms). Ví dụ 5_000 */
@@ -30,6 +37,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     enabled,
     evidenceRef,
     onViolation,
+    detectObjects = true,
     burstEveryMs = 60_000,
     burstDurationMs = 5_000,
     detectIntervalMs = 1_000,
@@ -37,25 +45,38 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     notify = false,
   } = props;
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  // ownVideoRef: video element dự phòng, chỉ dùng khi không có shared video từ ProctoringEvidenceCapture
+  const ownVideoRef = useRef<HTMLVideoElement | null>(null);
+  // streamRef: chỉ giữ stream mở bởi chính component này (không phải shared stream)
   const streamRef = useRef<MediaStream | null>(null);
   const modelRef = useRef<CocoModel | null>(null);
+  const blazeFaceRef = useRef<BlazeFaceModel | null>(null);
   const timersRef = useRef<{ schedule?: number; detect?: number; stopBurst?: number }>({});
   const lastHitRef = useRef<Record<string, number>>({});
-  const [modelReady, setModelReady] = useState(false);
+  /** Sẵn sàng chạy burst: COCO xong (nếu detectObjects) hoặc BlazeFace xong (chế độ face-only). */
+  const [burstReady, setBurstReady] = useState(false);
 
   const configKey = useMemo(
-    () => `${burstEveryMs}|${burstDurationMs}|${detectIntervalMs}|${minScore}`,
-    [burstEveryMs, burstDurationMs, detectIntervalMs, minScore]
+    () => `${burstEveryMs}|${burstDurationMs}|${detectIntervalMs}|${minScore}|${detectObjects}`,
+    [burstEveryMs, burstDurationMs, detectIntervalMs, minScore, detectObjects]
   );
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setBurstReady(false);
+      return;
+    }
     let cancelled = false;
 
     const startCamera = async () => {
-      if (!videoRef.current) return;
-      if (streamRef.current) return;
+      // Ưu tiên tái dùng video element từ ProctoringEvidenceCapture (đã có stream sẵn)
+      // → tránh mở 2 luồng camera song song, tiết kiệm CPU/GPU/pin
+      const sharedVideo = evidenceRef.current?.getVideoElement?.();
+      if (sharedVideo && sharedVideo.readyState >= 2 && sharedVideo.videoWidth > 0) {
+        return; // Sẽ dùng shared video trong detectOnce, không cần mở camera riêng
+      }
+      // Fallback: mở camera riêng chỉ khi shared video chưa sẵn sàng
+      if (!ownVideoRef.current || streamRef.current) return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: 640, height: 480, facingMode: 'user' },
@@ -66,8 +87,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
           return;
         }
         streamRef.current = stream;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        ownVideoRef.current.srcObject = stream;
+        await ownVideoRef.current.play();
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Không thể bật camera AI.';
         toast.warning('Không bật được camera AI giám sát', { description: msg });
@@ -76,29 +97,49 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
 
     const loadModel = async () => {
       try {
-        // tfjs cần được import trước để init backend (webgl/cpu)
         await import('@tensorflow/tfjs');
         const coco = await import('@tensorflow-models/coco-ssd');
         const m = await coco.load();
         if (cancelled) return;
         modelRef.current = m;
-        setModelReady(true);
+        setBurstReady(true);
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Không tải được model AI.';
         toast.error('Không thể tải AI giám sát', { description: msg });
       }
     };
 
+    const loadBlaze = async () => {
+      try {
+        const bm = await loadBlazeFaceModel();
+        if (cancelled) return;
+        blazeFaceRef.current = bm;
+        if (!detectObjects) setBurstReady(true);
+      } catch (e) {
+        if (!detectObjects) {
+          const msg = e instanceof Error ? e.message : 'Không tải BlazeFace.';
+          toast.error('Không thể tải kiểm tra khuôn mặt', { description: msg });
+        }
+      }
+    };
+
+    setBurstReady(false);
     startCamera();
-    loadModel();
+    if (detectObjects) {
+      loadModel();
+      loadBlaze();
+    } else {
+      modelRef.current = null;
+      loadBlaze();
+    }
 
     return () => {
       cancelled = true;
     };
-  }, [enabled]);
+  }, [enabled, evidenceRef, detectObjects]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !burstReady) return;
 
     const clearTimers = () => {
       const t = timersRef.current;
@@ -108,37 +149,65 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       timersRef.current = {};
     };
 
-    const stopAll = () => {
+    const stopTimersAndOwnStream = () => {
       clearTimers();
       const s = streamRef.current;
       if (s) s.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
-      modelRef.current = null;
-      setModelReady(false);
+    };
+
+    const getActiveVideo = (): HTMLVideoElement | null => {
+      // Ưu tiên shared video; fallback về own video nếu shared chưa sẵn sàng
+      const shared = evidenceRef.current?.getVideoElement?.();
+      if (shared && shared.readyState >= 2 && shared.videoWidth > 0) return shared;
+      return ownVideoRef.current;
     };
 
     const detectOnce = async () => {
-      const model = modelRef.current;
-      const video = videoRef.current;
-      if (!model || !video || video.readyState !== 4 || video.videoWidth === 0 || video.videoHeight === 0) return;
+      const video = getActiveVideo();
+      if (!video || video.readyState !== 4 || video.videoWidth === 0 || video.videoHeight === 0) return;
 
       try {
-        const preds = await model.detect(video);
-        let personCount = 0;
-        let hasPerson = false;
-        for (const p of preds) {
-          if ((p.score ?? 0) < minScore) continue;
-          if (p.class === 'cell phone') {
-            await maybeHit('ai_cell_phone');
-          } else if (p.class === 'book' || p.class === 'laptop') {
-            await maybeHit('ai_prohibited_object');
-          } else if (p.class === 'person') {
-            hasPerson = true;
-            personCount += 1;
+        let preds: Awaited<ReturnType<CocoModel['detect']>> | null = null;
+        const model = modelRef.current;
+        if (detectObjects && model) {
+          preds = await model.detect(video);
+          for (const p of preds) {
+            if ((p.score ?? 0) < minScore) continue;
+            if (p.class === 'cell phone') {
+              await maybeHit('ai_cell_phone');
+            } else if (p.class === 'book' || p.class === 'laptop') {
+              await maybeHit('ai_prohibited_object');
+            }
           }
         }
-        if (!hasPerson) await maybeHit('ai_no_face');
-        if (personCount > 1) await maybeHit('ai_multiple_face');
+
+        const bf = blazeFaceRef.current;
+        let faceHandled = false;
+        if (bf) {
+          try {
+            const faces = await bf.estimateFaces(video, false, true, false);
+            const n = faces.filter((f) => Array.isArray(f.topLeft)).length;
+            if (n === 0) await maybeHit('ai_no_face');
+            if (n > 1) await maybeHit('ai_multiple_face');
+            faceHandled = true;
+          } catch {
+            /* fallback COCO khi có model */
+          }
+        }
+        if (!faceHandled && preds) {
+          let personCount = 0;
+          let hasPerson = false;
+          for (const p of preds) {
+            if ((p.score ?? 0) < minScore) continue;
+            if (p.class === 'person') {
+              hasPerson = true;
+              personCount += 1;
+            }
+          }
+          if (!hasPerson) await maybeHit('ai_no_face');
+          if (personCount > 1) await maybeHit('ai_multiple_face');
+        }
       } catch {
         // bỏ qua để không ảnh hưởng luồng thi
       }
@@ -166,8 +235,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     };
 
     const startBurst = () => {
-      // chạy detect theo interval trong burstDurationMs
-      if (!modelRef.current) return;
+      const canRun = detectObjects ? Boolean(modelRef.current) : Boolean(blazeFaceRef.current);
+      if (!canRun) return;
       if (timersRef.current.detect) return;
       timersRef.current.detect = window.setInterval(() => {
         detectOnce();
@@ -191,13 +260,25 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     };
 
     schedule();
-    return () => stopAll();
-  }, [enabled, configKey, burstDurationMs, burstEveryMs, detectIntervalMs, evidenceRef, minScore, notify, modelReady, onViolation]);
+    return () => stopTimersAndOwnStream();
+  }, [
+    enabled,
+    configKey,
+    burstDurationMs,
+    burstEveryMs,
+    detectIntervalMs,
+    detectObjects,
+    evidenceRef,
+    minScore,
+    notify,
+    burstReady,
+    onViolation,
+  ]);
 
-  // Ẩn video: chỉ dùng làm input cho model
+  // Video dự phòng: chỉ phát huy tác dụng khi shared video từ ProctoringEvidenceCapture chưa sẵn sàng
   return (
     <video
-      ref={videoRef}
+      ref={ownVideoRef}
       muted
       playsInline
       style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}

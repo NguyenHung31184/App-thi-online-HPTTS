@@ -155,9 +155,16 @@ export async function listExamSyncLog(
     )
     .in('id', attemptIds);
 
-  const attempts = (attemptsData ?? []) as any[];
-  const userIds = [...new Set(attempts.map((r) => r.user_id).filter(Boolean))];
-  const classIds = [...new Set(attempts.map((r) => r.exam_windows?.class_id).filter(Boolean))];
+  type AttemptWithJoin = {
+    id: string;
+    user_id: string | null;
+    window_id: string | null;
+    exams?: { title?: string | null } | null;
+    exam_windows?: { class_id?: string | null } | null;
+  };
+  const attempts = (attemptsData ?? []) as AttemptWithJoin[];
+  const userIds = [...new Set(attempts.map((r) => r.user_id).filter((id): id is string => Boolean(id)))];
+  const classIds = [...new Set(attempts.map((r) => r.exam_windows?.class_id).filter((id): id is string => Boolean(id)))];
 
   const profileByUserId = await fetchProfilesById(userIds);
   const studentIds = [
@@ -246,7 +253,9 @@ export async function cleanupOldSyncLogs(options?: CleanupOptions): Promise<void
       .delete()
       .lt('created_at', cutoff)
       .eq('status', status);
-  } catch (_) {}
+  } catch (err) {
+    console.warn('[cleanupOldSyncLogs] exam_sync_log:', err);
+  }
 
   try {
     await supabase
@@ -254,5 +263,7 @@ export async function cleanupOldSyncLogs(options?: CleanupOptions): Promise<void
       .delete()
       .lt('created_at', cutoff)
       .eq('status', status);
-  } catch (_) {}
+  } catch (err) {
+    console.warn('[cleanupOldSyncLogs] practical_sync_log:', err);
+  }
 }

@@ -15,7 +15,7 @@ export default function Layout() {
   const { user, studentSession, loading, signOut } = useAuth();
   const location = useLocation();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const isAdmin = (user as any)?.role === 'admin';
+  const isAdmin = user?.role === 'admin';
 
   const navSections: NavSection[] = useMemo(() => {
     // Nếu là Admin, ẩn hoàn toàn các mục HOME/STUDENT và để họ dùng khu Quản trị riêng.
@@ -54,7 +54,7 @@ export default function Layout() {
       });
     }
     return sections;
-  }, [user?.role]);
+  }, [isAdmin]);
 
   const title = useMemo(() => {
     const path = location.pathname;

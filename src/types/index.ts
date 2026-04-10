@@ -218,6 +218,8 @@ export interface PracticalExamCriteria {
   created_at?: string;
 }
 
+export type PracticalSessionMode = 'student_upload' | 'teacher_grading';
+
 export interface PracticalExamSession {
   id: string;
   template_id: string;
@@ -225,6 +227,8 @@ export interface PracticalExamSession {
   start_at: number;
   end_at: number;
   access_code: string;
+  /** Cách tổ chức kỳ thi: student_upload (HV tự upload) hoặc teacher_grading (GV chấm trực tiếp). */
+  mode?: PracticalSessionMode;
   created_at?: string;
 }
 

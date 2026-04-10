@@ -8,6 +8,7 @@ import {
   uploadQuestionBankImage,
 } from '../../services/questionBankService';
 import { ZonePositionPicker } from '../../components/ZonePositionPicker';
+import { validateMediaUrl } from '../../utils/mediaUrlValidator';
 import type { QuestionType, ModuleItem } from '../../types';
 import { listModules } from '../../services/ttdtDataService';
 
@@ -61,6 +62,7 @@ export default function AdminQuestionBankFormPage() {
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [mediaUrl, setMediaUrl] = useState('');
   const [existingMediaUrl, setExistingMediaUrl] = useState<string | null>(null);
+  const [mediaUrlError, setMediaUrlError] = useState<string>('');
   const [rubric, setRubric] = useState('');
   const [zonePositions, setZonePositions] = useState<{ x: number; y: number }[]>(() => [...DEFAULT_ZONE_POSITIONS]);
   /** Với drag_drop + ảnh: đáp án từng ô [id ô 1, id ô 2, id ô 3, id ô 4]. */
@@ -207,7 +209,15 @@ export default function AdminQuestionBankFormPage() {
       if (imageFile && occupationId) {
         image_url = await uploadQuestionBankImage(imageFile, occupationId, qId ?? undefined);
       }
-      const media_url = (mediaUrl || existingMediaUrl || '').trim() || null;
+      const rawMediaUrl = (mediaUrl || existingMediaUrl || '').trim();
+      const mediaValidation = validateMediaUrl(rawMediaUrl);
+      if (!mediaValidation.valid) {
+        setMediaUrlError(mediaValidation.error ?? 'URL video không hợp lệ.');
+        setLoading(false);
+        return;
+      }
+      setMediaUrlError('');
+      const media_url = rawMediaUrl || null;
       let rubricVal: unknown = rubric.trim() ? rubric.trim() : null;
       if (questionType === 'drag_drop' && opts.length === 4) {
         rubricVal = { zones: zonePositions };
@@ -375,7 +385,23 @@ export default function AdminQuestionBankFormPage() {
         {questionType === 'video_paragraph' && (
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">URL video</label>
-            <input type="url" value={mediaUrl || existingMediaUrl || ''} onChange={(e) => setMediaUrl(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="https://..." />
+            <input
+              type="url"
+              value={mediaUrl || existingMediaUrl || ''}
+              onChange={(e) => {
+                setMediaUrl(e.target.value);
+                const result = validateMediaUrl(e.target.value);
+                setMediaUrlError(result.valid ? '' : (result.error ?? ''));
+              }}
+              className={`w-full border rounded-lg px-3 py-2 ${mediaUrlError ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
+              placeholder="https://youtube.com/... hoặc https://vimeo.com/..."
+            />
+            {mediaUrlError && (
+              <p className="mt-1 text-sm text-red-600">{mediaUrlError}</p>
+            )}
+            {!mediaUrlError && (
+              <p className="mt-1 text-xs text-slate-500">Chỉ chấp nhận: YouTube, Vimeo hoặc Supabase Storage của dự án.</p>
+            )}
           </div>
         )}
         {isEssay && (

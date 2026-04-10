@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabaseClient';
-import type { PracticalExamSession, PracticalExamTemplate } from '../types';
+import type {
+  PracticalExamSession,
+  PracticalExamTemplate,
+  PracticalSessionMode,
+} from '../types';
 import { getClassIdsByStudentId } from './ttdtDataService';
 
 export interface PracticalSessionWithTemplate extends PracticalExamSession {
@@ -78,14 +82,24 @@ export interface CreatePracticalSessionInput {
   start_at: number;
   end_at: number;
   access_code: string;
+  /** Mặc định 'student_upload' nếu không truyền. */
+  mode?: PracticalSessionMode;
 }
 
 export async function createPracticalSession(
   input: CreatePracticalSessionInput
 ): Promise<PracticalExamSession> {
+  const row: Partial<PracticalExamSession> = {
+    template_id: input.template_id,
+    class_id: input.class_id,
+    start_at: input.start_at,
+    end_at: input.end_at,
+    access_code: input.access_code,
+    mode: input.mode ?? 'student_upload',
+  };
   const { data, error } = await supabase
     .from('practical_exam_sessions')
-    .insert(input)
+    .insert(row)
     .select()
     .single();
   if (error) throw error;
@@ -97,15 +111,17 @@ export interface UpdatePracticalSessionInput {
   start_at?: number;
   end_at?: number;
   access_code?: string;
+  mode?: PracticalSessionMode;
 }
 
 export async function updatePracticalSession(
   id: string,
   input: UpdatePracticalSessionInput
 ): Promise<PracticalExamSession> {
+  const patch: Partial<PracticalExamSession> = { ...input };
   const { data, error } = await supabase
     .from('practical_exam_sessions')
-    .update(input)
+    .update(patch)
     .eq('id', id)
     .select()
     .single();
@@ -120,7 +136,7 @@ export async function deletePracticalSession(id: string): Promise<void> {
 
 const now = () => Date.now();
 
-/** Các kỳ thi thực hành đang mở mà thí sinh được phép làm (theo lớp). */
+/** Các kỳ thi thực hành đang mở mà thí sinh được phép làm (theo lớp, chỉ mode student_upload). */
 export async function getAllowedPracticalSessions(
   studentId?: string | null
 ): Promise<PracticalSessionWithTemplate[]> {
@@ -137,6 +153,7 @@ export async function getAllowedPracticalSessions(
       *,
       practical_exam_templates (*)
     `)
+    .eq('mode', 'student_upload')
     .lte('start_at', nowTs)
     .gte('end_at', nowTs)
     .order('start_at', { ascending: false });

@@ -10,13 +10,14 @@ Kế hoạch tổng thể (phase 0 → 6) nằm trong repo TTDT:
 
 - React 18, Vite, TypeScript, Tailwind CSS
 - Supabase (Auth, Database, Storage)
-- OCR CCCD: tận dụng server Chatbot tuyển sinh (`VITE_OCR_CCCD_URL`)
+- OCR CCCD: gọi OCR proxy service độc lập (`VITE_OCR_CCCD_URL`)
 
 ## Cấu hình
 
 1. Copy `.env.example` thành `.env` và điền:
    - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (cùng project TTDT hoặc project riêng)
-   - `VITE_OCR_CCCD_URL`: proxy OCR (mặc định `https://chatbot-hptts-2025.vercel.app/api/ocr`)
+   - `VITE_OCR_CCCD_URL`: OCR proxy service (ví dụ `https://<ocr-proxy>.vercel.app/api/ocr`)
+   - `VITE_OCR_CCCD_API_KEY` (tùy chọn): nếu proxy/backend yêu cầu `x-api-key`
    - `VITE_TTDT_VERIFY_CCCD_URL`, `VITE_TTDT_API_KEY` (khi TTDT đã có Edge Function `verify-cccd-for-exam`)
 
 2. Supabase:

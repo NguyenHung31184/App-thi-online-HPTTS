@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { compressImageForExamUpload } from '../utils/examImageCompress';
 
 export type ExamUploadCategory = 'proctoring' | 'cccd';
 
@@ -18,15 +19,18 @@ export async function uploadExamFileViaEdge(input: {
   file: File | Blob;
 }): Promise<UploadExamFileResult> {
   try {
+    const compressed = await compressImageForExamUpload(input.file);
+    const file =
+      compressed === input.file && input.file instanceof File
+        ? input.file
+        : compressed === input.file
+          ? new File([compressed], `${input.kind}.jpg`, { type: compressed.type || 'image/jpeg' })
+          : new File([compressed], `${input.kind}.jpg`, { type: 'image/jpeg' });
+
     const form = new FormData();
     form.set('category', input.category);
     form.set('attempt_id', input.attemptId);
     form.set('kind', input.kind);
-    // Supabase Edge multipart expects File for correct metadata; wrap Blob if needed.
-    const file =
-      input.file instanceof File
-        ? input.file
-        : new File([input.file], `${input.kind}.jpg`, { type: input.file.type || 'image/jpeg' });
     form.set('file', file);
 
     const { data, error } = await supabase.functions.invoke<{ success: boolean; path?: string; signedUrl?: string; error?: string }>(

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getAttempt, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt, logAuditEvent } from '../services/attemptService';
@@ -624,7 +624,7 @@ export default function ExamTakePage() {
       <p className="text-slate-500 text-sm mb-4">Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu ẩn tab / thoát fullscreen 3 lần, bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.</p>
 
       <div className="space-y-6">
-        {shuffledQuestions.map((q, idx) => {
+        {shuffledQuestions.map((q: QuestionForStudent, idx: number) => {
             const rawOpts = (Array.isArray(q.options) ? q.options as { id: string; text: string }[] : []);
             // Tráo đáp án cho trắc nghiệm (giữ id, chỉ tráo thứ tự hiển thị)
             const optSeed = hashStringToSeed(`${attemptId ?? 'seed'}|${q.id}|opts`);

@@ -109,25 +109,31 @@ export async function listModulesByOccupationId(occupationId: string): Promise<M
     console.warn('listModulesByOccupationId:', error.message);
     return [];
   }
-  type CourseModuleRow = { modules?: { id: string; name?: string | null; code?: string | null; is_deleted?: boolean | null } | null };
-  const modules =
-    (data as CourseModuleRow[] ?? [])
-      .map((row) => row.modules)
-      .filter((m): m is NonNullable<CourseModuleRow['modules']> => Boolean(m) && !m?.is_deleted);
-
+  const raw = (data ?? []) as unknown[];
   const seen = new Set<string>();
-  const unique: { id: string; name: string; code?: string }[] = [];
-  for (const m of modules) {
-    if (!m.id || seen.has(m.id)) continue;
-    seen.add(m.id);
-    unique.push(m);
+  const unique: ModuleItem[] = [];
+
+  for (const row of raw) {
+    const r = row as Record<string, unknown>;
+    const modules = r.modules;
+    const modList = Array.isArray(modules) ? modules : modules != null && typeof modules === 'object' ? [modules] : [];
+    for (const m of modList) {
+      const mod = m as Record<string, unknown> | null;
+      if (!mod || mod.is_deleted === true) continue;
+      const id = mod.id;
+      if (id == null || id === '') continue;
+      const sid = String(id);
+      if (seen.has(sid)) continue;
+      seen.add(sid);
+      unique.push({
+        id: sid,
+        name: typeof mod.name === 'string' ? mod.name : '',
+        code: typeof mod.code === 'string' ? mod.code : undefined,
+      });
+    }
   }
 
-  return unique.map((r) => ({
-    id: r.id,
-    name: r.name ?? '',
-    code: r.code,
-  }));
+  return unique;
 }
 
 /**

@@ -133,7 +133,7 @@ export async function listAttemptsForReport(
     const exam = r.exams;
     const window = r.exam_windows;
     const classId = window?.class_id ?? '';
-    const profile = profileByUserId.get(r.user_id);
+    const profile = r.user_id ? profileByUserId.get(r.user_id) : undefined;
     const studentInfoById = profile?.student_id ? studentNamesById.get(profile.student_id) : undefined;
     const studentInfoByEmail = profile?.email ? studentNamesByExamEmail.get(profile.email) : undefined;
     const displayName =

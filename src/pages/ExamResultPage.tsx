@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAttempt } from '../services/attemptService';
+import { getAttempt, fetchStartExamPhotoSignedUrl } from '../services/attemptService';
 import { getExam } from '../services/examService';
 import { supabase } from '../lib/supabaseClient';
 import type { Attempt, Exam } from '../types';
@@ -13,6 +13,7 @@ export default function ExamResultPage() {
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [exam, setExam] = useState<Exam | null>(null);
   const [totalMax, setTotalMax] = useState<number | null>(null);
+  const [startPhotoUrl, setStartPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -75,6 +76,18 @@ export default function ExamResultPage() {
     run();
   }, [exam?.id]);
 
+  useEffect(() => {
+    if (!attemptId) return;
+    let cancelled = false;
+    (async () => {
+      const u = await fetchStartExamPhotoSignedUrl(attemptId);
+      if (!cancelled) setStartPhotoUrl(u);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [attemptId]);
+
   const handlePrint = () => {
     window.print();
   };
@@ -107,6 +120,17 @@ export default function ExamResultPage() {
       <div className="bg-white border border-slate-200 rounded-lg p-6 print:border-0 print:shadow-none">
         <h1 className="text-xl font-semibold text-slate-800 mb-2">Kết quả bài thi</h1>
         <p className="text-slate-600 mb-4">{exam.title}</p>
+
+        {startPhotoUrl && (
+          <div className="mb-5 flex flex-col items-center sm:items-start print:break-inside-avoid">
+            <p className="text-xs text-slate-500 mb-1">Ảnh lúc vào thi</p>
+            <img
+              src={startPhotoUrl}
+              alt="Ảnh khuôn mặt xác nhận lúc vào phòng thi"
+              className="w-28 h-36 sm:w-32 sm:h-40 object-cover rounded-lg border border-slate-200 bg-slate-50 print:w-28 print:h-36"
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-slate-50 rounded-lg p-3">

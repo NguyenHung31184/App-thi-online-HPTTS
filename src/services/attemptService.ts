@@ -32,6 +32,32 @@ export async function getAttempt(id: string): Promise<Attempt | null> {
   return data as Attempt;
 }
 
+const EXAM_UPLOADS_BUCKET = 'exam-uploads';
+const START_PHOTO_SIGNED_SECONDS = 7200;
+
+/**
+ * Ảnh khuôn mặt lúc vào thi (audit photo_taken → metadata.path).
+ * Admin/teacher: đọc audit + Storage. Thí sinh: cần policy migration 20260411140000.
+ */
+export async function fetchStartExamPhotoSignedUrl(attemptId: string): Promise<string | null> {
+  const { data: rows, error } = await supabase
+    .from('attempt_audit_logs')
+    .select('metadata')
+    .eq('attempt_id', attemptId)
+    .eq('event', 'photo_taken')
+    .order('created_at', { ascending: true })
+    .limit(1);
+  if (error || !rows?.length) return null;
+  const meta = rows[0].metadata as Record<string, unknown> | null;
+  const path = typeof meta?.path === 'string' ? meta.path.trim() : '';
+  if (!path) return null;
+  const { data: signed, error: signErr } = await supabase.storage
+    .from(EXAM_UPLOADS_BUCKET)
+    .createSignedUrl(path, START_PHOTO_SIGNED_SECONDS);
+  if (signErr || !signed?.signedUrl) return null;
+  return signed.signedUrl;
+}
+
 /** Danh sách bài làm đã nộp (completed) theo đề thi — dùng cho màn chấm tự luận */
 export async function listCompletedAttemptsByExam(examId: string): Promise<Attempt[]> {
   const { data, error } = await supabase

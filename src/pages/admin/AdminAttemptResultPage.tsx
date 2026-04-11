@@ -5,6 +5,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchStartExamPhotoSignedUrl } from '../../services/attemptService';
 import type { Attempt, Exam } from '../../types';
 
 interface QuestionReviewItem {
@@ -53,6 +54,7 @@ export default function AdminAttemptResultPage() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [reviewItems, setReviewItems] = useState<QuestionReviewItem[] | null>(null);
   const [profileName, setProfileName] = useState<string | null>(null);
+  const [startPhotoUrl, setStartPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -60,6 +62,7 @@ export default function AdminAttemptResultPage() {
     if (!attemptId) return;
     setLoading(true);
     setError('');
+    setStartPhotoUrl(null);
     try {
       // 1. Lấy attempt (admin không cần check user_id)
       const { data: attemptData, error: aErr } = await supabase
@@ -128,6 +131,9 @@ export default function AdminAttemptResultPage() {
         });
         setReviewItems(items);
       }
+
+      const portraitUrl = await fetchStartExamPhotoSignedUrl(attemptId);
+      setStartPhotoUrl(portraitUrl);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi tải dữ liệu.');
     } finally {
@@ -186,17 +192,31 @@ export default function AdminAttemptResultPage() {
         <h1 className="text-xl font-bold text-slate-800 mb-1">Kết quả bài thi</h1>
         <p className="text-slate-500 text-sm mb-5">{exam.title}</p>
 
-        {/* Thông tin học viên */}
-        <div className="mb-5 rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm space-y-1">
-          <p><span className="font-medium text-slate-600 w-32 inline-block">Học viên:</span> {studentDisplay}</p>
-          {studentDob && (
-            <p><span className="font-medium text-slate-600 w-32 inline-block">Ngày sinh:</span> {studentDob}</p>
-          )}
-          <p><span className="font-medium text-slate-600 w-32 inline-block">Nộp lúc:</span> {completedAtStr}</p>
-          <p><span className="font-medium text-slate-600 w-32 inline-block">Thời gian làm:</span> {durationStr}</p>
-          {attempt.disqualified && (
-            <p className="text-amber-700 font-semibold mt-1">⚠ Bài bị loại (disqualified)</p>
-          )}
+        {/* Thông tin học viên + ảnh lúc vào thi (cùng nguồn upload start_photo / audit photo_taken) */}
+        <div className="mb-5 rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+            <div className="flex-1 space-y-1 min-w-0">
+              <p><span className="font-medium text-slate-600 w-32 inline-block">Học viên:</span> {studentDisplay}</p>
+              {studentDob && (
+                <p><span className="font-medium text-slate-600 w-32 inline-block">Ngày sinh:</span> {studentDob}</p>
+              )}
+              <p><span className="font-medium text-slate-600 w-32 inline-block">Nộp lúc:</span> {completedAtStr}</p>
+              <p><span className="font-medium text-slate-600 w-32 inline-block">Thời gian làm:</span> {durationStr}</p>
+              {attempt.disqualified && (
+                <p className="text-amber-700 font-semibold mt-1">⚠ Bài bị loại (disqualified)</p>
+              )}
+            </div>
+            {startPhotoUrl && (
+              <div className="shrink-0 flex flex-col items-center sm:items-end print:break-inside-avoid">
+                <p className="text-xs text-slate-500 mb-1 w-full text-center sm:text-right">Ảnh lúc vào thi</p>
+                <img
+                  src={startPhotoUrl}
+                  alt="Ảnh khuôn mặt xác nhận lúc vào phòng thi"
+                  className="w-28 h-36 sm:w-32 sm:h-40 object-cover rounded-lg border border-slate-200 bg-white print:w-28 print:h-36"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Điểm số */}

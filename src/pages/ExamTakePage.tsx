@@ -13,6 +13,7 @@ import { CheckCircle } from 'lucide-react';
 import { ProctoringEvidenceCapture, type ProctoringEvidenceCaptureRef, type EvidenceKind } from '../components/proctoring/ProctoringEvidenceCapture';
 import { AiObjectProctorBurst } from '../components/proctoring/AiObjectProctorBurst';
 import { ViolationAlertModal } from '../components/proctoring/ViolationAlertModal';
+import { PortraitCameraGuide } from '../components/PortraitCameraGuide';
 import type { Attempt, Exam, QuestionForStudent } from '../types';
 import { loadBlazeFaceModel, validateAndBuildStartExamPortrait } from '../utils/blazeFaceProctor';
 
@@ -513,7 +514,7 @@ export default function ExamTakePage() {
           <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl p-5">
             <div className="font-semibold text-slate-900 text-lg mb-1">Chụp ảnh khuôn mặt trước khi làm bài</div>
             <p className="text-slate-600 text-sm mb-4">
-              Đưa <strong>một mình bạn</strong> vào khung oval (ảnh sẽ được <strong>cắt chân dung 3:4</strong> để lưu và dùng cho phiếu kết quả). Hệ thống từ chối nếu không thấy mặt hoặc có nhiều người.
+              Đưa <strong>một mình bạn</strong> vào <strong>khung chân dung</strong> trên hình (ảnh sẽ được <strong>cắt 3:4</strong> để lưu và dùng cho phiếu kết quả). Hệ thống từ chối nếu không thấy mặt hoặc có nhiều người.
             </p>
             {cameraError && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
@@ -531,20 +532,7 @@ export default function ExamTakePage() {
                     className="w-full h-full object-cover"
                     style={{ transform: 'scaleX(-1)' }}
                   />
-                  {/* Khung oval hướng dẫn — khớp crop chân dung 3:4 */}
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <div
-                      className="rounded-[50%] border-[3px] border-white/95 shadow-[0_0_0_2000px_rgba(0,0,0,0.42)]"
-                      style={{
-                        width: 'min(52%, 220px)',
-                        aspectRatio: '3 / 4',
-                        maxHeight: '88%',
-                      }}
-                    />
-                  </div>
-                  <p className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-[11px] text-white whitespace-nowrap">
-                    Căn mặt trong khung oval
-                  </p>
+                  <PortraitCameraGuide />
                 </div>
                 <button
                   type="button"

@@ -88,8 +88,15 @@ export default function ExamTakePage() {
   const handleSubmitRef = useRef<null | (() => void)>(null);
   const violationCountRef = useRef(0);
   const submittedDueToViolationRef = useRef(false);
+  const violationSubmitPendingRef = useRef(false);
+  /** Gộp visibility + blur trong ~700ms = một lần vi phạm (tránh đếm đôi một thao tác trên mobile). */
+  const leaveViolationBundleAtRef = useRef(0);
   const fullscreenRequestedRef = useRef(false);
-  const MAX_VIOLATIONS = 3;
+  const attemptRef = useRef<Attempt | null>(null);
+  attemptRef.current = attempt;
+  const MAX_VIOLATIONS = 5;
+  /** Ép re-render khi tăng đếm vi phạm (modal đếm lùi đọc đúng ref). */
+  const [, setViolationRenderTick] = useState(0);
 
   /** Bước 1: Chụp ảnh khuôn mặt bắt buộc trước khi làm bài. Chỉ sau khi chụp xong mới cho vào fullscreen + đề. */
   const [photoVerified, setPhotoVerified] = useState(false);
@@ -387,6 +394,38 @@ export default function ExamTakePage() {
 
   handleSubmitRef.current = handleSubmit;
 
+  /** Tự nộp khi đủ vi phạm — retry nếu attempt/handleSubmit chưa sẵn sàng (tránh bỏ lỡ do race mobile). */
+  const scheduleViolationAutoSubmit = useCallback(() => {
+    if (submittedDueToViolationRef.current || violationSubmitPendingRef.current) return;
+    violationSubmitPendingRef.current = true;
+    let tries = 0;
+    const tick = (): void => {
+      tries += 1;
+      const a = attemptRef.current;
+      const fn = handleSubmitRef.current;
+      if (attemptId && a?.status === 'in_progress' && fn) {
+        submittedDueToViolationRef.current = true;
+        violationSubmitPendingRef.current = false;
+        void fn();
+        return;
+      }
+      if (tries < 40) {
+        window.setTimeout(tick, 200);
+      } else {
+        violationSubmitPendingRef.current = false;
+      }
+    };
+    window.setTimeout(tick, 200);
+  }, [attemptId]);
+
+  useEffect(() => {
+    violationCountRef.current = 0;
+    submittedDueToViolationRef.current = false;
+    violationSubmitPendingRef.current = false;
+    leaveViolationBundleAtRef.current = 0;
+    setViolationRenderTick(0);
+  }, [attemptId]);
+
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'error'>('idle');
 
   useEffect(() => {
@@ -412,40 +451,60 @@ export default function ExamTakePage() {
   }, [attemptId]);
 
   useEffect(() => {
+    if (
+      !photoVerified ||
+      !attemptId ||
+      !attempt ||
+      attempt.status !== 'in_progress' ||
+      !exam ||
+      questions.length === 0
+    ) {
+      return;
+    }
+
+    const tryConsumeLeaveBundle = (): boolean => {
+      const t = Date.now();
+      if (t - leaveViolationBundleAtRef.current < 700) return false;
+      leaveViolationBundleAtRef.current = t;
+      return true;
+    };
+
     const onVisibility = () => {
       if (document.visibilityState === 'hidden' && attemptId) {
+        if (!tryConsumeLeaveBundle()) return;
         logAuditEvent(attemptId, 'visibility_hidden').catch(() => {});
         captureViolationEvidence('visibility_hidden').catch(() => {});
         showViolationAlert('visibility_hidden');
         violationCountRef.current += 1;
-        if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
-          submittedDueToViolationRef.current = true;
-          setTimeout(() => handleSubmitRef.current?.(), 200);
+        setViolationRenderTick((n) => n + 1);
+        if (violationCountRef.current >= MAX_VIOLATIONS) {
+          scheduleViolationAutoSubmit();
         }
       }
       if (document.visibilityState === 'visible' && attemptId) {
-        // Hiển thị modal bị trì hoãn (nếu có) khi học viên quay lại tab
         if (pendingViolationRef.current) {
           setViolationAlert(pendingViolationRef.current);
           pendingViolationRef.current = null;
         }
-        getAttempt(attemptId).then((a) => {
-          if (a?.status === 'completed') {
-            navigate(`/exam/${attemptId}/result`, { replace: true });
-          }
-        }).catch(() => {});
+        getAttempt(attemptId)
+          .then((a) => {
+            if (a?.status === 'completed') {
+              navigate(`/exam/${attemptId}/result`, { replace: true });
+            }
+          })
+          .catch(() => {});
       }
     };
     const onBlur = () => {
-      if (attemptId) {
-        logAuditEvent(attemptId, 'focus_lost').catch(() => {});
-        captureViolationEvidence('focus_lost').catch(() => {});
-        showViolationAlert('focus_lost');
-        violationCountRef.current += 1;
-        if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
-          submittedDueToViolationRef.current = true;
-          setTimeout(() => handleSubmitRef.current?.(), 200);
-        }
+      if (!attemptId) return;
+      if (!tryConsumeLeaveBundle()) return;
+      logAuditEvent(attemptId, 'focus_lost').catch(() => {});
+      captureViolationEvidence('focus_lost').catch(() => {});
+      showViolationAlert('focus_lost');
+      violationCountRef.current += 1;
+      setViolationRenderTick((n) => n + 1);
+      if (violationCountRef.current >= MAX_VIOLATIONS) {
+        scheduleViolationAutoSubmit();
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -454,7 +513,17 @@ export default function ExamTakePage() {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('blur', onBlur);
     };
-  }, [attemptId, captureViolationEvidence, navigate, showViolationAlert]);
+  }, [
+    attempt,
+    attemptId,
+    captureViolationEvidence,
+    exam,
+    navigate,
+    photoVerified,
+    questions.length,
+    scheduleViolationAutoSubmit,
+    showViolationAlert,
+  ]);
 
   /** Chặn copy/paste trên màn làm bài và ghi audit */
   useEffect(() => {
@@ -473,7 +542,7 @@ export default function ExamTakePage() {
 
   /** Bắt buộc toàn màn hình khi làm bài; ghi audit khi thoát fullscreen; đếm vi phạm và auto-nộp sau N lần */
   useEffect(() => {
-    if (!attemptId || !attempt || questions.length === 0) return;
+    if (!photoVerified || !attemptId || !attempt || questions.length === 0) return;
     const onFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
       if (document.fullscreenElement) return;
@@ -482,15 +551,23 @@ export default function ExamTakePage() {
         captureViolationEvidence('fullscreen_exited').catch(() => {});
         showViolationAlert('fullscreen_exited');
         violationCountRef.current += 1;
-        if (violationCountRef.current >= MAX_VIOLATIONS && !submittedDueToViolationRef.current) {
-          submittedDueToViolationRef.current = true;
-          setTimeout(() => handleSubmitRef.current?.(), 200);
+        setViolationRenderTick((n) => n + 1);
+        if (violationCountRef.current >= MAX_VIOLATIONS) {
+          scheduleViolationAutoSubmit();
         }
       }
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, [attemptId, attempt, questions.length, captureViolationEvidence, showViolationAlert]);
+  }, [
+    attempt,
+    attemptId,
+    captureViolationEvidence,
+    photoVerified,
+    questions.length,
+    scheduleViolationAutoSubmit,
+    showViolationAlert,
+  ]);
 
   // Phải đặt useMemo TRƯỚC early return để tuân thủ Rules of Hooks (không gọi hook sau return có điều kiện)
   const shuffledQuestions = useMemo(() => {
@@ -637,7 +714,11 @@ export default function ExamTakePage() {
         </div>
       )}
 
-      <p className="text-slate-500 text-sm mb-4">Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu ẩn tab / thoát fullscreen 3 lần, bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.</p>
+      <p className="text-slate-500 text-sm mb-4">
+        Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu vi phạm (ẩn tab / mất focus / thoát fullscreen) đủ{' '}
+        <strong>{MAX_VIOLATIONS} lần</strong>
+        , bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.
+      </p>
 
       <div className="space-y-6">
         {shuffledQuestions.map((q: QuestionForStudent, idx: number) => {

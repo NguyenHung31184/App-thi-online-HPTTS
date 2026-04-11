@@ -93,7 +93,9 @@ export async function getQuestionsForAttempt(examId: string): Promise<QuestionFo
         const snapshot = (await res.json()) as { question_ids?: string[] };
         ids = snapshot.question_ids ?? [];
       }
-    } catch (_) {}
+    } catch {
+      /* snapshot URL có thể lỗi mạng / CORS */
+    }
   }
 
   const { data: questions, error } = await supabase.rpc('get_questions_for_student', {

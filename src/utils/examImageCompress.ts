@@ -61,8 +61,36 @@ function bitmapToJpegBlob(bitmap: ImageBitmap, maxLongSide: number, quality: num
   });
 }
 
+/** Lặp giảm chất lượng / cạnh cho tới khi ≤ maxBytes (hoặc hết bước). */
+async function encodeJpegUntilUnderMax(
+  bitmap: ImageBitmap,
+  maxBytes: number,
+  initialMaxLongSide: number,
+  initialQuality: number
+): Promise<Blob> {
+  let maxLongSide = Math.min(initialMaxLongSide, Math.max(bitmap.width, bitmap.height));
+  let quality = initialQuality;
+  const minQ = 0.38;
+  const minSide = 360;
+
+  for (let i = 0; i < 28; i++) {
+    const blob = await bitmapToJpegBlob(bitmap, maxLongSide, quality);
+    if (blob.size <= maxBytes) {
+      return blob;
+    }
+    if (quality > minQ + 0.02) {
+      quality -= 0.07;
+    } else {
+      quality = 0.82;
+      maxLongSide = Math.max(minSide, Math.round(maxLongSide * 0.82));
+    }
+  }
+  return bitmapToJpegBlob(bitmap, minSide, minQ);
+}
+
 /**
- * Trả về Blob JPEG (hoặc nguyên bản nếu đã nhỏ).
+ * Trả về Blob JPEG (hoặc nguyên bản nếu đã nhỏ — **chỉ desktop**).
+ * **Mobile:** luôn tái mã hóa JPEG khi decode được bitmap, tránh HEIC / nhãn MIME sai (gây lỗi magic bytes trên Edge).
  */
 export async function compressImageForExamUpload(
   input: File | Blob,
@@ -71,7 +99,7 @@ export async function compressImageForExamUpload(
   const mobile = isLikelyMobile();
   const overByteLimit = input.size > maxBytes;
 
-  if (!overByteLimit && !mobile) {
+  if (!mobile && !overByteLimit) {
     return input;
   }
 
@@ -86,35 +114,21 @@ export async function compressImageForExamUpload(
   }
 
   try {
-    const longSide = Math.max(bitmap.width, bitmap.height);
-    const pixels = bitmap.width * bitmap.height;
-    const needsShrinkForMobile =
-      mobile && (longSide > MOBILE_LONG_SIDE_FORCE || pixels > MOBILE_PIXEL_FORCE);
-
-    if (!overByteLimit && !needsShrinkForMobile) {
-      return input;
+    if (!mobile && overByteLimit) {
+      const startSide = Math.min(2048, Math.max(bitmap.width, bitmap.height));
+      return encodeJpegUntilUnderMax(bitmap, maxBytes, startSide, 0.86);
     }
 
-    const capStart = mobile ? 1600 : 2048;
-    let maxLongSide = Math.min(capStart, longSide);
-    let quality = mobile ? 0.82 : 0.86;
-    const minQ = 0.38;
-    const minSide = 360;
-
-    for (let i = 0; i < 28; i++) {
-      const blob = await bitmapToJpegBlob(bitmap, maxLongSide, quality);
-      if (blob.size <= maxBytes) {
-        return blob;
-      }
-      if (quality > minQ + 0.02) {
-        quality -= 0.07;
-      } else {
-        quality = 0.82;
-        maxLongSide = Math.max(minSide, Math.round(maxLongSide * 0.82));
-      }
+    if (mobile) {
+      const longSide = Math.max(bitmap.width, bitmap.height);
+      const pixels = bitmap.width * bitmap.height;
+      const aggressive = longSide > MOBILE_LONG_SIDE_FORCE || pixels > MOBILE_PIXEL_FORCE;
+      const capStart = aggressive ? 1600 : Math.min(2048, longSide);
+      const q0 = aggressive ? 0.82 : 0.85;
+      return encodeJpegUntilUnderMax(bitmap, maxBytes, capStart, q0);
     }
 
-    return await bitmapToJpegBlob(bitmap, minSide, minQ);
+    throw new Error('compressImageForExamUpload: trạng thái không hợp lệ.');
   } finally {
     bitmap.close();
   }

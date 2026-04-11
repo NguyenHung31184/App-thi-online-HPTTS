@@ -79,8 +79,8 @@ export async function syncAttemptToTtdt(
         status: success ? 'success' : 'failed',
         response: text.slice(0, 2000),
       });
-    } catch (_) {
-      // Không ném lại — tránh lỗi log làm hỏng luồng đồng bộ chính.
+    } catch {
+      /* Không ném lại — tránh lỗi log làm hỏng luồng đồng bộ chính. */
     }
     if (success) {
       try {
@@ -88,7 +88,9 @@ export async function syncAttemptToTtdt(
           .from('attempts')
           .update({ synced_to_ttdt_at: new Date().toISOString() })
           .eq('id', attempt.id);
-      } catch (_) {}
+      } catch {
+        /* cập nhật synced_at thất bại — không chặn luồng */
+      }
     }
 
     return { success, message: success ? undefined : `HTTP ${status}: ${text.slice(0, 200)}` };
@@ -103,7 +105,9 @@ export async function syncAttemptToTtdt(
         status: 'failed',
         response: message.slice(0, 2000),
       });
-    } catch (_) {}
+    } catch {
+      /* ghi log thất bại — bỏ qua */
+    }
     return { success: false, message };
   }
 }
@@ -153,14 +157,18 @@ export async function syncPracticalAttemptToTtdt(
         status: success ? 'success' : 'failed',
         response: text.slice(0, 2000),
       });
-    } catch (_) {}
+    } catch {
+      /* insert sync log thất bại */
+    }
     if (success) {
       try {
         await supabase
           .from('practical_attempts')
           .update({ synced_to_ttdt_at: new Date().toISOString() })
           .eq('id', practicalAttemptId);
-      } catch (_) {}
+      } catch {
+        /* cập nhật synced_at thất bại */
+      }
     }
 
     return { success, message: success ? undefined : `HTTP ${status}: ${text.slice(0, 200)}` };
@@ -174,7 +182,9 @@ export async function syncPracticalAttemptToTtdt(
         status: 'failed',
         response: message.slice(0, 2000),
       });
-    } catch (_) {}
+    } catch {
+      /* ghi log thất bại — bỏ qua */
+    }
     return { success: false, message };
   }
 }

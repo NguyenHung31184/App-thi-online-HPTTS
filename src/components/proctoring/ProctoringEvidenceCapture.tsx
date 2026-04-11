@@ -136,7 +136,6 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
         return;
       }
       // Khởi động camera sớm để khi vi phạm có thể chụp ngay.
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- setState gọi bất đồng bộ sau getUserMedia resolve, không phải synchronously
       ensureStarted();
       return () => stop();
     }, [enabled, ensureStarted, stop]);

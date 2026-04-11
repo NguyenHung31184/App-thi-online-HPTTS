@@ -19,5 +19,14 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Khởi tạo từ sessionStorage / tắt loading khi không cấu hình Supabase — setState trong effect là pattern phổ biến;
+      // rule mới của react-hooks báo false positive trên toàn codebase admin/dashboard.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true, allowExportNames: ['useAuth'] },
+      ],
+    },
   },
 ])

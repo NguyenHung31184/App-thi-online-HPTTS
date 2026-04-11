@@ -33,8 +33,8 @@ async function maybeUpgradeToTeacherByInstructor(
     if (spec.includes('lý thuyết') || spec.includes('ly thuyet')) {
       return 'teacher';
     }
-  } catch (_) {
-    // ignore
+  } catch {
+    /* bỏ qua: bảng instructors có thể không tồn tại hoặc RLS */
   }
   return currentRole;
 }
@@ -50,7 +50,9 @@ async function mapUserWithProfile(u: SupabaseUser): Promise<User | null> {
       role = getRoleFromRaw(profile.role);
       if (profile.student_id) studentId = profile.student_id;
     }
-  } catch (_) {}
+  } catch {
+    /* bỏ qua: profile có thể không đọc được khi offline / RLS */
+  }
   // Nếu chưa phải admin mà email thuộc giảng viên có chuyên ngành Lý thuyết thì nâng role lên teacher.
   role = await maybeUpgradeToTeacherByInstructor(u.email, role);
   return {
@@ -143,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { user: mappedUser };
     },
-    [applyUser]
+    []
   );
 
   const signOut = useCallback(async () => {
@@ -168,7 +170,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) =>
       prev ? { ...prev, student_id: studentId, student_code: studentCode, student_name: studentName } : null
     );
-    updateMyStudentId(studentId).catch(() => {});
+    updateMyStudentId(studentId).catch(() => {
+      /* không chặn luồng verify CCCD nếu cập nhật profile lỗi */
+    });
   }, []);
 
   const value: AuthContextValue = {

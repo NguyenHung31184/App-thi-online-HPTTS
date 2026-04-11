@@ -295,7 +295,8 @@ export default function ExamTakePage() {
     try {
       // Mục 1: crop chân dung 3:4 theo mặt. Mục 2a (lúc vào thi): chặn 0 mặt / nhiều mặt (BlazeFace).
       const portrait = await validateAndBuildStartExamPortrait(video, {
-        flipHorizontal: true,
+        // false: tọa độ mặt trùng pixel gốc của <video> (drawImage). true sẽ lệch ngang so với preview mirror.
+        flipHorizontal: false,
         jpegQuality: 0.88,
         maxLongSide: 720,
       });

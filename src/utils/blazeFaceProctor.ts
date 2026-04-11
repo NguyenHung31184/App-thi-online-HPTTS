@@ -47,7 +47,11 @@ function faceToBox(f: NormalizedFace): FaceBoxPx | null {
   return { x, y, w, h };
 }
 
-/** Đếm mặt + danh sách box (pixel trên khung video gốc). flipHorizontal=true khi video selfie bị mirror CSS scaleX(-1). */
+/**
+ * Đếm mặt + box (pixel trên buffer gốc của video — cùng hệ với canvas.drawImage(video)).
+ * `flipHorizontal: true` trong BlazeFace chỉ **lật tọa độ đầu ra** cho preview đã mirror (CSS scaleX(-1)),
+ * không khớp pixel gốc → khi **crop bằng drawImage** phải dùng `false`.
+ */
 export async function detectFacesInVideo(
   video: HTMLVideoElement,
   flipHorizontal: boolean,

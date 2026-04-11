@@ -7,6 +7,8 @@ import type { User, UserRole, StudentSession } from '../types';
 const STORAGE_STUDENT_ID = 'exam_student_id';
 const STORAGE_STUDENT_CODE = 'exam_student_code';
 const STORAGE_STUDENT_NAME = 'exam_student_name';
+const STORAGE_STUDENT_DOB = 'exam_student_dob';
+const STORAGE_STUDENT_ID_CARD = 'exam_student_id_card';
 
 function getRoleFromRaw(raw: unknown): UserRole {
   if (raw === 'admin' || raw === 'teacher' || raw === 'proctor') return raw;
@@ -73,7 +75,12 @@ interface AuthContextValue {
   studentSession: StudentSession | null;
   signIn: (email: string, password: string) => Promise<{ error?: string; user?: User | null }>;
   signOut: () => Promise<void>;
-  setStudentInfo: (studentId: string, studentCode: string, studentName?: string) => void;
+  setStudentInfo: (
+    studentId: string,
+    studentCode: string,
+    studentName?: string,
+    extras?: { student_dob?: string; id_card_number?: string },
+  ) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -97,11 +104,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sid = sessionStorage.getItem(STORAGE_STUDENT_ID) ?? undefined;
     const scode = sessionStorage.getItem(STORAGE_STUDENT_CODE) ?? undefined;
     const sname = sessionStorage.getItem(STORAGE_STUDENT_NAME) ?? undefined;
-    if (sid || scode || sname) {
+    const sdob = sessionStorage.getItem(STORAGE_STUDENT_DOB) ?? undefined;
+    const sidCard = sessionStorage.getItem(STORAGE_STUDENT_ID_CARD) ?? undefined;
+    if (sid || scode || sname || sdob || sidCard) {
       setStudentSession({
         student_id: sid,
         student_code: scode,
         student_name: sname,
+        student_dob: sdob,
+        id_card_number: sidCard,
       });
     }
   }, []);
@@ -153,19 +164,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem(STORAGE_STUDENT_ID);
     sessionStorage.removeItem(STORAGE_STUDENT_CODE);
     sessionStorage.removeItem(STORAGE_STUDENT_NAME);
+    sessionStorage.removeItem(STORAGE_STUDENT_DOB);
+    sessionStorage.removeItem(STORAGE_STUDENT_ID_CARD);
     setStudentSession(null);
   }, []);
 
-  const setStudentInfo = useCallback((studentId: string, studentCode: string, studentName?: string) => {
+  const setStudentInfo = useCallback(
+    (
+      studentId: string,
+      studentCode: string,
+      studentName?: string,
+      extras?: { student_dob?: string; id_card_number?: string },
+    ) => {
     sessionStorage.setItem(STORAGE_STUDENT_ID, studentId);
     sessionStorage.setItem(STORAGE_STUDENT_CODE, studentCode);
     if (studentName) {
       sessionStorage.setItem(STORAGE_STUDENT_NAME, studentName);
+    } else {
+      sessionStorage.removeItem(STORAGE_STUDENT_NAME);
     }
+    const dobTrim = extras?.student_dob?.trim();
+    const cardTrim = extras?.id_card_number?.replace(/\s/g, '')?.trim();
+    if (dobTrim) sessionStorage.setItem(STORAGE_STUDENT_DOB, dobTrim);
+    else sessionStorage.removeItem(STORAGE_STUDENT_DOB);
+    if (cardTrim) sessionStorage.setItem(STORAGE_STUDENT_ID_CARD, cardTrim);
+    else sessionStorage.removeItem(STORAGE_STUDENT_ID_CARD);
+
     setStudentSession({
       student_id: studentId,
       student_code: studentCode,
       student_name: studentName,
+      student_dob: dobTrim || undefined,
+      id_card_number: cardTrim || undefined,
     });
     setUser((prev) =>
       prev ? { ...prev, student_id: studentId, student_code: studentCode, student_name: studentName } : null

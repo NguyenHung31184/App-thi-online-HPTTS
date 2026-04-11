@@ -18,6 +18,8 @@ export interface User {
 /** Phiên đăng nhập của học viên dựa trên CCCD (không cần Supabase auth). */
 export interface StudentSession {
   id_card_number?: string;
+  /** Ngày sinh (chuỗi hiển thị từ OCR / nhập tay), lưu session để in phiếu kết quả. */
+  student_dob?: string;
   student_id?: string;
   student_code?: string;
   student_name?: string;

@@ -197,7 +197,10 @@ export default function VerifyCccdPage() {
       }
 
       if (result.data.student_id) {
-        setStudentInfo(result.data.student_id, result.data.student_code ?? '', result.data.student_name);
+        setStudentInfo(result.data.student_id, result.data.student_code ?? '', result.data.student_name, {
+          student_dob: ocrData.dob ?? ocrData.date_of_birth,
+          id_card_number: ocrData.id_card_number,
+        });
       }
       setVerifiedClasses(result.data.classes ?? []);
       setStep('done');

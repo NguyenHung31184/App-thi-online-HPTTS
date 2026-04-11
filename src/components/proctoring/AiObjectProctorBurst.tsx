@@ -199,7 +199,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         if (blazeFaceRef.current) {
           try {
             // Cùng flip với bước chụp mặt đầu bài (selfie).
-            const { count } = await detectFacesInVideo(video, true);
+            const { count } = await detectFacesInVideo(video, false);
             faceCount = count;
           } catch {
             faceCount = null;

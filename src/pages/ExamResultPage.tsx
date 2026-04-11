@@ -9,7 +9,7 @@ import type { Attempt, Exam } from '../types';
 export default function ExamResultPage() {
   const { attemptId } = useParams<{ attemptId: string }>();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, studentSession } = useAuth();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [exam, setExam] = useState<Exam | null>(null);
   const [totalMax, setTotalMax] = useState<number | null>(null);
@@ -115,20 +115,50 @@ export default function ExamResultPage() {
   const passValue = typeof denom === 'number' ? (exam.pass_threshold ?? 0.7) * denom : null;
   const passed = (exam.pass_threshold ?? 0.7) <= (attempt.score ?? 0);
 
+  const displayFullName =
+    [studentSession?.student_name, user?.student_name, user?.name].find(
+      (s) => typeof s === 'string' && s.trim() !== '',
+    )?.trim() ?? '—';
+  const displayDob = studentSession?.student_dob?.trim() || '—';
+  const displayCccd = studentSession?.id_card_number?.trim() || '—';
+
   return (
     <div className="max-w-2xl mx-auto p-4 print:max-w-none">
       <div className="bg-white border border-slate-200 rounded-lg p-6 print:border-0 print:shadow-none">
         <h1 className="text-xl font-semibold text-slate-800 mb-2">Kết quả bài thi</h1>
         <p className="text-slate-600 mb-4">{exam.title}</p>
 
-        {startPhotoUrl && (
+        {(startPhotoUrl ||
+          displayFullName !== '—' ||
+          displayDob !== '—' ||
+          displayCccd !== '—') && (
           <div className="mb-5 flex flex-col items-center sm:items-start print:break-inside-avoid">
-            <p className="text-xs text-slate-500 mb-1">Ảnh lúc vào thi</p>
-            <img
-              src={startPhotoUrl}
-              alt="Ảnh khuôn mặt xác nhận lúc vào phòng thi"
-              className="w-28 h-36 sm:w-32 sm:h-40 object-cover rounded-lg border border-slate-200 bg-slate-50 print:w-28 print:h-36"
-            />
+            {startPhotoUrl ? (
+              <>
+                <p className="text-xs text-slate-500 mb-1">Ảnh lúc vào thi</p>
+                <img
+                  src={startPhotoUrl}
+                  alt="Ảnh khuôn mặt xác nhận lúc vào phòng thi"
+                  className="w-28 aspect-[3/4] sm:w-32 object-contain rounded-lg border border-slate-200 bg-slate-50 print:w-28"
+                />
+              </>
+            ) : null}
+            <dl
+              className={`w-full max-w-sm text-sm text-slate-700 space-y-1 ${startPhotoUrl ? 'mt-3' : ''}`}
+            >
+              <div className="flex gap-2">
+                <dt className="shrink-0 text-slate-500 min-w-[8.5rem]">Họ và tên</dt>
+                <dd className="font-medium">{displayFullName}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="shrink-0 text-slate-500 min-w-[8.5rem]">Ngày tháng năm sinh</dt>
+                <dd className="font-medium">{displayDob}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="shrink-0 text-slate-500 min-w-[8.5rem]">Số CCCD</dt>
+                <dd className="font-medium tabular-nums">{displayCccd}</dd>
+              </div>
+            </dl>
           </div>
         )}
 

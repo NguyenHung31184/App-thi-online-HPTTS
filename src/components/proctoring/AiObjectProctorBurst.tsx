@@ -63,8 +63,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   const [burstReady, setBurstReady] = useState(false);
 
   const configKey = useMemo(
-    () => `${burstEveryMs}|${burstDurationMs}|${detectIntervalMs}|${minScore}|${detectObjects}`,
-    [burstEveryMs, burstDurationMs, detectIntervalMs, minScore, detectObjects]
+    () => `${detectIntervalMs}|${minScore}|${detectObjects}`,
+    [detectIntervalMs, minScore, detectObjects]
   );
 
   useEffect(() => {

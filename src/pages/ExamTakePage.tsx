@@ -514,7 +514,7 @@ export default function ExamTakePage() {
           <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl p-5">
             <div className="font-semibold text-slate-900 text-lg mb-1">Chụp ảnh khuôn mặt trước khi làm bài</div>
             <p className="text-slate-600 text-sm mb-4">
-              Đưa <strong>một mình bạn</strong> vào <strong>khung chân dung</strong> trên hình (ảnh sẽ được <strong>cắt 3:4</strong> để lưu và dùng cho phiếu kết quả). Hệ thống từ chối nếu không thấy mặt hoặc có nhiều người.
+              Đưa <strong>một mình bạn</strong> vào <strong>khung oval</strong> trên hình (ảnh sẽ được <strong>cắt 3:4</strong> theo khuôn mặt để lưu và dùng cho phiếu kết quả). Hệ thống từ chối nếu không thấy mặt hoặc có nhiều người.
             </p>
             {cameraError && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">

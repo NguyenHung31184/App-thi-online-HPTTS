@@ -1,11 +1,14 @@
 import { useId } from 'react';
 
 /**
- * Lớp phủ hướng dẫn chụp chân dung: vùng tối + viền trắng đầu–vai (tương tự eKYC).
+ * Lớp phủ hướng dẫn chụp chân dung: vùng tối + một khung oval (ellipse) — gọn, dễ căn mặt.
  * viewBox 16:9 để khớp khung video aspect-video.
  */
 const VB_W = 160;
 const VB_H = 90;
+
+/** Trung tâm oval hơi thấp một chút để gồm cổ / vai trên trong cùng khung. */
+const OVAL = { cx: 80, cy: 44, rx: 28, ry: 36 } as const;
 
 export function PortraitCameraGuide() {
   const rid = useId().replace(/:/g, '');
@@ -21,9 +24,13 @@ export function PortraitCameraGuide() {
         <defs>
           <mask id={maskId}>
             <rect width={VB_W} height={VB_H} fill="white" />
-            {/* Lỗ trong mặt + vai — thấy video rõ */}
-            <ellipse cx="80" cy="36" rx="22" ry="27" fill="black" />
-            <path d="M 38 58 Q 80 46 122 58 L 134 90 L 26 90 Z" fill="black" />
+            <ellipse
+              cx={OVAL.cx}
+              cy={OVAL.cy}
+              rx={OVAL.rx}
+              ry={OVAL.ry}
+              fill="black"
+            />
           </mask>
         </defs>
         <rect
@@ -33,34 +40,18 @@ export function PortraitCameraGuide() {
           mask={`url(#${maskId})`}
         />
         <ellipse
-          cx="80"
-          cy="36"
-          rx="22"
-          ry="27"
+          cx={OVAL.cx}
+          cy={OVAL.cy}
+          rx={OVAL.rx}
+          ry={OVAL.ry}
           fill="none"
           stroke="rgba(255,255,255,0.95)"
-          strokeWidth="1.1"
-          vectorEffect="nonScalingStroke"
-        />
-        <path
-          d="M 38 58 Q 80 46 122 58"
-          fill="none"
-          stroke="rgba(255,255,255,0.95)"
-          strokeWidth="1.1"
-          strokeLinecap="round"
-          vectorEffect="nonScalingStroke"
-        />
-        <path
-          d="M 38 58 L 26 90 M 122 58 L 134 90"
-          fill="none"
-          stroke="rgba(255,255,255,0.95)"
-          strokeWidth="1.1"
-          strokeLinecap="round"
+          strokeWidth="1.2"
           vectorEffect="nonScalingStroke"
         />
       </svg>
       <p className="pointer-events-none absolute bottom-3 left-1/2 z-[1] max-w-[92%] -translate-x-1/2 text-center text-[11px] leading-snug text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] sm:bottom-4 sm:text-xs">
-        Hãy đối diện với máy ảnh để <strong>cả hai tai lộ rõ</strong>. Căn mặt và vai trong khung trắng; chỉ một người trong hình.
+        Hãy đối diện với máy ảnh để <strong>cả hai tai lộ rõ</strong>. Căn mặt vào <strong>giữa khung oval</strong>; chỉ một người trong hình.
       </p>
     </div>
   );

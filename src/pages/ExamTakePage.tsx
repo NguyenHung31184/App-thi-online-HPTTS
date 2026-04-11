@@ -114,6 +114,27 @@ export default function ExamTakePage() {
     }
   }, []);
 
+  const handleAiProctorViolation = useCallback(
+    (
+      kind: EvidenceKind,
+      captureResult?: { ok: true; path?: string; publicUrl?: string } | { ok: false },
+    ) => {
+      if (captureResult === undefined) {
+        showViolationAlert(kind);
+        return;
+      }
+      if (!attemptId) return;
+      void logAuditEvent(
+        attemptId,
+        kind,
+        captureResult.ok && captureResult.publicUrl
+          ? { evidence_url: captureResult.publicUrl, evidence_path: captureResult.path }
+          : { evidence_error: true },
+      );
+    },
+    [attemptId, showViolationAlert],
+  );
+
   const captureViolationEvidence = useCallback(
     async (kind: EvidenceKind) => {
       if (!attemptId || !attempt) return;
@@ -502,16 +523,10 @@ export default function ExamTakePage() {
         enabled={proctoringCameraEnabled}
         evidenceRef={evidenceRef}
         detectObjects={aiEnabled}
-        burstEveryMs={60_000}
-        burstDurationMs={5_000}
-        detectIntervalMs={1_000}
+        detectIntervalMs={2_500}
         minScore={0.6}
         notify={false}
-        onViolation={(kind, evidence) => {
-          if (!attemptId) return;
-          logAuditEvent(attemptId, kind, evidence ? { evidence_url: evidence.publicUrl, evidence_path: evidence.path } : undefined).catch(() => {});
-          showViolationAlert(kind);
-        }}
+        onViolation={handleAiProctorViolation}
       />
       {/* Modal cảnh báo vi phạm */}
       <ViolationAlertModal

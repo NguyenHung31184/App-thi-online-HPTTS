@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { BlazeFaceModel } from '@tensorflow-models/blazeface';
-import { loadBlazeFaceModel } from '../../utils/blazeFaceProctor';
+import { detectFacesInVideo, loadBlazeFaceModel } from '../../utils/blazeFaceProctor';
 import type { ProctoringEvidenceCaptureRef } from './ProctoringEvidenceCapture';
 
 type CocoSsd = typeof import('@tensorflow-models/coco-ssd');
@@ -10,17 +10,23 @@ type CocoModel = Awaited<ReturnType<CocoSsd['load']>>;
 export interface AiObjectProctorBurstProps {
   enabled: boolean;
   evidenceRef: React.RefObject<ProctoringEvidenceCaptureRef | null>;
-  onViolation?: (kind: 'ai_cell_phone' | 'ai_prohibited_object' | 'ai_no_face' | 'ai_multiple_face', evidence?: { path?: string; publicUrl?: string }) => void;
+  /**
+   * Ghi nhận vi phạm: gọi 2 lần — (1) chỉ `kind` để UI cảnh báo ngay; (2) sau khi chụp evidence để ghi audit.
+   */
+  onViolation?: (
+    kind: 'ai_cell_phone' | 'ai_prohibited_object' | 'ai_no_face' | 'ai_multiple_face',
+    captureResult?: { ok: true; path?: string; publicUrl?: string } | { ok: false },
+  ) => void;
   /**
    * true (mặc định): COCO-SSD (điện thoại, vật cấm) + BlazeFace (mặt).
    * false: chỉ BlazeFace — dùng khi tắt VITE_AI_PROCTORING_ENABLED nhưng vẫn muốn kiểm tra không mặt / nhiều mặt (mục 2a).
    */
   detectObjects?: boolean;
-  /** Chu kỳ burst (ms). Ví dụ 60_000 */
+  /** @deprecated Giữ tương thích; không còn dùng (quét liên tục). */
   burstEveryMs?: number;
-  /** Thời lượng burst (ms). Ví dụ 5_000 */
+  /** @deprecated Giữ tương thích; không còn dùng. */
   burstDurationMs?: number;
-  /** Tần suất detect trong burst (ms). Ví dụ 1_000 */
+  /** Chu kỳ quét liên tục (ms), mặc định 2,5s */
   detectIntervalMs?: number;
   /** Ngưỡng confidence để tính vi phạm */
   minScore?: number;
@@ -38,9 +44,9 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     evidenceRef,
     onViolation,
     detectObjects = true,
-    burstEveryMs = 60_000,
-    burstDurationMs = 5_000,
-    detectIntervalMs = 1_000,
+    burstEveryMs: _burstEveryMs = 60_000,
+    burstDurationMs: _burstDurationMs = 5_000,
+    detectIntervalMs = 2_500,
     minScore = 0.6,
     notify = false,
   } = props;
@@ -51,7 +57,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   const streamRef = useRef<MediaStream | null>(null);
   const modelRef = useRef<CocoModel | null>(null);
   const blazeFaceRef = useRef<BlazeFaceModel | null>(null);
-  const timersRef = useRef<{ schedule?: number; detect?: number; stopBurst?: number }>({});
+  const timersRef = useRef<{ tick?: number }>({});
   const lastHitRef = useRef<Record<string, number>>({});
   /** Sẵn sàng chạy burst: COCO xong (nếu detectObjects) hoặc BlazeFace xong (chế độ face-only). */
   const [burstReady, setBurstReady] = useState(false);
@@ -67,6 +73,14 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       return;
     }
     let cancelled = false;
+    const cocoDoneRef = { current: false };
+    const blazeDoneRef = { current: false };
+
+    const trySetBurstReady = () => {
+      if (cancelled) return;
+      const modelsOk = detectObjects ? cocoDoneRef.current && blazeDoneRef.current : blazeDoneRef.current;
+      if (modelsOk) setBurstReady(true);
+    };
 
     const startCamera = async () => {
       // Ưu tiên tái dùng video element từ ProctoringEvidenceCapture (đã có stream sẵn)
@@ -102,7 +116,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         const m = await coco.load();
         if (cancelled) return;
         modelRef.current = m;
-        setBurstReady(true);
+        cocoDoneRef.current = true;
+        trySetBurstReady();
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Không tải được model AI.';
         toast.error('Không thể tải AI giám sát', { description: msg });
@@ -114,16 +129,17 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         const bm = await loadBlazeFaceModel();
         if (cancelled) return;
         blazeFaceRef.current = bm;
-        if (!detectObjects) setBurstReady(true);
+        blazeDoneRef.current = true;
+        trySetBurstReady();
       } catch (e) {
-        if (!detectObjects) {
-          const msg = e instanceof Error ? e.message : 'Không tải BlazeFace.';
-          toast.error('Không thể tải kiểm tra khuôn mặt', { description: msg });
-        }
+        const msg = e instanceof Error ? e.message : 'Không tải BlazeFace.';
+        toast.error('Không thể tải kiểm tra khuôn mặt', { description: msg });
       }
     };
 
     setBurstReady(false);
+    cocoDoneRef.current = false;
+    blazeDoneRef.current = false;
     startCamera();
     if (detectObjects) {
       loadModel();
@@ -141,23 +157,20 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   useEffect(() => {
     if (!enabled || !burstReady) return;
 
-    const clearTimers = () => {
-      const t = timersRef.current;
-      if (t.schedule) window.clearInterval(t.schedule);
-      if (t.detect) window.clearInterval(t.detect);
-      if (t.stopBurst) window.clearTimeout(t.stopBurst);
-      timersRef.current = {};
+    const clearTick = () => {
+      const t = timersRef.current.tick;
+      if (t) window.clearInterval(t);
+      timersRef.current.tick = undefined;
     };
 
     const stopTimersAndOwnStream = () => {
-      clearTimers();
+      clearTick();
       const s = streamRef.current;
       if (s) s.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
 
     const getActiveVideo = (): HTMLVideoElement | null => {
-      // Ưu tiên shared video; fallback về own video nếu shared chưa sẵn sàng
       const shared = evidenceRef.current?.getVideoElement?.();
       if (shared && shared.readyState >= 2 && shared.videoWidth > 0) return shared;
       return ownVideoRef.current;
@@ -165,7 +178,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
 
     const detectOnce = async () => {
       const video = getActiveVideo();
-      if (!video || video.readyState !== 4 || video.videoWidth === 0 || video.videoHeight === 0) return;
+      // HAVE_CURRENT_DATA (2) đủ cho nhiều trình duyệt với MediaStream; trước đây yêu cầu === 4 khiến không bao giờ quét.
+      if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
 
       try {
         let preds: Awaited<ReturnType<CocoModel['detect']>> | null = null;
@@ -182,20 +196,20 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
           }
         }
 
-        const bf = blazeFaceRef.current;
-        let faceHandled = false;
-        if (bf) {
+        let faceCount: number | null = null;
+        if (blazeFaceRef.current) {
           try {
-            const faces = await bf.estimateFaces(video, false, true, false);
-            const n = faces.filter((f) => Array.isArray(f.topLeft)).length;
-            if (n === 0) await maybeHit('ai_no_face');
-            if (n > 1) await maybeHit('ai_multiple_face');
-            faceHandled = true;
+            // Cùng flip với bước chụp mặt đầu bài (selfie).
+            const { count } = await detectFacesInVideo(video, true);
+            faceCount = count;
           } catch {
-            /* fallback COCO khi có model */
+            faceCount = null;
           }
         }
-        if (!faceHandled && preds) {
+        if (faceCount !== null) {
+          if (faceCount === 0) await maybeHit('ai_no_face');
+          if (faceCount > 1) await maybeHit('ai_multiple_face');
+        } else if (preds) {
           let personCount = 0;
           let hasPerson = false;
           for (const p of preds) {
@@ -209,13 +223,12 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
           if (personCount > 1) await maybeHit('ai_multiple_face');
         }
       } catch {
-        // bỏ qua để không ảnh hưởng luồng thi
+        /* một frame lỗi — bỏ qua */
       }
     };
 
     const maybeHit = async (kind: 'ai_cell_phone' | 'ai_prohibited_object' | 'ai_no_face' | 'ai_multiple_face') => {
       const last = lastHitRef.current[kind] ?? 0;
-      // cooldown 10s mỗi loại để tránh spam
       if (now() - last < 10_000) return;
       lastHitRef.current[kind] = now();
       if (notify) {
@@ -224,48 +237,25 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
             kind === 'ai_cell_phone'
               ? 'Điện thoại'
               : kind === 'ai_prohibited_object'
-              ? 'Vật cấm (sách / laptop)'
-              : kind === 'ai_multiple_face'
-              ? 'Nhiều người'
-              : 'Không thấy khuôn mặt',
+                ? 'Vật cấm (sách / laptop)'
+                : kind === 'ai_multiple_face'
+                  ? 'Nhiều người'
+                  : 'Không thấy khuôn mặt',
         });
       }
+      onViolation?.(kind);
       const res = await evidenceRef.current?.captureAndUpload(kind, { toastOnceKey: `evidence_${kind}` });
-      onViolation?.(kind, res?.ok ? { path: res.path, publicUrl: res.publicUrl } : undefined);
+      onViolation?.(kind, res?.ok ? { ok: true, path: res.path, publicUrl: res.publicUrl } : { ok: false });
     };
 
-    const startBurst = () => {
-      const canRun = detectObjects ? Boolean(modelRef.current) : Boolean(blazeFaceRef.current);
-      if (!canRun) return;
-      if (timersRef.current.detect) return;
-      timersRef.current.detect = window.setInterval(() => {
-        detectOnce();
-      }, detectIntervalMs);
-      timersRef.current.stopBurst = window.setTimeout(() => {
-        if (timersRef.current.detect) window.clearInterval(timersRef.current.detect);
-        timersRef.current.detect = undefined;
-        if (timersRef.current.stopBurst) window.clearTimeout(timersRef.current.stopBurst);
-        timersRef.current.stopBurst = undefined;
-      }, burstDurationMs);
-    };
+    timersRef.current.tick = window.setInterval(() => {
+      void detectOnce();
+    }, detectIntervalMs);
 
-    const schedule = () => {
-      clearTimers();
-      // scheduler: mỗi burstEveryMs chạy 1 burst
-      timersRef.current.schedule = window.setInterval(() => {
-        startBurst();
-      }, burstEveryMs);
-      // burst ngay khi bắt đầu
-      startBurst();
-    };
-
-    schedule();
     return () => stopTimersAndOwnStream();
   }, [
     enabled,
     configKey,
-    burstDurationMs,
-    burstEveryMs,
     detectIntervalMs,
     detectObjects,
     evidenceRef,

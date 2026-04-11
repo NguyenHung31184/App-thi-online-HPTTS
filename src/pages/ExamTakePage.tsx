@@ -94,7 +94,7 @@ export default function ExamTakePage() {
   const answersRef = useRef<Record<string, string>>({});
   answersRef.current = answers;
   const proctoringDoneRef = useRef(false);
-  const handleSubmitRef = useRef<null | (() => void)>(null);
+  const handleSubmitRef = useRef<null | ((opts?: { dueToViolations?: boolean }) => Promise<void>)>(null);
   const violationCountRef = useRef(0);
   const submittedDueToViolationRef = useRef(false);
   const violationSubmitPendingRef = useRef(false);

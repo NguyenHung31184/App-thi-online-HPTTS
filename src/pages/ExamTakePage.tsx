@@ -130,6 +130,19 @@ export default function ExamTakePage() {
 
   const aiEnabled = (import.meta.env.VITE_AI_PROCTORING_ENABLED ?? '') === '1';
 
+  /** Sau khi chụp mặt xong, trì hoãn bật camera giám sát để tránh chồng với lúc vừa stop luồng chụp mặt (Android). */
+  const proctoringBaseEnabled = photoVerified && Boolean(attemptId && attempt && exam);
+  const [proctoringArmDelay, setProctoringArmDelay] = useState(false);
+  useEffect(() => {
+    if (!proctoringBaseEnabled) {
+      setProctoringArmDelay(false);
+      return;
+    }
+    const t = window.setTimeout(() => setProctoringArmDelay(true), 450);
+    return () => window.clearTimeout(t);
+  }, [proctoringBaseEnabled]);
+  const proctoringCameraEnabled = proctoringBaseEnabled && proctoringArmDelay;
+
   const enterFullscreen = useCallback(async () => {
     setFullscreenError('');
     const el = document.documentElement;
@@ -479,14 +492,14 @@ export default function ExamTakePage() {
       {/* Camera evidence: chạy nền để chụp ảnh khi vi phạm (blur/tab hidden/fullscreen exit/AI events). */}
       <ProctoringEvidenceCapture
         ref={evidenceRef}
-        enabled={photoVerified && Boolean(attemptId && attempt && exam)}
+        enabled={proctoringCameraEnabled}
         attemptId={attemptId ?? ''}
         examId={attempt?.exam_id ?? ''}
         studentKey={(user?.student_id ?? studentSession?.student_id ?? user?.id ?? attempt?.user_id ?? 'unknown') as string}
       />
       {/* BlazeFace (mục 2a): luôn bật sau khi đã chụp start_photo. COCO (điện thoại/vật cấm) chỉ khi VITE_AI_PROCTORING_ENABLED=1. */}
       <AiObjectProctorBurst
-        enabled={photoVerified && Boolean(attemptId && attempt && exam)}
+        enabled={proctoringCameraEnabled}
         evidenceRef={evidenceRef}
         detectObjects={aiEnabled}
         burstEveryMs={60_000}

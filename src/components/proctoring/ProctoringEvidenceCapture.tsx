@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import { toast } from 'sonner';
 import { uploadExamFileViaEdge } from '../../services/examUploadService';
 
@@ -45,50 +45,102 @@ async function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.85): Promise<
   });
 }
 
+function streamHasLiveVideo(stream: MediaStream | null): boolean {
+  if (!stream) return false;
+  return stream.getVideoTracks().some((t) => t.readyState === 'live');
+}
+
 export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef, ProctoringEvidenceCaptureProps>(
   function ProctoringEvidenceCapture(props, ref) {
     const { enabled, attemptId, examId, studentKey } = props;
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
-    const [ready, setReady] = useState(false);
     const toastOnceRef = useRef<Set<string>>(new Set());
+    /** Đồng bộ ngay sau play() — tránh đọc state React stale sau await ensureStarted. */
+    const readySyncRef = useRef(false);
+    const enabledRef = useRef(enabled);
+    enabledRef.current = enabled;
+    /** Tăng mỗi lần tắt stream / disabled để huỷ kết quả của getUserMedia/play đang treo. */
+    const sessionTokenRef = useRef(0);
+    /** Chỉ một lần khởi động camera tại một thời điểm — tránh play() bị cắt bởi gán srcObject mới. */
+    const startPromiseRef = useRef<Promise<void> | null>(null);
 
     const stop = useCallback(() => {
+      sessionTokenRef.current += 1;
       const s = streamRef.current;
       if (s) s.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
-      setReady(false);
+      readySyncRef.current = false;
+      const v = videoRef.current;
+      if (v) v.srcObject = null;
     }, []);
 
     const ensureStarted = useCallback(async () => {
-      if (!enabled) return;
-      if (streamRef.current && ready) return;
+      if (!enabledRef.current) return;
       if (!videoRef.current) return;
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480, facingMode: 'user' },
-          audio: false,
-        });
-        streamRef.current = stream;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setReady(true);
-      } catch (e) {
-        setReady(false);
-        const msg = e instanceof Error ? e.message : 'Không thể bật camera evidence.';
-        if (!toastOnceRef.current.has('camera_denied')) {
-          toastOnceRef.current.add('camera_denied');
-          toast.warning('Không bật được camera giám sát', { description: msg });
-        }
+
+      if (readySyncRef.current && streamHasLiveVideo(streamRef.current)) return;
+
+      if (startPromiseRef.current) {
+        await startPromiseRef.current;
+        return;
       }
-    }, [enabled, ready]);
+
+      const run = async (): Promise<void> => {
+        const tokenAtStart = sessionTokenRef.current;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 640, height: 480, facingMode: 'user' },
+            audio: false,
+          });
+          if (tokenAtStart !== sessionTokenRef.current) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          const v = videoRef.current;
+          if (!v || !enabledRef.current) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          streamRef.current = stream;
+          v.srcObject = stream;
+          await v.play();
+          if (tokenAtStart !== sessionTokenRef.current) {
+            stream.getTracks().forEach((t) => t.stop());
+            streamRef.current = null;
+            v.srcObject = null;
+            return;
+          }
+          readySyncRef.current = true;
+        } catch (e) {
+          readySyncRef.current = false;
+          const msg = e instanceof Error ? e.message : 'Không thể bật camera evidence.';
+          if (!toastOnceRef.current.has('camera_denied')) {
+            toastOnceRef.current.add('camera_denied');
+            toast.warning('Không bật được camera giám sát', { description: msg });
+          }
+        }
+      };
+
+      const p = run().finally(() => {
+        startPromiseRef.current = null;
+      });
+      startPromiseRef.current = p;
+      await p;
+    }, []);
 
     const captureAndUpload = useCallback(
       async (kind: EvidenceKind, opts?: { toastOnceKey?: string }): Promise<CaptureEvidenceResult> => {
         if (!enabled) return { ok: false, error: 'disabled' };
         await ensureStarted();
         const video = videoRef.current;
-        if (!video || !streamRef.current || !ready || video.videoWidth === 0 || video.videoHeight === 0) {
+        if (
+          !video ||
+          !streamRef.current ||
+          !readySyncRef.current ||
+          video.videoWidth === 0 ||
+          video.videoHeight === 0
+        ) {
           if (opts?.toastOnceKey && !toastOnceRef.current.has(opts.toastOnceKey)) {
             toastOnceRef.current.add(opts.toastOnceKey);
             toast.info('Không chụp được ảnh giám sát', { description: 'Camera chưa sẵn sàng.' });
@@ -108,7 +160,6 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
         const safeStudent = ensureSafeKey(studentKey);
         const safeAttempt = ensureSafeKey(attemptId);
         const filename = `${kind}_${Date.now()}.jpg`;
-        // Path thực sẽ được Edge quyết định; client chỉ gửi context để audit/debug.
         const res = await uploadExamFileViaEdge({
           category: 'proctoring',
           attemptId: safeAttempt,
@@ -118,7 +169,7 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
         if (!res.ok) return { ok: false, error: res.error };
         return { ok: true, path: res.path, publicUrl: res.signedUrl };
       },
-      [attemptId, enabled, ensureStarted, examId, ready, studentKey]
+      [attemptId, enabled, ensureStarted, examId, studentKey]
     );
 
     useImperativeHandle(ref, () => ({
@@ -128,15 +179,16 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
 
     useEffect(() => {
       if (!enabled) {
-        // Dừng stream trực tiếp tại đây — không gọi stop() để tránh setState đồng bộ trong body effect
-        // (gây cascading render). setReady sẽ được gọi trong cleanup của lần enabled=true trước đó.
         const s = streamRef.current;
         if (s) s.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
+        readySyncRef.current = false;
+        const v = videoRef.current;
+        if (v) v.srcObject = null;
+        sessionTokenRef.current += 1;
         return;
       }
-      // Khởi động camera sớm để khi vi phạm có thể chụp ngay.
-      ensureStarted();
+      void ensureStarted();
       return () => stop();
     }, [enabled, ensureStarted, stop]);
 
@@ -145,10 +197,8 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
         ref={videoRef}
         muted
         playsInline
-        // Ẩn hoàn toàn: chỉ dùng để capture frame
         style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
       />
     );
   }
 );
-

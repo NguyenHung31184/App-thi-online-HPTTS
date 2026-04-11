@@ -54,6 +54,9 @@ function formatRemaining(ms: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+/** Sau khi có hình camera, chờ tối thiểu trước khi bật nút chụp — tránh bấm quá nhanh khi chưa căn mặt vào khung oval. */
+const START_PHOTO_WARMUP_MS = 5_000;
+
 export default function ExamTakePage() {
   const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
@@ -103,6 +106,10 @@ export default function ExamTakePage() {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string>('');
   const [capturing, setCapturing] = useState(false);
+  /** Chỉ true sau START_PHOTO_WARMUP_MS kể từ khi preview camera sẵn sàng. */
+  const [startPhotoCanCapture, setStartPhotoCanCapture] = useState(false);
+  /** Số giây còn lại trong giai đoạn chờ (hiển thị đếm ngược). */
+  const [startPhotoWarmupLeftSec, setStartPhotoWarmupLeftSec] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const evidenceRef = useRef<ProctoringEvidenceCaptureRef | null>(null);
 
@@ -216,8 +223,34 @@ export default function ExamTakePage() {
     };
   }, [showCameraStep, attemptId]);
 
+  useEffect(() => {
+    if (!cameraStream || !showCameraStep) {
+      setStartPhotoCanCapture(false);
+      setStartPhotoWarmupLeftSec(0);
+      return;
+    }
+    setStartPhotoCanCapture(false);
+    const startAt = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - startAt;
+      const left = Math.max(0, Math.ceil((START_PHOTO_WARMUP_MS - elapsed) / 1000));
+      setStartPhotoWarmupLeftSec(left);
+    };
+    tick();
+    const iv = window.setInterval(tick, 250);
+    const to = window.setTimeout(() => {
+      window.clearInterval(iv);
+      setStartPhotoWarmupLeftSec(0);
+      setStartPhotoCanCapture(true);
+    }, START_PHOTO_WARMUP_MS);
+    return () => {
+      window.clearInterval(iv);
+      window.clearTimeout(to);
+    };
+  }, [cameraStream, showCameraStep]);
+
   const handleCaptureAndStart = useCallback(async () => {
-    if (!attemptId || !videoRef.current || !cameraStream || capturing) return;
+    if (!attemptId || !videoRef.current || !cameraStream || capturing || !startPhotoCanCapture) return;
     const video = videoRef.current;
     if (video.videoWidth === 0 || video.videoHeight === 0) return;
     setCapturing(true);
@@ -259,7 +292,7 @@ export default function ExamTakePage() {
     } finally {
       setCapturing(false);
     }
-  }, [attemptId, cameraStream, capturing]);
+  }, [attemptId, cameraStream, capturing, startPhotoCanCapture]);
 
   useEffect(() => {
     if (!cameraStream || !videoRef.current) return;
@@ -619,7 +652,10 @@ export default function ExamTakePage() {
           <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl p-5">
             <div className="font-semibold text-slate-900 text-lg mb-1">Chụp ảnh khuôn mặt trước khi làm bài</div>
             <p className="text-slate-600 text-sm mb-4">
-              Đưa <strong>một mình bạn</strong> vào <strong>khung oval</strong> trên hình (ảnh sẽ được <strong>cắt 3:4</strong> theo khuôn mặt để lưu và dùng cho phiếu kết quả). Hệ thống từ chối nếu không thấy mặt hoặc có nhiều người.
+              Đưa <strong>một mình bạn</strong> vào <strong>khung oval</strong> trên hình (ảnh sẽ được <strong>cắt 3:4</strong> theo khuôn mặt để lưu và dùng cho phiếu kết quả). Hệ thống từ chối nếu không thấy mặt hoặc có nhiều người.{' '}
+              <span className="text-slate-700">
+                Hãy <strong>giữ máy ổn định</strong> vài giây — nút chụp chỉ bật sau khi camera đã mở đủ lâu để bạn căn khung.
+              </span>
             </p>
             {cameraError && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
@@ -639,13 +675,22 @@ export default function ExamTakePage() {
                   />
                   <PortraitCameraGuide />
                 </div>
+                {!startPhotoCanCapture && startPhotoWarmupLeftSec > 0 && (
+                  <p className="mb-3 text-center text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-lg py-2 px-3">
+                    Giữ mặt trong khung oval — còn <span className="tabular-nums font-bold">{startPhotoWarmupLeftSec}</span> giây nữa mới có thể chụp.
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={handleCaptureAndStart}
-                  disabled={capturing}
-                  className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                  disabled={capturing || !startPhotoCanCapture}
+                  className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
-                  {capturing ? 'Đang chụp và tải lên...' : 'Chụp ảnh và bắt đầu làm bài'}
+                  {capturing
+                    ? 'Đang chụp và tải lên...'
+                    : !startPhotoCanCapture
+                      ? 'Đang chờ ổn định camera...'
+                      : 'Chụp ảnh và bắt đầu làm bài'}
                 </button>
               </>
             )}

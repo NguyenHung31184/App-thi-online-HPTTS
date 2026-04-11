@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { uploadExamFileViaEdge } from '../../services/examUploadService';
 
@@ -59,7 +59,9 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
     /** Đồng bộ ngay sau play() — tránh đọc state React stale sau await ensureStarted. */
     const readySyncRef = useRef(false);
     const enabledRef = useRef(enabled);
-    enabledRef.current = enabled;
+    useLayoutEffect(() => {
+      enabledRef.current = enabled;
+    }, [enabled]);
     /** Tăng mỗi lần tắt stream / disabled để huỷ kết quả của getUserMedia/play đang treo. */
     const sessionTokenRef = useRef(0);
     /** Chỉ một lần khởi động camera tại một thời điểm — tránh play() bị cắt bởi gán srcObject mới. */

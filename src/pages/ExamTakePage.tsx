@@ -54,8 +54,14 @@ function formatRemaining(ms: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-/** Sau khi có hình camera, chờ tối thiểu trước khi bật nút chụp — tránh bấm quá nhanh khi chưa căn mặt vào khung oval. */
+/** Sau khi preview video đã có pixel (videoWidth > 0), chờ thêm trước khi bật nút chụp — tránh đếm 5s trong lúc màn hình vẫn đen. */
 const START_PHOTO_WARMUP_MS = 5_000;
+
+/** Android Chrome thường fire visibility hidden / blur khi hộp thoại xác nhận fullscreen — bỏ qua vi phạm rời tab trong khoảng này. */
+function getPostFullscreenLeaveIgnoreMs(): number {
+  if (typeof navigator === 'undefined') return 2_800;
+  return /Android/i.test(navigator.userAgent || '') ? 5_000 : 2_800;
+}
 
 export default function ExamTakePage() {
   const { attemptId } = useParams<{ attemptId: string }>();
@@ -95,18 +101,26 @@ export default function ExamTakePage() {
   /** Gộp visibility + blur trong ~700ms = một lần vi phạm (tránh đếm đôi một thao tác trên mobile). */
   const leaveViolationBundleAtRef = useRef(0);
   const fullscreenRequestedRef = useRef(false);
+  /** Bỏ qua visibility_hidden / focus_lost đến mốc thời gian này (ms epoch) — hệ thống fullscreen Android. */
+  const leaveViolationIgnoreUntilRef = useRef(0);
   const attemptRef = useRef<Attempt | null>(null);
   attemptRef.current = attempt;
+  const examRef = useRef<Exam | null>(null);
+  examRef.current = exam;
   const MAX_VIOLATIONS = 5;
   /** Ép re-render khi tăng đếm vi phạm (modal đếm lùi đọc đúng ref). */
   const [, setViolationRenderTick] = useState(0);
+  /** Đủ MAX_VIOLATIONS: khóa làm bài + ép hiển thị trạng thái tự nộp (đồng bộ UI với ref). */
+  const [violationsCapActive, setViolationsCapActive] = useState(false);
 
   /** Bước 1: Chụp ảnh khuôn mặt bắt buộc trước khi làm bài. Chỉ sau khi chụp xong mới cho vào fullscreen + đề. */
   const [photoVerified, setPhotoVerified] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string>('');
   const [capturing, setCapturing] = useState(false);
-  /** Chỉ true sau START_PHOTO_WARMUP_MS kể từ khi preview camera sẵn sàng. */
+  /** Video đã có khung hình thật (tránh đếm nóng khi stream có nhưng preview vẫn đen 10–15s trên một số máy Android). */
+  const [startPhotoVideoReady, setStartPhotoVideoReady] = useState(false);
+  /** Chỉ true sau START_PHOTO_WARMUP_MS kể từ khi preview đã sẵn sàng. */
   const [startPhotoCanCapture, setStartPhotoCanCapture] = useState(false);
   /** Số giây còn lại trong giai đoạn chờ (hiển thị đếm ngược). */
   const [startPhotoWarmupLeftSec, setStartPhotoWarmupLeftSec] = useState(0);
@@ -185,12 +199,25 @@ export default function ExamTakePage() {
       setFullscreenError('Trình duyệt không hỗ trợ toàn màn hình. Bạn vẫn có thể tiếp tục làm bài bình thường.');
       // Nếu không hỗ trợ, không bắt buộc fullscreen nữa.
       setIsFullscreen(true);
+      leaveViolationIgnoreUntilRef.current = Math.max(
+        leaveViolationIgnoreUntilRef.current,
+        Date.now() + 2_000,
+      );
       return;
     }
+    const ignoreMs = getPostFullscreenLeaveIgnoreMs();
+    leaveViolationIgnoreUntilRef.current = Math.max(
+      leaveViolationIgnoreUntilRef.current,
+      Date.now() + ignoreMs,
+    );
     try {
       await el.requestFullscreen();
       fullscreenRequestedRef.current = true;
       setIsFullscreen(true);
+      leaveViolationIgnoreUntilRef.current = Math.max(
+        leaveViolationIgnoreUntilRef.current,
+        Date.now() + ignoreMs,
+      );
     } catch {
       // Thường xảy ra khi không có thao tác người dùng hoặc user từ chối
       setFullscreenError('Không thể bật toàn màn hình. Hãy bấm nút lần nữa hoặc kiểm tra quyền/trình duyệt.');
@@ -205,7 +232,13 @@ export default function ExamTakePage() {
     setCameraError('');
     let stream: MediaStream | null = null;
     navigator.mediaDevices
-      .getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } })
+      .getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 640, max: 1280 },
+          height: { ideal: 480, max: 720 },
+        },
+      })
       .then((s) => {
         stream = s;
         setCameraStream(s);
@@ -224,7 +257,11 @@ export default function ExamTakePage() {
   }, [showCameraStep, attemptId]);
 
   useEffect(() => {
-    if (!cameraStream || !showCameraStep) {
+    setStartPhotoVideoReady(false);
+  }, [cameraStream]);
+
+  useEffect(() => {
+    if (!cameraStream || !showCameraStep || !startPhotoVideoReady) {
       setStartPhotoCanCapture(false);
       setStartPhotoWarmupLeftSec(0);
       return;
@@ -247,7 +284,7 @@ export default function ExamTakePage() {
       window.clearInterval(iv);
       window.clearTimeout(to);
     };
-  }, [cameraStream, showCameraStep]);
+  }, [cameraStream, showCameraStep, startPhotoVideoReady]);
 
   const handleCaptureAndStart = useCallback(async () => {
     if (!attemptId || !videoRef.current || !cameraStream || capturing || !startPhotoCanCapture) return;
@@ -296,8 +333,24 @@ export default function ExamTakePage() {
 
   useEffect(() => {
     if (!cameraStream || !videoRef.current) return;
-    videoRef.current.srcObject = cameraStream;
-    videoRef.current.play().catch(() => {});
+    const v = videoRef.current;
+    v.srcObject = cameraStream;
+    v.play().catch(() => {});
+    let raf = 0;
+    let stopped = false;
+    const poll = () => {
+      if (stopped) return;
+      if (v.videoWidth > 0 && v.videoHeight > 0) {
+        setStartPhotoVideoReady(true);
+        return;
+      }
+      raf = requestAnimationFrame(poll);
+    };
+    poll();
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+    };
   }, [cameraStream]);
 
   /** Tải BlazeFace sớm khi hiện bước chụp — lần bấm Chụp sẽ nhanh hơn. */
@@ -355,9 +408,11 @@ export default function ExamTakePage() {
     // attempt và exam stable sau khi load (không bao giờ bị ghi đè), dùng làm deps thay vì chỉ .id
   }, [attempt, exam]);
 
-  const handleSubmit = async () => {
-    if (!attemptId || !attempt) return;
-    if (attempt.status !== 'in_progress') {
+  const handleSubmit = async (opts?: { dueToViolations?: boolean }) => {
+    const att = attemptRef.current;
+    const ex = examRef.current;
+    if (!attemptId || !att) return;
+    if (att.status !== 'in_progress') {
       // Nếu trên server bài đã ở trạng thái completed (vd: auto-nộp do hết giờ / vi phạm)
       // thì chuyển thẳng sang trang kết quả để tránh việc nút "Nộp bài" không phản hồi.
       navigate(`/exam/${attemptId}/result`, { replace: true });
@@ -372,6 +427,9 @@ export default function ExamTakePage() {
       const result = await submitAttempt(attemptId);
       if (!result.ok) {
         if (result.error === 'already_completed') {
+          if (opts?.dueToViolations) {
+            submittedDueToViolationRef.current = true;
+          }
           const base = (import.meta.env.BASE_URL || '').replace(/\/$/, '');
           window.location.replace(`${base}/exam/${attemptId}/result`);
           return;
@@ -387,14 +445,14 @@ export default function ExamTakePage() {
       let syncMissingClassId = false;
       try {
         const updated = await getAttempt(attemptId);
-        if (updated && exam && isTtdtSyncConfigured()) {
+        if (updated && ex && isTtdtSyncConfigured()) {
           const win = await getExamWindow(updated.window_id);
-          const hasModule = exam.module_id != null && String(exam.module_id).trim() !== '';
+          const hasModule = ex.module_id != null && String(ex.module_id).trim() !== '';
           const hasStudentId = Boolean((user?.student_id ?? studentSession?.student_id) && String(user?.student_id ?? studentSession?.student_id).trim() !== '');
           const hasClassId = Boolean(win?.class_id && String(win?.class_id).trim() !== '');
           const hasEnrollmentInfo = (hasStudentId && hasClassId) || undefined;
           if (hasModule && hasEnrollmentInfo) {
-            await syncAttemptToTtdt(updated, exam, {
+            await syncAttemptToTtdt(updated, ex, {
               studentId: user?.student_id ?? studentSession?.student_id ?? undefined,
               classId: win?.class_id ?? undefined,
             });
@@ -417,6 +475,9 @@ export default function ExamTakePage() {
         if (syncMissingStudentId) url.searchParams.set('syncMissingStudentId', '1');
         if (syncMissingClassId) url.searchParams.set('syncMissingClassId', '1');
       }
+      if (opts?.dueToViolations) {
+        submittedDueToViolationRef.current = true;
+      }
       window.location.replace(url.pathname + url.search);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi nộp bài.');
@@ -427,7 +488,11 @@ export default function ExamTakePage() {
 
   handleSubmitRef.current = handleSubmit;
 
-  /** Tự nộp khi đủ vi phạm — retry nếu attempt/handleSubmit chưa sẵn sàng (tránh bỏ lỡ do race mobile). */
+  /**
+   * Tự nộp khi đủ vi phạm.
+   * Trước đây đặt submittedDueToViolationRef trước khi gọi handleSubmit trong khi handleSubmit đọc `attempt` từ closure —
+   * có thể return sớm → ref chặn mọi lần thử sau, bài không bao giờ tự nộp.
+   */
   const scheduleViolationAutoSubmit = useCallback(() => {
     if (submittedDueToViolationRef.current || violationSubmitPendingRef.current) return;
     violationSubmitPendingRef.current = true;
@@ -437,12 +502,16 @@ export default function ExamTakePage() {
       const a = attemptRef.current;
       const fn = handleSubmitRef.current;
       if (attemptId && a?.status === 'in_progress' && fn) {
-        submittedDueToViolationRef.current = true;
-        violationSubmitPendingRef.current = false;
-        void fn();
+        void (async () => {
+          try {
+            await fn({ dueToViolations: true });
+          } finally {
+            violationSubmitPendingRef.current = false;
+          }
+        })();
         return;
       }
-      if (tries < 40) {
+      if (tries < 120) {
         window.setTimeout(tick, 200);
       } else {
         violationSubmitPendingRef.current = false;
@@ -456,8 +525,21 @@ export default function ExamTakePage() {
     submittedDueToViolationRef.current = false;
     violationSubmitPendingRef.current = false;
     leaveViolationBundleAtRef.current = 0;
+    leaveViolationIgnoreUntilRef.current = 0;
     setViolationRenderTick(0);
+    setViolationsCapActive(false);
   }, [attemptId]);
+
+  /** Đủ vi phạm: retry tự nộp định kỳ nếu lần đầu lỗi mạng / race. */
+  useEffect(() => {
+    if (!violationsCapActive || !photoVerified) return;
+    const id = window.setInterval(() => {
+      if (submittedDueToViolationRef.current) return;
+      if (attemptRef.current?.status !== 'in_progress') return;
+      scheduleViolationAutoSubmit();
+    }, 2_500);
+    return () => window.clearInterval(id);
+  }, [violationsCapActive, photoVerified, scheduleViolationAutoSubmit]);
 
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'error'>('idle');
 
@@ -504,6 +586,7 @@ export default function ExamTakePage() {
 
     const onVisibility = () => {
       if (document.visibilityState === 'hidden' && attemptId) {
+        if (Date.now() < leaveViolationIgnoreUntilRef.current) return;
         if (!tryConsumeLeaveBundle()) return;
         logAuditEvent(attemptId, 'visibility_hidden').catch(() => {});
         captureViolationEvidence('visibility_hidden').catch(() => {});
@@ -511,6 +594,7 @@ export default function ExamTakePage() {
         violationCountRef.current += 1;
         setViolationRenderTick((n) => n + 1);
         if (violationCountRef.current >= MAX_VIOLATIONS) {
+          setViolationsCapActive(true);
           scheduleViolationAutoSubmit();
         }
       }
@@ -530,6 +614,7 @@ export default function ExamTakePage() {
     };
     const onBlur = () => {
       if (!attemptId) return;
+      if (Date.now() < leaveViolationIgnoreUntilRef.current) return;
       if (!tryConsumeLeaveBundle()) return;
       logAuditEvent(attemptId, 'focus_lost').catch(() => {});
       captureViolationEvidence('focus_lost').catch(() => {});
@@ -537,6 +622,7 @@ export default function ExamTakePage() {
       violationCountRef.current += 1;
       setViolationRenderTick((n) => n + 1);
       if (violationCountRef.current >= MAX_VIOLATIONS) {
+        setViolationsCapActive(true);
         scheduleViolationAutoSubmit();
       }
     };
@@ -578,7 +664,13 @@ export default function ExamTakePage() {
     if (!photoVerified || !attemptId || !attempt || questions.length === 0) return;
     const onFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
-      if (document.fullscreenElement) return;
+      if (document.fullscreenElement) {
+        leaveViolationIgnoreUntilRef.current = Math.max(
+          leaveViolationIgnoreUntilRef.current,
+          Date.now() + 2_000,
+        );
+        return;
+      }
       if (fullscreenRequestedRef.current && attemptId) {
         logAuditEvent(attemptId, 'fullscreen_exited').catch(() => {});
         captureViolationEvidence('fullscreen_exited').catch(() => {});
@@ -586,6 +678,7 @@ export default function ExamTakePage() {
         violationCountRef.current += 1;
         setViolationRenderTick((n) => n + 1);
         if (violationCountRef.current >= MAX_VIOLATIONS) {
+          setViolationsCapActive(true);
           scheduleViolationAutoSubmit();
         }
       }
@@ -646,6 +739,28 @@ export default function ExamTakePage() {
         onClose={() => setViolationAlert(null)}
       />
 
+      {violationsCapActive && photoVerified && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/85 p-6 text-center"
+          aria-live="assertive"
+          role="alertdialog"
+          aria-labelledby="violation-cap-title"
+        >
+          <div className="max-w-md rounded-xl bg-white p-6 shadow-xl border border-slate-200">
+            <p id="violation-cap-title" className="text-lg font-semibold text-slate-900 mb-2">
+              Đã đủ {MAX_VIOLATIONS} lần vi phạm
+            </p>
+            <p className="text-slate-600 text-sm mb-4">
+              Bài thi đang được <strong>tự động nộp</strong>. Vui lòng chờ vài giây; nếu mạng chậm, hệ thống sẽ thử lại. Bạn không thể tiếp tục sửa bài trong lúc này.
+            </p>
+            {submitting && <p className="text-indigo-600 text-sm font-medium">Đang xử lý nộp bài...</p>}
+            {error ? (
+              <p className="text-red-700 text-sm mt-3 border-t border-slate-200 pt-3">{error}</p>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       {/* Bước 1: Chụp ảnh khuôn mặt — bắt buộc trước khi làm bài */}
       {showCameraStep && (
         <div className="fixed inset-0 z-[60] bg-slate-900/90 flex items-center justify-center p-4">
@@ -654,7 +769,7 @@ export default function ExamTakePage() {
             <p className="text-slate-600 text-sm mb-4">
               Đưa <strong>một mình bạn</strong> vào <strong>khung oval</strong> trên hình (ảnh sẽ được <strong>cắt 3:4</strong> theo khuôn mặt để lưu và dùng cho phiếu kết quả). Hệ thống từ chối nếu không thấy mặt hoặc có nhiều người.{' '}
               <span className="text-slate-700">
-                Hãy <strong>giữ máy ổn định</strong> vài giây — nút chụp chỉ bật sau khi camera đã mở đủ lâu để bạn căn khung.
+                Đợi <strong>hình camera hiện rõ</strong>, sau đó giữ mặt trong oval thêm vài giây — nút chụp chỉ bật khi đã thấy hình và đủ thời gian căn khung.
               </span>
             </p>
             {cameraError && (
@@ -672,10 +787,23 @@ export default function ExamTakePage() {
                     muted
                     className="w-full h-full object-cover"
                     style={{ transform: 'scaleX(-1)' }}
+                    onLoadedData={() => {
+                      const v = videoRef.current;
+                      if (v && v.videoWidth > 0) setStartPhotoVideoReady(true);
+                    }}
+                    onPlaying={() => {
+                      const v = videoRef.current;
+                      if (v && v.videoWidth > 0) setStartPhotoVideoReady(true);
+                    }}
                   />
                   <PortraitCameraGuide />
                 </div>
-                {!startPhotoCanCapture && startPhotoWarmupLeftSec > 0 && (
+                {!startPhotoVideoReady && (
+                  <p className="mb-3 text-center text-sm text-slate-600">
+                    Đang hiển thị hình camera… Giữ mặt trong khung oval khi hình đã lên.
+                  </p>
+                )}
+                {startPhotoVideoReady && !startPhotoCanCapture && startPhotoWarmupLeftSec > 0 && (
                   <p className="mb-3 text-center text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-lg py-2 px-3">
                     Giữ mặt trong khung oval — còn <span className="tabular-nums font-bold">{startPhotoWarmupLeftSec}</span> giây nữa mới có thể chụp.
                   </p>
@@ -688,9 +816,11 @@ export default function ExamTakePage() {
                 >
                   {capturing
                     ? 'Đang chụp và tải lên...'
-                    : !startPhotoCanCapture
-                      ? 'Đang chờ ổn định camera...'
-                      : 'Chụp ảnh và bắt đầu làm bài'}
+                    : !startPhotoVideoReady
+                      ? 'Đang chờ hình camera...'
+                      : !startPhotoCanCapture
+                        ? 'Đang chờ ổn định camera...'
+                        : 'Chụp ảnh và bắt đầu làm bài'}
                 </button>
               </>
             )}

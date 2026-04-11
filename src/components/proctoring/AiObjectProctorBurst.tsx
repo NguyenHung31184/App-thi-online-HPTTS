@@ -44,12 +44,11 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     evidenceRef,
     onViolation,
     detectObjects = true,
-    burstEveryMs: _burstEveryMs = 60_000,
-    burstDurationMs: _burstDurationMs = 5_000,
     detectIntervalMs = 2_500,
     minScore = 0.6,
     notify = false,
   } = props;
+  // burstEveryMs / burstDurationMs vẫn nằm trên interface (tương thích API cũ), không dùng trong quét liên tục.
 
   // ownVideoRef: video element dự phòng, chỉ dùng khi không có shared video từ ProctoringEvidenceCapture
   const ownVideoRef = useRef<HTMLVideoElement | null>(null);

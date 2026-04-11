@@ -3,8 +3,17 @@
  * Xuất JPEG để dung lượng nhỏ, vẫn đủ cho OCR / evidence.
  */
 
-/** Dưới ngưỡng này không cần nén (để margin so với 2MB server). */
+/** Dưới ngưỡng này không cần nén theo dung lượng (để margin so với 2MB server). */
 export const EXAM_UPLOAD_SOFT_MAX_BYTES = 1_900_000;
+
+/** Trên điện thoại: ảnh <2MB nhưng rất nhiều MP vẫn dễ làm canvas/toBlob lỗi hoặc multipart kém ổn định — ép resize. */
+const MOBILE_PIXEL_FORCE = 8_000_000;
+const MOBILE_LONG_SIDE_FORCE = 2048;
+
+function isLikelyMobile(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
 
 async function loadAsImageBitmap(input: Blob): Promise<ImageBitmap> {
   try {
@@ -59,14 +68,36 @@ export async function compressImageForExamUpload(
   input: File | Blob,
   maxBytes: number = EXAM_UPLOAD_SOFT_MAX_BYTES
 ): Promise<Blob> {
-  if (input.size <= maxBytes) {
+  const mobile = isLikelyMobile();
+  const overByteLimit = input.size > maxBytes;
+
+  if (!overByteLimit && !mobile) {
     return input;
   }
 
-  const bitmap = await loadAsImageBitmap(input);
+  let bitmap: ImageBitmap;
   try {
-    let maxLongSide = Math.min(2048, Math.max(bitmap.width, bitmap.height));
-    let quality = 0.86;
+    bitmap = await loadAsImageBitmap(input);
+  } catch {
+    if (overByteLimit) {
+      throw new Error('Không đọc được ảnh để nén.');
+    }
+    return input;
+  }
+
+  try {
+    const longSide = Math.max(bitmap.width, bitmap.height);
+    const pixels = bitmap.width * bitmap.height;
+    const needsShrinkForMobile =
+      mobile && (longSide > MOBILE_LONG_SIDE_FORCE || pixels > MOBILE_PIXEL_FORCE);
+
+    if (!overByteLimit && !needsShrinkForMobile) {
+      return input;
+    }
+
+    const capStart = mobile ? 1600 : 2048;
+    let maxLongSide = Math.min(capStart, longSide);
+    let quality = mobile ? 0.82 : 0.86;
     const minQ = 0.38;
     const minSide = 360;
 

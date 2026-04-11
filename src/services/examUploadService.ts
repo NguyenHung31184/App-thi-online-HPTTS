@@ -1,6 +1,31 @@
 import { supabase } from '../lib/supabaseClient';
 import { compressImageForExamUpload } from '../utils/examImageCompress';
 
+/** Supabase trả message chung; body JSON của Edge có trường `error` chi tiết hơn (401/400/502). */
+async function messageFromInvokeFailure(error: unknown): Promise<string> {
+  if (error && typeof error === 'object' && 'context' in error) {
+    const ctx = (error as { context?: unknown }).context;
+    if (ctx instanceof Response) {
+      try {
+        const ct = (ctx.headers.get('content-type') || '').toLowerCase();
+        if (ct.includes('application/json')) {
+          const j = (await ctx.clone().json()) as { error?: string };
+          if (typeof j?.error === 'string' && j.error.trim()) {
+            return j.error.trim();
+          }
+        }
+      } catch {
+        /* bỏ qua parse */
+      }
+      return `Lỗi upload ảnh (HTTP ${ctx.status}).`;
+    }
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return 'Không upload được ảnh.';
+}
+
 export type ExamUploadCategory = 'proctoring' | 'cccd';
 
 export type UploadExamFileResult =
@@ -38,7 +63,7 @@ export async function uploadExamFileViaEdge(input: {
       { body: form }
     );
     if (error) {
-      return { ok: false, error: error.message || 'Không upload được ảnh.' };
+      return { ok: false, error: await messageFromInvokeFailure(error) };
     }
     if (!data?.success || !data.path || !data.signedUrl) {
       return { ok: false, error: data?.error || 'Phản hồi upload không hợp lệ.' };

@@ -298,15 +298,15 @@ async function fetchStudentNamesById(
   if (studentIds.length === 0) return map;
   const { data, error } = await supabase
     .from('students')
-    .select('id, name, code')
+    .select('id, name, student_code')
     .in('id', studentIds);
   if (error) {
     console.warn('fetchStudentNamesById:', error.message);
     return map;
   }
-  (data ?? []).forEach((s: { id: string; name?: string | null; code?: string | null }) => {
+  (data ?? []).forEach((s: { id: string; name?: string | null; student_code?: string | null }) => {
     const name = (s.name || '').trim();
-    const code = (s.code ?? undefined) || undefined;
+    const code = (s.student_code ?? undefined) || undefined;
     map.set(s.id, { name, code });
   });
   return map;

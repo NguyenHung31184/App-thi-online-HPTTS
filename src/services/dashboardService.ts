@@ -65,8 +65,6 @@ export async function listRecentCompletedAttemptsForDashboard(
       raw_score,
       total_max,
       disqualified,
-      student_name,
-      student_dob,
       user_id,
       exams ( title, pass_threshold ),
       exam_windows ( id, start_at, end_at, access_code )
@@ -88,8 +86,6 @@ export async function listRecentCompletedAttemptsForDashboard(
     raw_score: number | null;
     total_max: number | null;
     disqualified: boolean | null;
-    student_name: string | null;
-    student_dob: string | null;
     user_id: string | null;
     exams?: { title?: string | null; pass_threshold?: number | null } | null;
     exam_windows?: {
@@ -117,13 +113,7 @@ export async function listRecentCompletedAttemptsForDashboard(
         : scoreNum != null
           ? `${Math.round(scoreNum * 1000) / 10}%`
           : '—';
-    const st = (r.student_name ?? '').trim();
-    const studentLabel =
-      st !== ''
-        ? st
-        : r.user_id
-          ? 'Tài khoản đăng nhập'
-          : '—';
+    const studentLabel = r.user_id ? 'Tài khoản đăng nhập' : '—';
     const winStart = win?.start_at != null ? Number(win.start_at) : 0;
     const winEnd = win?.end_at != null ? Number(win.end_at) : 0;
     const windowLabel =

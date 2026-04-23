@@ -48,10 +48,26 @@ function formatDuration(startedAt: number, completedAt: number | null | undefine
   return `${m} phút ${s} giây`;
 }
 
+function normalizePrintable(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function pickFirstString(row: Record<string, unknown> | null, keys: string[]): string | null {
+  if (!row) return null;
+  for (const key of keys) {
+    const v = normalizePrintable(row[key]);
+    if (v) return v;
+  }
+  return null;
+}
+
 async function generatePdf(opts: {
   examTitle: string;
   studentDisplay: string;
   studentDob: string | null;
+  studentCccd: string | null;
   completedAtStr: string;
   durationStr: string;
   disqualified: boolean;
@@ -65,7 +81,7 @@ async function generatePdf(opts: {
   const html2pdf = (await import('html2pdf.js')).default;
 
   const {
-    examTitle, studentDisplay, studentDob, completedAtStr, durationStr,
+    examTitle, studentDisplay, studentDob, studentCccd, completedAtStr, durationStr,
     disqualified, earned, denom, passValue, passed, startPhotoUrl, reviewItems,
   } = opts;
 
@@ -123,6 +139,7 @@ async function generatePdf(opts: {
           <div style="flex:1;">
             <p style="font-size:13px;margin:0 0 5px 0;"><strong style="display:inline-block;width:110px;color:#475569;">Học viên:</strong> ${studentDisplay}</p>
             ${studentDob ? `<p style="font-size:13px;margin:0 0 5px 0;"><strong style="display:inline-block;width:110px;color:#475569;">Ngày sinh:</strong> ${studentDob}</p>` : ''}
+            ${studentCccd ? `<p style="font-size:13px;margin:0 0 5px 0;"><strong style="display:inline-block;width:110px;color:#475569;">CCCD:</strong> ${studentCccd}</p>` : ''}
             <p style="font-size:13px;margin:0 0 5px 0;"><strong style="display:inline-block;width:110px;color:#475569;">Nộp lúc:</strong> ${completedAtStr}</p>
             <p style="font-size:13px;margin:0;"><strong style="display:inline-block;width:110px;color:#475569;">Thời gian làm:</strong> ${durationStr}</p>
             ${disqualified ? '<p style="color:#b45309;font-weight:700;margin:8px 0 0 0;">⚠ Bài bị loại (disqualified)</p>' : ''}
@@ -174,6 +191,10 @@ export default function AdminAttemptResultPage() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [reviewItems, setReviewItems] = useState<QuestionReviewItem[] | null>(null);
   const [profileName, setProfileName] = useState<string | null>(null);
+  const [profileEmail, setProfileEmail] = useState<string | null>(null);
+  const [resolvedStudentName, setResolvedStudentName] = useState<string | null>(null);
+  const [resolvedStudentDob, setResolvedStudentDob] = useState<string | null>(null);
+  const [resolvedStudentCccd, setResolvedStudentCccd] = useState<string | null>(null);
   const [startPhotoUrl, setStartPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -184,6 +205,11 @@ export default function AdminAttemptResultPage() {
     setLoading(true);
     setError('');
     setStartPhotoUrl(null);
+    setProfileName(null);
+    setProfileEmail(null);
+    setResolvedStudentName(null);
+    setResolvedStudentDob(null);
+    setResolvedStudentCccd(null);
     try {
       // 1. Lấy attempt (admin không cần check user_id)
       const { data: attemptData, error: aErr } = await supabase
@@ -214,9 +240,56 @@ export default function AdminAttemptResultPage() {
           .eq('id', a.user_id)
           .single();
         if (pData) {
-          setProfileName((pData as { name?: string | null; email?: string | null }).name || (pData as { name?: string | null; email?: string | null }).email || null);
+          const pName = normalizePrintable((pData as Record<string, unknown>)['name']);
+          const pEmail = normalizePrintable((pData as Record<string, unknown>)['email']);
+          setProfileName(pName ?? null);
+          setProfileEmail(pEmail ?? null);
         }
       }
+
+      // 3b. Resolve thông tin học viên để in: ưu tiên "đóng dấu" trong attempts, nếu thiếu thì tra students.
+      const sealedName = normalizePrintable(a.student_name);
+      const sealedDob = normalizePrintable(a.student_dob);
+      const sealedCccd = normalizePrintable(a.id_card_number);
+
+      let resolvedName = sealedName;
+      let resolvedDob = sealedDob;
+      let resolvedCccd = sealedCccd;
+
+      const needLookup = !resolvedName || !resolvedDob || !resolvedCccd;
+      if (needLookup) {
+        const tryLookupByEmail = async (email: string) => {
+          const { data } = await supabase
+            .from('students')
+            .select('*')
+            .eq('exam_account_email', email)
+            .maybeSingle();
+          return (data ?? null) as Record<string, unknown> | null;
+        };
+
+        const tryLookupById = async (studentId: string) => {
+          const { data } = await supabase
+            .from('students')
+            .select('*')
+            .eq('id', studentId)
+            .maybeSingle();
+          return (data ?? null) as Record<string, unknown> | null;
+        };
+
+        let studentRow: Record<string, unknown> | null = null;
+        if (!studentRow && profileEmail) studentRow = await tryLookupByEmail(profileEmail);
+        if (!studentRow && a.student_id) studentRow = await tryLookupById(a.student_id);
+
+        if (studentRow) {
+          resolvedName ||= pickFirstString(studentRow, ['name', 'full_name', 'student_name']);
+          resolvedDob ||= pickFirstString(studentRow, ['student_dob', 'dob', 'date_of_birth']);
+          resolvedCccd ||= pickFirstString(studentRow, ['id_card_number', 'cccd', 'id_number']);
+        }
+      }
+
+      setResolvedStudentName(resolvedName ?? null);
+      setResolvedStudentDob(resolvedDob ?? null);
+      setResolvedStudentCccd(resolvedCccd ?? null);
 
       // 4. Lấy câu hỏi với answer_key (admin có thể đọc thẳng bảng questions)
       const { data: qData } = await supabase
@@ -287,11 +360,13 @@ export default function AdminAttemptResultPage() {
   const passValue = typeof denom === 'number' ? threshold * denom : null;
 
   const studentDisplay =
-    (attempt as Attempt & { student_name?: string | null }).student_name?.trim() ||
+    resolvedStudentName ||
+    attempt.student_name?.trim() ||
     profileName ||
+    profileEmail ||
     '—';
-  const studentDob =
-    (attempt as Attempt & { student_dob?: string | null }).student_dob ?? null;
+  const studentDob = resolvedStudentDob ?? attempt.student_dob ?? null;
+  const studentCccd = resolvedStudentCccd ?? attempt.id_card_number ?? null;
   const completedAtMs =
     typeof attempt.completed_at === 'number' ? attempt.completed_at : null;
   const completedAtStr = completedAtMs
@@ -320,6 +395,9 @@ export default function AdminAttemptResultPage() {
               <p><span className="font-medium text-slate-600 w-32 inline-block">Học viên:</span> {studentDisplay}</p>
               {studentDob && (
                 <p><span className="font-medium text-slate-600 w-32 inline-block">Ngày sinh:</span> {studentDob}</p>
+              )}
+              {studentCccd && (
+                <p><span className="font-medium text-slate-600 w-32 inline-block">CCCD:</span> <span className="tabular-nums">{studentCccd}</span></p>
               )}
               <p><span className="font-medium text-slate-600 w-32 inline-block">Nộp lúc:</span> {completedAtStr}</p>
               <p><span className="font-medium text-slate-600 w-32 inline-block">Thời gian làm:</span> {durationStr}</p>
@@ -375,6 +453,7 @@ export default function AdminAttemptResultPage() {
                   examTitle: exam.title,
                   studentDisplay,
                   studentDob,
+                  studentCccd,
                   completedAtStr,
                   durationStr,
                   disqualified: Boolean(attempt.disqualified),

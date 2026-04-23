@@ -91,6 +91,11 @@ export interface Attempt {
   window_id: string;
   status: AttemptStatus;
   answers: Record<string, string>; // questionId -> optionId hoặc JSON string
+  /** Thông tin học viên được “đóng dấu” lúc vào thi (từ verify CCCD). */
+  student_id?: string | null;
+  student_name?: string | null;
+  student_dob?: string | null;
+  id_card_number?: string | null;
   score?: number | null;
   raw_score?: number | null;
   total_max?: number | null;

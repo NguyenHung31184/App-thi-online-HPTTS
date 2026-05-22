@@ -34,6 +34,8 @@ export interface Exam {
   total_questions: number;
   blueprint?: BlueprintRule[] | string;
   questions_snapshot_url?: string | null;
+  /** Thời điểm khóa đề. Khi có giá trị: không cho sửa/xóa/thêm câu hỏi. */
+  locked_at?: string | null;
   module_id?: string | null; // FK TTDT modules
   created_at?: string;
   updated_at?: string;
@@ -91,6 +93,8 @@ export interface Attempt {
   window_id: string;
   status: AttemptStatus;
   answers: Record<string, string>; // questionId -> optionId hoặc JSON string
+  /** UUID[] câu hỏi riêng của thí sinh, bốc từ question_bank. NULL = bài làm cũ. */
+  question_ids?: string[] | null;
   /** Thông tin học viên được “đóng dấu” lúc vào thi (từ verify CCCD). */
   student_id?: string | null;
   student_name?: string | null;

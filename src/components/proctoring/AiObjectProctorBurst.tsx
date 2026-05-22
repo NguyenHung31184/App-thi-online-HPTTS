@@ -18,6 +18,11 @@ export interface AiObjectProctorBurstProps {
     captureResult?: { ok: true; path?: string; publicUrl?: string } | { ok: false },
   ) => void;
   /**
+   * Gọi khi không thấy mặt trong N lần quét liên tiếp (mặc định 3 × 2,5s = ~7,5s che camera).
+   * Nên tính vào bộ đếm vi phạm chính để auto-submit.
+   */
+  onSustainedNoFace?: () => void;
+  /**
    * true (mặc định): COCO-SSD (điện thoại, vật cấm) + BlazeFace (mặt).
    * false: chỉ BlazeFace — dùng khi tắt VITE_AI_PROCTORING_ENABLED nhưng vẫn muốn kiểm tra không mặt / nhiều mặt (mục 2a).
    */
@@ -38,11 +43,15 @@ function now() {
   return Date.now();
 }
 
+/** Số lần quét liên tiếp không thấy mặt trước khi tính là "che camera có chủ ý". */
+const SUSTAINED_NO_FACE_THRESHOLD = 3;
+
 export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   const {
     enabled,
     evidenceRef,
     onViolation,
+    onSustainedNoFace,
     detectObjects = true,
     detectIntervalMs = 2_500,
     minScore = 0.6,
@@ -58,6 +67,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   const blazeFaceRef = useRef<BlazeFaceModel | null>(null);
   const timersRef = useRef<{ tick?: number }>({});
   const lastHitRef = useRef<Record<string, number>>({});
+  /** Đếm số lần quét liên tiếp không thấy mặt — reset về 0 khi thấy mặt. */
+  const consecutiveNoFaceRef = useRef(0);
   /** Sẵn sàng chạy burst: COCO xong (nếu detectObjects) hoặc BlazeFace xong (chế độ face-only). */
   const [burstReady, setBurstReady] = useState(false);
 
@@ -206,8 +217,18 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
           }
         }
         if (faceCount !== null) {
-          if (faceCount === 0) await maybeHit('ai_no_face');
-          if (faceCount > 1) await maybeHit('ai_multiple_face');
+          if (faceCount === 0) {
+            consecutiveNoFaceRef.current += 1;
+            await maybeHit('ai_no_face');
+            // Che camera ≥ N lần liên tiếp → tính vi phạm nghiêm trọng (đếm vào auto-submit)
+            if (consecutiveNoFaceRef.current % SUSTAINED_NO_FACE_THRESHOLD === 0) {
+              onSustainedNoFace?.();
+            }
+          } else {
+            // Thấy ít nhất 1 mặt → reset bộ đếm che camera
+            consecutiveNoFaceRef.current = 0;
+            if (faceCount > 1) await maybeHit('ai_multiple_face');
+          }
         } else if (preds) {
           let personCount = 0;
           let hasPerson = false;
@@ -228,7 +249,9 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
 
     const maybeHit = async (kind: 'ai_cell_phone' | 'ai_prohibited_object' | 'ai_no_face' | 'ai_multiple_face') => {
       const last = lastHitRef.current[kind] ?? 0;
-      if (now() - last < 10_000) return;
+      // Face violations: cooldown 5s (phát hiện nhanh hơn); object violations: 10s (nặng hơn, tránh false positive)
+      const cooldownMs = (kind === 'ai_no_face' || kind === 'ai_multiple_face') ? 5_000 : 10_000;
+      if (now() - last < cooldownMs) return;
       lastHitRef.current[kind] = now();
       if (notify) {
         toast.warning('Phát hiện vi phạm', {
@@ -262,6 +285,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     notify,
     burstReady,
     onViolation,
+    onSustainedNoFace,
   ]);
 
   // Video dự phòng: chỉ phát huy tác dụng khi shared video từ ProctoringEvidenceCapture chưa sẵn sàng

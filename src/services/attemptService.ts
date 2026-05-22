@@ -2,23 +2,14 @@ import { supabase } from '../lib/supabaseClient';
 import type { Attempt, QuestionForStudent } from '../types';
 
 export async function createAttempt(
-  userId: string,
+  _userId: string,
   windowId: string,
   examId: string
 ): Promise<Attempt> {
-  const started_at = Date.now();
-  const { data, error } = await supabase
-    .from('attempts')
-    .insert({
-      user_id: userId,
-      window_id: windowId,
-      exam_id: examId,
-      status: 'in_progress',
-      answers: {},
-      started_at,
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('create_attempt_with_questions', {
+    p_window_id: windowId,
+    p_exam_id: examId,
+  });
   if (error) throw error;
   return data as Attempt;
 }
@@ -104,14 +95,34 @@ export async function logAuditEvent(
   });
 }
 
-/** Lấy câu hỏi cho thí sinh (không có answer_key). Dùng RPC get_questions_for_student để tuân RLS. */
-export async function getQuestionsForAttempt(examId: string): Promise<QuestionForStudent[]> {
+/** Lấy câu hỏi cho thí sinh (không có answer_key).
+ * Attempt mới (có question_ids): đọc từ question_bank qua RPC get_questions_for_attempt.
+ * Attempt cũ (question_ids IS NULL): fallback sang questions table qua get_questions_for_student. */
+export async function getQuestionsForAttempt(
+  attemptId: string,
+  examId: string,
+): Promise<QuestionForStudent[]> {
+  // Kiểm tra attempt có question_ids không (bài làm theo hệ mới)
+  const { data: attemptRow } = await supabase
+    .from('attempts')
+    .select('question_ids')
+    .eq('id', attemptId)
+    .single();
+
+  if (attemptRow?.question_ids?.length) {
+    const { data, error } = await supabase.rpc('get_questions_for_attempt', { aid: attemptId });
+    if (error) throw error;
+    return (data ?? []) as QuestionForStudent[];
+  }
+
+  // Legacy: attempt cũ không có question_ids — đọc từ questions table
   let ids: string[] | null = null;
   const { data: exam, error: examErr } = await supabase
     .from('exams')
     .select('questions_snapshot_url')
     .eq('id', examId)
     .single();
+
   if (!examErr && exam?.questions_snapshot_url) {
     try {
       const res = await fetch(exam.questions_snapshot_url as string);
@@ -119,9 +130,7 @@ export async function getQuestionsForAttempt(examId: string): Promise<QuestionFo
         const snapshot = (await res.json()) as { question_ids?: string[] };
         ids = snapshot.question_ids ?? [];
       }
-    } catch {
-      /* snapshot URL có thể lỗi mạng / CORS */
-    }
+    } catch { /* fallback sang full list nếu snapshot lỗi */ }
   }
 
   const { data: questions, error } = await supabase.rpc('get_questions_for_student', {

@@ -9,6 +9,7 @@ export async function listQuestionsByOccupation(occupationId: string, moduleId?:
     .from('question_bank')
     .select('*')
     .eq('occupation_id', occupationId)
+    .eq('is_deleted', false)
     .order('created_at', { ascending: true });
   if (moduleId) {
     query = query.eq('module_id', moduleId);
@@ -18,12 +19,13 @@ export async function listQuestionsByOccupation(occupationId: string, moduleId?:
   return (data ?? []) as QuestionBankItem[];
 }
 
-/** Lấy danh sách câu hỏi thuộc nghề nhưng chưa gắn mô-đun (lang thang) — dùng để tìm và xóa. */
+/** Lấy câu hỏi thuộc nghề nhưng chưa gắn mô-đun. */
 export async function listQuestionsWithoutModule(occupationId: string): Promise<QuestionBankItem[]> {
   const { data, error } = await supabase
     .from('question_bank')
     .select('*')
     .eq('occupation_id', occupationId)
+    .eq('is_deleted', false)
     .is('module_id', null)
     .order('created_at', { ascending: true });
   if (error) throw error;
@@ -35,6 +37,7 @@ export async function getQuestionBankItem(id: string): Promise<QuestionBankItem 
     .from('question_bank')
     .select('*')
     .eq('id', id)
+    .eq('is_deleted', false)
     .single();
   if (error) {
     if (error.code === 'PGRST116') return null;
@@ -103,15 +106,22 @@ export async function updateQuestionBankItem(id: string, input: UpdateQuestionBa
   return data as QuestionBankItem;
 }
 
+/** Soft-delete một câu hỏi trong ngân hàng. */
 export async function deleteQuestionBankItem(id: string): Promise<void> {
-  const { error } = await supabase.from('question_bank').delete().eq('id', id);
+  const { error } = await supabase
+    .from('question_bank')
+    .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+    .eq('id', id);
   if (error) throw error;
 }
 
-/** Xóa hàng loạt câu hỏi ngân hàng theo danh sách id (dùng cho UI chọn nhiều). */
+/** Soft-delete hàng loạt câu hỏi ngân hàng theo danh sách id. */
 export async function deleteQuestionBankItemsBulk(ids: string[]): Promise<void> {
   if (!ids.length) return;
-  const { error } = await supabase.from('question_bank').delete().in('id', ids);
+  const { error } = await supabase
+    .from('question_bank')
+    .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+    .in('id', ids);
   if (error) throw error;
 }
 
@@ -141,6 +151,35 @@ export async function createQuestionBankBulk(
     else created++;
   }
   return { created, errors };
+}
+
+/** Lấy câu hỏi ngân hàng theo module_id — dùng cho trang Kiểm tra ngân hàng của đề thi. */
+export async function listQuestionsByModule(moduleId: string): Promise<QuestionBankItem[]> {
+  const { data, error } = await supabase
+    .from('question_bank')
+    .select('*')
+    .eq('module_id', moduleId)
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as QuestionBankItem[];
+}
+
+/** Đếm tần suất bốc thăm từng câu hỏi cho một đề thi (đếm xuất hiện trong attempts.question_ids). */
+export async function getQuestionDrawFrequency(examId: string): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('attempts')
+    .select('question_ids')
+    .eq('exam_id', examId)
+    .not('question_ids', 'is', null);
+  if (error) return {};
+  const freq: Record<string, number> = {};
+  for (const row of (data ?? []) as { question_ids: string[] | null }[]) {
+    for (const qid of row.question_ids ?? []) {
+      freq[qid] = (freq[qid] ?? 0) + 1;
+    }
+  }
+  return freq;
 }
 
 /** Upload ảnh câu hỏi ngân hàng (path dùng occupation_id) */

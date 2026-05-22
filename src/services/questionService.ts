@@ -5,18 +5,37 @@ import { getExam } from './examService';
 
 const BUCKET_QUESTIONS = 'exam-uploads';
 
+/** Kiểm tra đề có bị khóa không. Ném lỗi nếu bị khóa. */
+async function assertExamNotLocked(examId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('exams')
+    .select('locked_at')
+    .eq('id', examId)
+    .single();
+  if (error) return; // không chặn nếu không đọc được (permissive)
+  if (data?.locked_at) {
+    throw new Error('Đề thi đã bị khóa. Mở khóa trước khi chỉnh sửa câu hỏi.');
+  }
+}
+
 export async function listQuestionsByExam(examId: string): Promise<Question[]> {
   const { data, error } = await supabase
     .from('questions')
     .select('*')
     .eq('exam_id', examId)
+    .eq('is_deleted', false)
     .order('created_at', { ascending: true });
   if (error) throw error;
   return (data ?? []) as Question[];
 }
 
 export async function getQuestion(id: string): Promise<Question | null> {
-  const { data, error } = await supabase.from('questions').select('*').eq('id', id).single();
+  const { data, error } = await supabase
+    .from('questions')
+    .select('*')
+    .eq('id', id)
+    .eq('is_deleted', false)
+    .single();
   if (error) {
     if (error.code === 'PGRST116') return null;
     throw error;
@@ -41,6 +60,7 @@ export interface CreateQuestionInput {
 }
 
 export async function createQuestion(input: CreateQuestionInput): Promise<Question> {
+  await assertExamNotLocked(input.exam_id);
   const row = {
     exam_id: input.exam_id,
     question_type: input.question_type ?? 'single_choice',
@@ -73,6 +93,10 @@ export interface UpdateQuestionInput {
 }
 
 export async function updateQuestion(id: string, input: UpdateQuestionInput): Promise<Question> {
+  // Đọc exam_id của câu hỏi để kiểm tra khóa
+  const { data: q } = await supabase.from('questions').select('exam_id').eq('id', id).single();
+  if (q?.exam_id) await assertExamNotLocked(q.exam_id);
+
   const { data, error } = await supabase
     .from('questions')
     .update({ ...input, updated_at: new Date().toISOString() })
@@ -83,15 +107,29 @@ export async function updateQuestion(id: string, input: UpdateQuestionInput): Pr
   return data as Question;
 }
 
+/** Soft-delete một câu hỏi (đánh dấu is_deleted=true thay vì xóa cứng). */
 export async function deleteQuestion(id: string): Promise<void> {
-  const { error } = await supabase.from('questions').delete().eq('id', id);
+  const { data: q } = await supabase.from('questions').select('exam_id').eq('id', id).single();
+  if (q?.exam_id) await assertExamNotLocked(q.exam_id);
+
+  const { error } = await supabase
+    .from('questions')
+    .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+    .eq('id', id);
   if (error) throw error;
 }
 
-/** Xóa hàng loạt câu hỏi trong đề thi theo danh sách id. */
+/** Soft-delete hàng loạt câu hỏi theo danh sách id. */
 export async function deleteQuestionsBulk(ids: string[]): Promise<void> {
   if (!ids.length) return;
-  const { error } = await supabase.from('questions').delete().in('id', ids);
+  // Lấy exam_id của câu đầu để kiểm tra khóa (tất cả cùng đề)
+  const { data: sample } = await supabase.from('questions').select('exam_id').eq('id', ids[0]).single();
+  if (sample?.exam_id) await assertExamNotLocked(sample.exam_id);
+
+  const { error } = await supabase
+    .from('questions')
+    .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+    .in('id', ids);
   if (error) throw error;
 }
 
@@ -110,6 +148,7 @@ export async function createQuestionsBulk(
   examId: string,
   items: BulkQuestionItem[],
 ): Promise<{ created: number; errors: string[] }> {
+  await assertExamNotLocked(examId);
   const errors: string[] = [];
   let created = 0;
   for (let i = 0; i < items.length; i++) {
@@ -132,22 +171,13 @@ export async function createQuestionsBulk(
   return { created, errors };
 }
 
-/** Sinh câu hỏi cho một đề thi từ ngân hàng câu hỏi (question_bank) theo module_id + blueprint.
- * - examId: đề thi cần sinh câu hỏi
- * - blueprint: ma trận đề (topic, difficulty, count). Nếu không truyền sẽ dùng blueprint của exam.
- * - moduleId: mô-đun (ưu tiên truyền vào; nếu không, lấy từ exam.module_id)
- *
- * Chiến lược đơn giản:
- * - Với mỗi rule trong blueprint:
- *   - Lọc câu hỏi ngân hàng theo module_id, topic, difficulty
- *   - Lấy ngẫu nhiên đủ "count" câu (không trùng giữa các rule)
- * - Copy sang bảng questions (exam_id = examId), giữ nguyên stem/options/answer_key/points/topic/difficulty/image_url/media_url/rubric
- */
+/** Sinh câu hỏi cho đề từ ngân hàng câu hỏi (question_bank) theo module_id + blueprint. */
 export async function generateQuestionsFromBankForExam(params: {
   examId: string;
   blueprint: BlueprintRule[];
 }): Promise<{ created: number; errors: string[] }> {
   const { examId, blueprint } = params;
+  await assertExamNotLocked(examId);
   const errors: string[] = [];
   let created = 0;
 
@@ -157,11 +187,11 @@ export async function generateQuestionsFromBankForExam(params: {
     return { created: 0, errors: ['Đề thi chưa gắn mô-đun, không thể sinh câu hỏi từ ngân hàng.'] };
   }
 
-  // Lấy toàn bộ câu hỏi ngân hàng theo module
   const { data: bank, error: bankError } = await supabase
     .from('question_bank')
     .select('*')
-    .eq('module_id', moduleId);
+    .eq('module_id', moduleId)
+    .eq('is_deleted', false);
   if (bankError) {
     return { created: 0, errors: ['Lỗi đọc ngân hàng câu hỏi: ' + bankError.message] };
   }
@@ -170,7 +200,6 @@ export async function generateQuestionsFromBankForExam(params: {
     return { created: 0, errors: ['Ngân hàng câu hỏi cho mô-đun này đang trống.'] };
   }
 
-  // Tập id câu hỏi đã dùng để tránh trùng lặp giữa các rule
   const usedIds = new Set<string>();
   type NewQuestionRow = {
     exam_id: string;
@@ -187,7 +216,6 @@ export async function generateQuestionsFromBankForExam(params: {
   };
   const rowsToInsert: NewQuestionRow[] = [];
 
-  // Hàm chọn ngẫu nhiên n phần tử từ mảng (không lặp)
   const pickRandom = <T,>(arr: T[], n: number): T[] => {
     if (n >= arr.length) return [...arr];
     const indices = arr.map((_, i) => i);
@@ -204,7 +232,6 @@ export async function generateQuestionsFromBankForExam(params: {
 
     let candidates = bankItems.filter((q) => !usedIds.has(q.id));
     if (topic !== '*') {
-      // Câu có chủ đề trống (—) coi như khớp mọi chủ đề trong ma trận; nếu có chủ đề thì phải khớp exact.
       const ruleTopicNorm = topic.trim();
       candidates = candidates.filter((q) => {
         const qTopic = (q.topic ?? '').trim();

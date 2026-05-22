@@ -5,6 +5,9 @@ import { getAttempt } from '../services/attemptService';
 import { getExam } from '../services/examService';
 import type { Attempt, Exam } from '../types';
 
+const IS_IOS_INTRO = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+const IS_IOS_STANDALONE_INTRO = IS_IOS_INTRO && (window.navigator as { standalone?: boolean }).standalone === true;
+
 export default function ExamIntroPage() {
   const { attemptId } = useParams<{ attemptId: string }>();
   const { user } = useAuth();
@@ -73,6 +76,26 @@ export default function ExamIntroPage() {
         </div>
 
         <div className="lg:w-1/2 p-6 space-y-4">
+          {/* Banner yêu cầu standalone cho iOS */}
+          {IS_IOS_INTRO && !IS_IOS_STANDALONE_INTRO && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+              <p className="font-semibold text-amber-800 text-sm mb-2">⚠ Yêu cầu bắt buộc cho iPhone/iPad</p>
+              <p className="text-amber-700 text-sm mb-3">
+                Safari không hỗ trợ toàn màn hình. Bạn <strong>phải mở app từ màn hình chính</strong> trước khi bắt đầu thi.
+              </p>
+              <ol className="text-sm text-amber-800 space-y-1 list-none">
+                <li>1. Nhấn nút <strong>Chia sẻ</strong> (□↑) ở thanh Safari</li>
+                <li>2. Chọn <strong>"Thêm vào màn hình chính"</strong> → <strong>Thêm</strong></li>
+                <li>3. Mở app từ biểu tượng mới trên màn hình chính, sau đó đăng nhập lại</li>
+              </ol>
+            </div>
+          )}
+          {IS_IOS_INTRO && IS_IOS_STANDALONE_INTRO && (
+            <div className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-800">
+              ✓ Bạn đang dùng chế độ màn hình chính — đủ điều kiện bảo mật cho iPhone.
+            </div>
+          )}
+
           <section>
             <h2 className="text-sm font-semibold text-slate-800 uppercase tracking-wide mb-1">
               Mô tả bài thi
@@ -98,8 +121,10 @@ export default function ExamIntroPage() {
                 <span className="font-semibold">chụp ảnh khuôn mặt</span> để đối chiếu danh tính.
               </li>
               <li>
-                Trình duyệt sẽ bị giám sát: <span className="font-semibold">chuyển tab, thu nhỏ, thoát fullscreen</span>{' '}
-                nhiều lần có thể dẫn tới tự động nộp bài.
+                {IS_IOS_INTRO
+                  ? <>Hệ thống giám sát: <span className="font-semibold">rời ứng dụng hoặc chuyển app</span> nhiều lần có thể dẫn tới tự động nộp bài.</>
+                  : <>Trình duyệt sẽ bị giám sát: <span className="font-semibold">chuyển tab, thu nhỏ, thoát fullscreen</span> nhiều lần có thể dẫn tới tự động nộp bài.</>
+                }
               </li>
               <li>Không được chép câu hỏi/đáp án ra ngoài hoặc sử dụng tài liệu hỗ trợ nếu không được phép.</li>
             </ol>

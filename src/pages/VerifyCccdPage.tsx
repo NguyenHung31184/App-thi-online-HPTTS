@@ -4,11 +4,9 @@
  */
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { analyzeCccdByImageUrl } from '../services/ocrService';
+import { analyzeCccdByImageFile, isOcrConfigured } from '../services/ocrService';
 import { verifyCccdForExam } from '../services/verifyCccdService';
 import { useAuth } from '../contexts/AuthContext';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
-import { uploadExamFileViaEdge } from '../services/examUploadService';
 import type { OcrCccdResult } from '../types';
 import CccdCameraCapture from '../components/CccdCameraCapture';
 
@@ -108,33 +106,19 @@ export default function VerifyCccdPage() {
     setStep('upload');
   };
 
-  /** Bước 1: Upload ảnh lên Supabase Storage, lấy URL rồi gọi OCR (proxy Chatbot). */
+  /** Bước 1: Đọc ảnh thành base64 rồi gửi thẳng lên scan-id-card (Gemini) — không cần upload Storage trước. */
   const handleRunOcr = async () => {
     if (!imageFile) return;
     setError('');
     setLoading(true);
     try {
-      if (!isSupabaseConfigured()) {
-        setError('Chưa cấu hình Supabase. Cần Supabase để upload ảnh (qua Edge) và gọi OCR.');
+      if (!isOcrConfigured()) {
+        setError('Chưa cấu hình dịch vụ đọc CCCD. Vui lòng nhập tay số CCCD bên dưới.');
         setLoading(false);
         return;
       }
 
-      // Upload qua Edge → nhận signed URL ngắn hạn để gửi OCR
-      const attemptId = user?.id || 'anonymous';
-      const up = await uploadExamFileViaEdge({
-        category: 'cccd',
-        attemptId,
-        kind: `verify_cccd_${Date.now()}`,
-        file: imageFile,
-      });
-      if (!up.ok) {
-        setError(up.error || 'Không thể tải ảnh lên (Edge).');
-        setLoading(false);
-        return;
-      }
-
-      const result = await analyzeCccdByImageUrl(up.signedUrl);
+      const result = await analyzeCccdByImageFile(imageFile);
       if (!result.success || !result.data) {
         setError(result.error || 'Không đọc được thông tin từ ảnh CCCD.');
         setLoading(false);

@@ -83,7 +83,8 @@ export default function AdminLayout() {
         id: 'practical',
         title: 'THI THỰC HÀNH',
         items: [
-          { to: '/admin/practical-templates', label: 'Đề thực hành', icon: PracticalIcon },
+          { to: '/admin/practical-templates', label: 'Mẫu đánh giá', icon: PracticalIcon },
+          { to: '/admin/practical-sessions', label: 'Ca thi thực hành', icon: CalendarIcon },
           { to: '/admin/practical-grading', label: 'Chấm thực hành', icon: PracticalIcon },
         ],
       },

@@ -63,6 +63,13 @@ function getPostFullscreenLeaveIgnoreMs(): number {
   return /Android/i.test(navigator.userAgent || '') ? 5_000 : 2_800;
 }
 
+/** iOS Safari không hỗ trợ Fullscreen API — dùng Standalone (Add to Home Screen) làm tương đương. */
+const IS_IOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+function getIOSStandalone(): boolean {
+  if (!IS_IOS) return true; // non-iOS: không cần standalone
+  return (window.navigator as { standalone?: boolean }).standalone === true;
+}
+
 export default function ExamTakePage() {
   const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
@@ -88,6 +95,8 @@ export default function ExamTakePage() {
     return hasStandard || hasWebkit;
   });
   const [fullscreenError, setFullscreenError] = useState<string>('');
+  /** iOS: true khi đang chạy standalone (Add to Home Screen) hoặc thiết bị không phải iOS. */
+  const [isIOSStandalone, setIsIOSStandalone] = useState<boolean>(getIOSStandalone);
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<Record<string, string>>({});
   const timeUpSubmittedRef = useRef(false);
@@ -110,6 +119,8 @@ export default function ExamTakePage() {
   const MAX_VIOLATIONS = 5;
   /** Ép re-render khi tăng đếm vi phạm (modal đếm lùi đọc đúng ref). */
   const [, setViolationRenderTick] = useState(0);
+  /** Đếm vi phạm AI nhiều mặt — sau mỗi 3 lần tính 1 vi phạm chính. */
+  const aiMultipleFaceCountRef = useRef(0);
   /** Đủ MAX_VIOLATIONS: khóa làm bài + ép hiển thị trạng thái tự nộp (đồng bộ UI với ref). */
   const [violationsCapActive, setViolationsCapActive] = useState(false);
 
@@ -142,26 +153,6 @@ export default function ExamTakePage() {
     }
   }, []);
 
-  const handleAiProctorViolation = useCallback(
-    (
-      kind: EvidenceKind,
-      captureResult?: { ok: true; path?: string; publicUrl?: string } | { ok: false },
-    ) => {
-      if (captureResult === undefined) {
-        showViolationAlert(kind);
-        return;
-      }
-      if (!attemptId) return;
-      void logAuditEvent(
-        attemptId,
-        kind,
-        captureResult.ok && captureResult.publicUrl
-          ? { evidence_url: captureResult.publicUrl, evidence_path: captureResult.path }
-          : { evidence_error: true },
-      );
-    },
-    [attemptId, showViolationAlert],
-  );
 
   const captureViolationEvidence = useCallback(
     async (kind: EvidenceKind) => {
@@ -381,7 +372,7 @@ export default function ExamTakePage() {
     setExam(e);
     setAnswers((a.answers as Record<string, string>) ?? {});
     lastSavedRef.current = (a.answers as Record<string, string>) ?? {};
-    const questionsList = await getQuestionsForAttempt(a.exam_id);
+    const questionsList = await getQuestionsForAttempt(a.id, a.exam_id);
     setQuestions(questionsList);
     const endTime = a.started_at + e.duration_minutes * 60 * 1000;
     setRemainingMs(Math.max(0, endTime - Date.now()));
@@ -520,6 +511,54 @@ export default function ExamTakePage() {
     };
     window.setTimeout(tick, 200);
   }, [attemptId]);
+
+  /** Tăng bộ đếm vi phạm chính và kích hoạt auto-submit nếu đủ ngưỡng. */
+  const incrementMainViolation = useCallback(() => {
+    violationCountRef.current += 1;
+    setViolationRenderTick((n) => n + 1);
+    if (violationCountRef.current >= MAX_VIOLATIONS) {
+      setViolationsCapActive(true);
+      scheduleViolationAutoSubmit();
+    }
+  }, [scheduleViolationAutoSubmit]);
+
+  const handleAiProctorViolation = useCallback(
+    (
+      kind: EvidenceKind,
+      captureResult?: { ok: true; path?: string; publicUrl?: string } | { ok: false },
+    ) => {
+      if (captureResult === undefined) {
+        showViolationAlert(kind);
+        // ai_multiple_face: cứ 3 lần phát hiện → tính 1 vi phạm chính (có người xem ké)
+        if (kind === 'ai_multiple_face') {
+          aiMultipleFaceCountRef.current += 1;
+          if (aiMultipleFaceCountRef.current % 3 === 0) {
+            incrementMainViolation();
+          }
+        }
+        return;
+      }
+      if (!attemptId) return;
+      void logAuditEvent(
+        attemptId,
+        kind,
+        captureResult.ok && captureResult.publicUrl
+          ? { evidence_url: captureResult.publicUrl, evidence_path: captureResult.path }
+          : { evidence_error: true },
+      );
+    },
+    [attemptId, incrementMainViolation, showViolationAlert],
+  );
+
+  /** Che camera liên tục (~7,5s) → tính thẳng vào bộ đếm vi phạm chính. */
+  const handleSustainedNoFace = useCallback(() => {
+    showViolationAlert('ai_no_face');
+    incrementMainViolation();
+    if (attemptId) {
+      logAuditEvent(attemptId, 'ai_no_face', { sustained: true }).catch(() => {});
+      captureViolationEvidence('ai_no_face').catch(() => {});
+    }
+  }, [attemptId, captureViolationEvidence, incrementMainViolation, showViolationAlert]);
 
   useEffect(() => {
     violationCountRef.current = 0;
@@ -731,6 +770,7 @@ export default function ExamTakePage() {
         minScore={0.6}
         notify={false}
         onViolation={handleAiProctorViolation}
+        onSustainedNoFace={handleSustainedNoFace}
       />
       {/* Modal cảnh báo vi phạm */}
       <ViolationAlertModal
@@ -852,6 +892,53 @@ export default function ExamTakePage() {
           </div>
         </div>
       )}
+
+      {/* iOS: Safari không hỗ trợ Fullscreen API — yêu cầu mở từ màn hình chính (standalone) thay thế */}
+      {photoVerified && IS_IOS && !isIOSStandalone && (
+        <div className="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6">
+            <div className="text-center text-5xl mb-4">📱</div>
+            <h2 className="font-bold text-slate-900 text-lg mb-2 text-center">
+              Yêu cầu mở từ màn hình chính
+            </h2>
+            <p className="text-slate-600 text-sm mb-4">
+              Safari trên iPhone không hỗ trợ toàn màn hình. Để bảo mật bài thi, bạn phải mở ứng dụng từ{' '}
+              <strong>màn hình chính</strong> (Add to Home Screen).
+            </p>
+            <ol className="text-sm text-slate-700 space-y-2 mb-5">
+              <li className="flex gap-2">
+                <span className="font-bold text-indigo-600 shrink-0">1.</span>
+                <span>Nhấn nút <strong>Chia sẻ</strong> (biểu tượng hình vuông có mũi tên lên) ở thanh Safari</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold text-indigo-600 shrink-0">2.</span>
+                <span>Chọn <strong>"Thêm vào màn hình chính"</strong></span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold text-indigo-600 shrink-0">3.</span>
+                <span>Nhấn <strong>Thêm</strong>, sau đó mở app từ biểu tượng trên màn hình chính</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold text-indigo-600 shrink-0">4.</span>
+                <span>Đăng nhập lại và vào tiếp bài thi của bạn</span>
+              </li>
+            </ol>
+            <button
+              type="button"
+              onClick={() => {
+                if (getIOSStandalone()) {
+                  setIsIOSStandalone(true);
+                } else {
+                  alert('Bạn chưa mở từ màn hình chính. Hãy làm theo hướng dẫn trên rồi thử lại.');
+                }
+              }}
+              className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700"
+            >
+              Tôi đã mở từ màn hình chính ✓
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
         <span className="font-medium text-slate-800">{exam.title}</span>
         <div className="flex items-center gap-3">
@@ -891,9 +978,10 @@ export default function ExamTakePage() {
       )}
 
       <p className="text-slate-500 text-sm mb-4">
-        Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu vi phạm (ẩn tab / mất focus / thoát fullscreen) đủ{' '}
-        <strong>{MAX_VIOLATIONS} lần</strong>
-        , bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.
+        {IS_IOS
+          ? <>Hệ thống ghi nhận khi bạn rời ứng dụng hoặc chuyển sang app khác. Nếu vi phạm đủ{' '}<strong>{MAX_VIOLATIONS} lần</strong>, bài sẽ được <strong>tự động nộp</strong>.</>
+          : <>Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu vi phạm (ẩn tab / mất focus / thoát fullscreen) đủ{' '}<strong>{MAX_VIOLATIONS} lần</strong>, bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.</>
+        }
       </p>
 
       <div className="space-y-6">

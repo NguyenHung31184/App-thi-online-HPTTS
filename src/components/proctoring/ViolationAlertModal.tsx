@@ -1,7 +1,9 @@
 /**
  * ViolationAlertModal — Hiển thị cảnh báo vi phạm cho học viên trong lúc làm bài.
- * Thiết kế: overlay tối + card trắng + icon đỏ + nút OK.
+ * - Tự đóng sau 10 giây (học viên không thể ngồi đợi mãi mà không đọc)
+ * - Hiển thị số vi phạm còn lại cho tất cả loại (kể cả AI)
  */
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { EvidenceKind } from './ProctoringEvidenceCapture';
 
 interface ViolationConfig {
@@ -10,18 +12,20 @@ interface ViolationConfig {
 }
 
 const VIOLATION_CONFIG: Record<EvidenceKind, ViolationConfig> = {
-  ai_cell_phone:        { title: 'Phát hiện điện thoại',          subtitle: 'Hành động đã được ghi lại' },
-  ai_prohibited_object: { title: 'Phát hiện vật cấm',             subtitle: 'Hành động đã được ghi lại' },
-  ai_no_face:           { title: 'Không thấy khuôn mặt',          subtitle: 'Hành động đã được ghi lại' },
-  ai_multiple_face:     { title: 'Phát hiện nhiều người',         subtitle: 'Hành động đã được ghi lại' },
-  visibility_hidden:    { title: 'Rời khỏi trang thi',            subtitle: 'Hành động đã được ghi lại' },
-  focus_lost:           { title: 'Rời khỏi cửa sổ thi',           subtitle: 'Hành động đã được ghi lại' },
-  fullscreen_exited:    { title: 'Thoát toàn màn hình',           subtitle: 'Hành động đã được ghi lại' },
+  ai_cell_phone:        { title: 'Phát hiện điện thoại',          subtitle: 'Hành động đã được ghi lại. Tích lũy vi phạm sẽ dẫn đến nộp bài tự động.' },
+  ai_prohibited_object: { title: 'Phát hiện vật cấm',             subtitle: 'Hành động đã được ghi lại. Tích lũy vi phạm sẽ dẫn đến nộp bài tự động.' },
+  ai_no_face:           { title: 'Không thấy khuôn mặt',          subtitle: 'Che camera liên tục sẽ bị tính vi phạm và tự động nộp bài.' },
+  ai_multiple_face:     { title: 'Phát hiện nhiều người',         subtitle: 'Hành động đã được ghi lại. Cứ 3 lần phát hiện sẽ tính 1 vi phạm chính.' },
+  visibility_hidden:    { title: 'Rời khỏi trang thi',            subtitle: 'Hành động đã được ghi lại.' },
+  focus_lost:           { title: 'Rời khỏi cửa sổ thi',           subtitle: 'Hành động đã được ghi lại.' },
+  fullscreen_exited:    { title: 'Thoát toàn màn hình',           subtitle: 'Hành động đã được ghi lại.' },
 };
+
+/** Thời gian tự đóng modal (giây). */
+const AUTO_CLOSE_SECONDS = 10;
 
 interface ViolationAlertModalProps {
   kind: EvidenceKind | null;
-  /** Số lần vi phạm hiện tại và tối đa — để học viên biết còn bao nhiêu lần. */
   violationCount?: number;
   maxViolations?: number;
   onClose: () => void;
@@ -33,16 +37,35 @@ export function ViolationAlertModal({
   maxViolations,
   onClose,
 }: ViolationAlertModalProps) {
+  const [countdown, setCountdown] = useState(AUTO_CLOSE_SECONDS);
+  const onCloseRef = useRef(onClose);
+  useLayoutEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  // Reset + khởi động đồng hồ mỗi khi xuất hiện vi phạm mới
+  useEffect(() => {
+    if (!kind) return;
+    setCountdown(AUTO_CLOSE_SECONDS);
+    const id = window.setInterval(() => {
+      setCountdown((n) => {
+        if (n <= 1) {
+          window.clearInterval(id);
+          onCloseRef.current();
+          return 0;
+        }
+        return n - 1;
+      });
+    }, 1_000);
+    return () => window.clearInterval(id);
+  }, [kind]);
+
   if (!kind) return null;
 
   const config = VIOLATION_CONFIG[kind];
-  const showCounter =
-    violationCount != null &&
-    maxViolations != null &&
-    // Chỉ hiện cảnh báo đếm lùi cho những vi phạm được tính vào bộ đếm (không phải AI events)
-    ['visibility_hidden', 'focus_lost', 'fullscreen_exited'].includes(kind);
 
-  const remaining = showCounter ? maxViolations! - violationCount! : null;
+  const remaining =
+    violationCount != null && maxViolations != null
+      ? maxViolations - violationCount
+      : null;
 
   return (
     <div
@@ -67,7 +90,6 @@ export function ViolationAlertModal({
           </svg>
         </div>
 
-        {/* Tiêu đề vi phạm */}
         <h2
           id="violation-title"
           className="text-2xl font-bold text-slate-800 mb-2"
@@ -75,10 +97,9 @@ export function ViolationAlertModal({
           {config.title}
         </h2>
 
-        {/* Phụ đề */}
         <p className="text-slate-500 text-sm mb-1">{config.subtitle}</p>
 
-        {/* Cảnh báo đếm lùi (chỉ cho vi phạm hành vi, không phải AI) */}
+        {/* Đếm lùi vi phạm — hiện cho tất cả loại */}
         {remaining != null && (
           <p className={`text-sm font-medium mt-2 ${remaining <= 1 ? 'text-red-600' : 'text-amber-600'}`}>
             {remaining <= 0
@@ -87,14 +108,14 @@ export function ViolationAlertModal({
           </p>
         )}
 
-        {/* Nút OK */}
+        {/* Nút OK + countdown tự đóng */}
         <button
           type="button"
           onClick={onClose}
           className="mt-6 px-10 py-2.5 bg-sky-400 hover:bg-sky-500 text-white font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
           autoFocus
         >
-          OK
+          OK ({countdown}s)
         </button>
       </div>
     </div>

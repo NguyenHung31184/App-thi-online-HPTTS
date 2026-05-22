@@ -36,6 +36,8 @@ export interface Exam {
   questions_snapshot_url?: string | null;
   /** Thời điểm khóa đề. Khi có giá trị: không cho sửa/xóa/thêm câu hỏi. */
   locked_at?: string | null;
+  is_deleted?: boolean;
+  deleted_at?: string | null;
   module_id?: string | null; // FK TTDT modules
   created_at?: string;
   updated_at?: string;

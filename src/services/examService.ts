@@ -5,13 +5,19 @@ export async function listExams(): Promise<Exam[]> {
   const { data, error } = await supabase
     .from('exams')
     .select('*')
+    .eq('is_deleted', false)
     .order('updated_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as Exam[];
 }
 
 export async function getExam(id: string): Promise<Exam | null> {
-  const { data, error } = await supabase.from('exams').select('*').eq('id', id).single();
+  const { data, error } = await supabase
+    .from('exams')
+    .select('*')
+    .eq('id', id)
+    .eq('is_deleted', false)
+    .single();
   if (error) {
     if (error.code === 'PGRST116') return null;
     throw error;
@@ -73,7 +79,10 @@ export async function updateExam(id: string, input: UpdateExamInput): Promise<Ex
 }
 
 export async function deleteExam(id: string): Promise<void> {
-  const { error } = await supabase.from('exams').delete().eq('id', id);
+  const { error } = await supabase
+    .from('exams')
+    .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+    .eq('id', id);
   if (error) throw error;
 }
 

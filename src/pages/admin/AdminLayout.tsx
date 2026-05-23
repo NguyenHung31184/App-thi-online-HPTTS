@@ -16,7 +16,7 @@ import {
 const adminTitles: Record<string, string> = {
   '/admin': 'Dashboard',
   '/admin/dashboard': 'Dashboard',
-  '/admin/exams': 'Đề thi',
+  '/admin/exams': 'Ngân hàng đề thi',
   '/admin/questions': 'Soạn câu hỏi',
   '/admin/windows': 'Kỳ thi',
   '/admin/practical-templates': 'Thi thực hành',
@@ -55,7 +55,7 @@ export default function AdminLayout() {
           id: 'theory',
           title: 'THI LÝ THUYẾT',
           items: [
-            { to: '/admin/exams', label: 'Đề thi', icon: ExamIcon },
+            { to: '/admin/exams', label: 'Ngân hàng đề thi', icon: ExamIcon },
             { to: '/admin/questions', label: 'Soạn câu hỏi', icon: QuestionBankIcon },
             { to: '/admin/report', label: 'Báo cáo', icon: ReportIcon },
           ],
@@ -72,7 +72,7 @@ export default function AdminLayout() {
         id: 'theory',
         title: 'THI LÝ THUYẾT',
         items: [
-          { to: '/admin/exams', label: 'Đề thi', icon: ExamIcon },
+          { to: '/admin/exams', label: 'Ngân hàng đề thi', icon: ExamIcon },
           { to: '/admin/questions', label: 'Soạn câu hỏi', icon: QuestionBankIcon },
           { to: '/admin/windows', label: 'Kỳ thi', icon: CalendarIcon },
           { to: '/admin/essay-grading', label: 'Chấm tự luận', icon: EssayGradingIcon },

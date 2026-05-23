@@ -7,13 +7,319 @@ import {
   listQuestionsWithoutModule,
   deleteQuestionBankItem,
   deleteQuestionBankItemsBulk,
+  getQuestionBankItem,
+  updateQuestionBankItem,
+  uploadQuestionBankImage,
 } from '../../services/questionBankService';
 import type { Occupation, QuestionBankItem, ModuleItem } from '../../types';
+import type { QuestionType } from '../../types';
 import { listModulesByOccupationId } from '../../services/ttdtDataService';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import { ZonePositionPicker } from '../../components/ZonePositionPicker';
+import { validateMediaUrl } from '../../utils/mediaUrlValidator';
 
-/** Giá trị đặc biệt trong dropdown: hiển thị câu hỏi chưa gắn mô-đun (lang thang) để có thể xóa. */
 const NO_MODULE_ID = '__no_module__';
+const OPTION_IDS = ['A', 'B', 'C', 'D', 'E'];
+const DEFAULT_ZONE_POSITIONS: { x: number; y: number }[] = [
+  { x: 10, y: 10 }, { x: 70, y: 10 }, { x: 10, y: 70 }, { x: 70, y: 70 },
+];
+
+function emptyOptions() {
+  return OPTION_IDS.map((id) => ({ id, text: '' }));
+}
+
+function parseAnswerKey(v: string, type: QuestionType) {
+  const s = (v || '').trim();
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s) as string[];
+      if (type === 'drag_drop') return { single: 'A', multiple: [] as string[], order: Array.isArray(arr) ? arr : [] };
+      return { single: arr[0] || 'A', multiple: Array.isArray(arr) ? arr : [], order: [] as string[] };
+    } catch {
+      return { single: s.slice(0, 1) || 'A', multiple: [] as string[], order: [] as string[] };
+    }
+  }
+  return { single: s.slice(0, 1) || 'A', multiple: [] as string[], order: [] as string[] };
+}
+
+// ── Inline edit form ──────────────────────────────────────────────────────────
+
+function InlineEditForm({
+  question,
+  occupationId,
+  onSave,
+  onCancel,
+}: {
+  question: QuestionBankItem;
+  occupationId: string;
+  onSave: (updated: QuestionBankItem) => void;
+  onCancel: () => void;
+}) {
+  const parsed = parseAnswerKey(question.answer_key || 'A', question.question_type || 'single_choice');
+
+  const [stem, setStem] = useState(question.stem);
+  const [questionType, setQuestionType] = useState<QuestionType>(
+    (['single_choice', 'multiple_choice', 'drag_drop', 'video_paragraph', 'main_idea'] as QuestionType[]).includes(question.question_type)
+      ? question.question_type : 'single_choice'
+  );
+  const [options, setOptions] = useState<{ id: string; text: string }[]>(() => {
+    const opts = Array.isArray(question.options) ? (question.options as { id: string; text: string }[]) : [];
+    return opts.length ? opts : emptyOptions();
+  });
+  const [answerKey, setAnswerKey] = useState(parsed.single || 'A');
+  const [answerMultiple, setAnswerMultiple] = useState<string[]>(parsed.multiple.length ? parsed.multiple : [parsed.single]);
+  const [zoneAnswers, setZoneAnswers] = useState<string[]>(
+    questionType === 'drag_drop' && parsed.order.length === 4 ? parsed.order : ['A', 'B', 'C', 'D']
+  );
+  const [zonePositions, setZonePositions] = useState<{ x: number; y: number }[]>(() => {
+    let r: unknown = question.rubric;
+    if (typeof r === 'string' && r.trim()) { try { r = JSON.parse(r); } catch { r = undefined; } }
+    if (r && typeof r === 'object' && r !== null && 'zones' in r) {
+      const zones = (r as { zones: { x: number; y: number }[] }).zones;
+      if (Array.isArray(zones) && zones.length === 4) return zones.map((z) => ({ x: Number(z.x) || 10, y: Number(z.y) || 10 }));
+    }
+    return [...DEFAULT_ZONE_POSITIONS];
+  });
+  const [points, setPoints] = useState(question.points ?? 2);
+  const [topic, setTopic] = useState(question.topic ?? '');
+  const [difficulty, setDifficulty] = useState(question.difficulty ?? 'medium');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const existingImageUrl = question.image_url ?? null;
+  const [mediaUrl, setMediaUrl] = useState(question.media_url ?? '');
+  const [mediaUrlError, setMediaUrlError] = useState('');
+  const [rubric, setRubric] = useState(
+    typeof question.rubric === 'string' ? question.rubric : (question.rubric ? JSON.stringify(question.rubric, null, 2) : '')
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const isEssay = questionType === 'video_paragraph' || questionType === 'main_idea';
+  const displayImage = imagePreview || existingImageUrl;
+
+  const handleOptionChange = (id: string, text: string) =>
+    setOptions((prev) => prev.map((o) => (o.id === id ? { ...o, text } : o)));
+
+  const handleToggleMultiple = (optId: string) =>
+    setAnswerMultiple((prev) => prev.includes(optId) ? prev.filter((x) => x !== optId) : [...prev, optId].sort());
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      const opts = options.filter((o) => o.text.trim() !== '');
+      if (!isEssay && opts.length < 2) { setError('Cần ít nhất 2 đáp án.'); setSaving(false); return; }
+      const validIds = opts.map((o) => o.id);
+      let finalAnswerKey: string;
+      let optsToSave = opts;
+      if (questionType === 'multiple_choice') {
+        finalAnswerKey = JSON.stringify(validIds.filter((id) => answerMultiple.includes(id)).sort());
+      } else if (questionType === 'drag_drop') {
+        const za = zoneAnswers.slice(0, 4);
+        const unique = new Set(za);
+        if (opts.length === 4 && (unique.size !== 4 || za.some((id) => !validIds.includes(id)))) {
+          setError('Với câu kéo nhãn: mỗi ô phải chọn đúng một nhãn khác nhau.'); setSaving(false); return;
+        }
+        finalAnswerKey = JSON.stringify(za);
+      } else if (isEssay) {
+        finalAnswerKey = ''; optsToSave = [];
+      } else {
+        if (!opts.some((o) => o.id === answerKey)) { setError('Đáp án đúng phải nằm trong danh sách đáp án đã nhập.'); setSaving(false); return; }
+        finalAnswerKey = answerKey;
+      }
+      if (questionType === 'multiple_choice' && (answerMultiple.length === 0 || !validIds.some((id) => answerMultiple.includes(id)))) {
+        setError('Chọn ít nhất một đáp án đúng.'); setSaving(false); return;
+      }
+
+      let image_url: string | null = existingImageUrl;
+      if (imageFile) image_url = await uploadQuestionBankImage(imageFile, occupationId, question.id);
+
+      const rawMediaUrl = (mediaUrl || '').trim();
+      const mediaValidation = validateMediaUrl(rawMediaUrl);
+      if (!mediaValidation.valid) { setMediaUrlError(mediaValidation.error ?? 'URL video không hợp lệ.'); setSaving(false); return; }
+      setMediaUrlError('');
+
+      let rubricVal: unknown = rubric.trim() ? rubric.trim() : null;
+      if (questionType === 'drag_drop' && opts.length === 4) rubricVal = { zones: zonePositions };
+      else if (isEssay) rubricVal = rubric.trim() ? rubric.trim() : null;
+
+      const updated = await updateQuestionBankItem(question.id, {
+        question_type: questionType,
+        stem,
+        options: optsToSave.length ? optsToSave : [{ id: 'A', text: '' }],
+        answer_key: finalAnswerKey,
+        points,
+        topic,
+        difficulty,
+        image_url,
+        media_url: isEssay ? (rawMediaUrl || null) : undefined,
+        rubric: isEssay ? rubricVal : (questionType === 'drag_drop' && opts.length === 4 ? rubricVal : undefined),
+      });
+      toast.success('Đã lưu câu hỏi.');
+      onSave(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Lỗi lưu câu hỏi.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-3 pt-3 border-t border-indigo-100 space-y-3">
+      {error && <p className="text-red-600 text-sm">{error}</p>}
+
+      {/* Loại câu hỏi */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Loại câu hỏi</label>
+          <select value={questionType} onChange={(e) => setQuestionType(e.target.value as QuestionType)}
+            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+            <option value="single_choice">Trắc nghiệm 1 đáp án</option>
+            <option value="multiple_choice">Nhiều đáp án đúng</option>
+            <option value="drag_drop">Sắp thứ tự (kéo thả)</option>
+            <option value="video_paragraph">Clip + Tự luận</option>
+            <option value="main_idea">Phân tích ý chính</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Điểm</label>
+            <input type="number" min={1} value={points} onChange={(e) => setPoints(Number(e.target.value))}
+              title="Điểm số" className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Độ khó</label>
+            <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}
+              title="Độ khó" className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <option value="easy">Dễ</option>
+              <option value="medium">Trung bình</option>
+              <option value="hard">Khó</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Chủ đề */}
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Chủ đề</label>
+        <input type="text" value={topic} onChange={(e) => setTopic(e.target.value)}
+          className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" placeholder="VD: An toàn hàng hải" />
+      </div>
+
+      {/* Nội dung câu hỏi */}
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Nội dung câu hỏi *</label>
+        <textarea value={stem} onChange={(e) => setStem(e.target.value)} required rows={3}
+          title="Nội dung câu hỏi" className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
+      </div>
+
+      {/* Đáp án */}
+      {!isEssay && (
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            {questionType === 'drag_drop' ? '4 nhãn' : 'Đáp án'}
+          </label>
+          {(questionType === 'drag_drop' ? ['A', 'B', 'C', 'D'] : OPTION_IDS).map((optId, idx) => (
+            <div key={optId} className="flex items-center gap-2 mb-1.5">
+              <span className="w-14 text-xs text-slate-500 flex-shrink-0">
+                {questionType === 'drag_drop' ? `Nhãn ${idx + 1}` : `${optId}.`}
+              </span>
+              <input type="text" value={options.find((o) => o.id === optId)?.text ?? ''}
+                onChange={(e) => handleOptionChange(optId, e.target.value)}
+                className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                placeholder={questionType === 'drag_drop' ? `Nhãn ${idx + 1}` : `Đáp án ${optId}`} />
+              {questionType === 'single_choice' && (
+                <label className="flex items-center gap-1 flex-shrink-0 text-xs">
+                  <input type="radio" name={`answer_${question.id}`} checked={answerKey === optId} onChange={() => setAnswerKey(optId)} />
+                  Đúng
+                </label>
+              )}
+              {questionType === 'multiple_choice' && (
+                <label className="flex items-center gap-1 flex-shrink-0 text-xs">
+                  <input type="checkbox" checked={answerMultiple.includes(optId)} onChange={() => handleToggleMultiple(optId)} />
+                  Đúng
+                </label>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Drag drop zone answers */}
+      {questionType === 'drag_drop' && (
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Đáp án từng ô trên ảnh</label>
+          <div className="grid grid-cols-2 gap-2">
+            {[0, 1, 2, 3].map((idx) => {
+              const validOpts = options.filter((o) => o.text.trim() !== '');
+              return (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 w-10 flex-shrink-0">Ô {idx + 1}</span>
+                  <select value={zoneAnswers[idx] ?? ['A', 'B', 'C', 'D'][idx]}
+                    title={`Đáp án ô ${idx + 1}`}
+                    onChange={(e) => setZoneAnswers((prev) => { const next = [...prev]; while (next.length <= idx) next.push('A'); next[idx] = e.target.value; return next; })}
+                    className="flex-1 border border-slate-300 rounded-lg px-2 py-1 text-sm">
+                    {(validOpts.length >= 4 ? validOpts : options).map((o) => (
+                      <option key={o.id} value={o.id}>{o.text || o.id}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+          {displayImage && (
+            <div className="mt-2">
+              <label className="block text-xs font-medium text-slate-600 mb-1">Vị trí ô trên ảnh</label>
+              <ZonePositionPicker imageUrl={displayImage} zonePositions={zonePositions} setZonePositions={setZonePositions} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Video URL */}
+      {questionType === 'video_paragraph' && (
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">URL video</label>
+          <input type="url" value={mediaUrl} onChange={(e) => { setMediaUrl(e.target.value); const r = validateMediaUrl(e.target.value); setMediaUrlError(r.valid ? '' : (r.error ?? '')); }}
+            className={`w-full border rounded-lg px-2 py-1.5 text-sm ${mediaUrlError ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
+            placeholder="https://youtube.com/..." />
+          {mediaUrlError && <p className="mt-1 text-xs text-red-600">{mediaUrlError}</p>}
+        </div>
+      )}
+
+      {/* Rubric */}
+      {isEssay && (
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Rubric / gợi ý chấm</label>
+          <textarea value={rubric} onChange={(e) => setRubric(e.target.value)} rows={2}
+            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" placeholder="Tiêu chí hoặc gợi ý đáp án..." />
+        </div>
+      )}
+
+      {/* Ảnh minh họa */}
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Ảnh minh họa</label>
+        <input type="file" accept="image/*" title="Chọn ảnh minh họa" onChange={(e) => { const f = e.target.files?.[0]; setImageFile(f ?? null); setImagePreview(f ? URL.createObjectURL(f) : null); }} className="block text-sm mb-1" />
+        {displayImage && <img src={displayImage} alt="Preview" className="max-h-36 rounded border border-slate-200 object-contain" />}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2 pt-1">
+        <button type="submit" disabled={saving}
+          className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium">
+          {saving ? 'Đang lưu...' : 'Lưu'}
+        </button>
+        <button type="button" onClick={onCancel}
+          className="px-4 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm">
+          Hủy
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminOccupationQuestionsPage() {
   const { occupationId } = useParams<{ occupationId: string }>();
@@ -29,6 +335,9 @@ export default function AdminOccupationQuestionsPage() {
   const [confirmDeleteOne, setConfirmDeleteOne] = useState<{ id: string } | null>(null);
   const [confirmDeleteBulk, setConfirmDeleteBulk] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingData, setEditingData] = useState<QuestionBankItem | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
 
   const load = async (moduleId: string | null) => {
     if (!occupationId) return;
@@ -61,23 +370,34 @@ export default function AdminOccupationQuestionsPage() {
   useEffect(() => {
     if (!occupationId) return;
     let cancelled = false;
-    listModulesByOccupationId(occupationId)
-      .then((list) => {
-        if (cancelled) return;
-        setModules(list);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setModules([]);
-      });
-    return () => {
-      cancelled = true;
-    };
+    listModulesByOccupationId(occupationId).then((list) => {
+      if (!cancelled) setModules(list);
+    }).catch(() => { if (!cancelled) setModules([]); });
+    return () => { cancelled = true; };
   }, [occupationId]);
 
-  const handleDelete = async (qId: string) => {
-    setConfirmDeleteOne({ id: qId });
+  const handleStartEdit = async (q: QuestionBankItem) => {
+    if (editingId === q.id) { setEditingId(null); setEditingData(null); return; }
+    setEditingId(q.id);
+    setEditingData(null);
+    setLoadingEdit(true);
+    try {
+      const fresh = await getQuestionBankItem(q.id);
+      setEditingData(fresh ?? q);
+    } catch {
+      setEditingData(q);
+    } finally {
+      setLoadingEdit(false);
+    }
   };
+
+  const handleSaved = (updated: QuestionBankItem) => {
+    setQuestions((prev) => prev.map((q) => (q.id === updated.id ? updated : q)));
+    setEditingId(null);
+    setEditingData(null);
+  };
+
+  const handleDelete = async (qId: string) => setConfirmDeleteOne({ id: qId });
 
   const doDeleteOne = async () => {
     if (!confirmDeleteOne) return;
@@ -85,11 +405,8 @@ export default function AdminOccupationQuestionsPage() {
       setDeleting(true);
       await deleteQuestionBankItem(confirmDeleteOne.id);
       setQuestions((prev) => prev.filter((q) => q.id !== confirmDeleteOne.id));
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(confirmDeleteOne.id);
-        return next;
-      });
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(confirmDeleteOne.id); return next; });
+      if (editingId === confirmDeleteOne.id) { setEditingId(null); setEditingData(null); }
       setConfirmDeleteOne(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi xóa.');
@@ -98,45 +415,26 @@ export default function AdminOccupationQuestionsPage() {
     }
   };
 
-  const toggleSelectOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const toggleSelectOne = (id: string) =>
+    setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
 
-  const toggleSelectAllVisible = () => {
+  const toggleSelectAllVisible = () =>
     setSelectedIds((prev) => {
       const visibleIds = questions.map((q) => q.id);
       const allSelected = visibleIds.every((id) => prev.has(id));
-      if (allSelected) {
-        const next = new Set(prev);
-        visibleIds.forEach((id) => next.delete(id));
-        return next;
-      }
+      if (allSelected) { const next = new Set(prev); visibleIds.forEach((id) => next.delete(id)); return next; }
       return new Set([...prev, ...visibleIds]);
     });
-  };
-
-  const handleDeleteSelected = async () => {
-    const ids = questions.map((q) => q.id).filter((id) => selectedIds.has(id));
-    if (!ids.length) return;
-    setConfirmDeleteBulk(true);
-  };
 
   const doDeleteBulk = async () => {
     const ids = questions.map((q) => q.id).filter((id) => selectedIds.has(id));
-    if (!ids.length) {
-      setConfirmDeleteBulk(false);
-      return;
-    }
+    if (!ids.length) { setConfirmDeleteBulk(false); return; }
     try {
       setDeleting(true);
       await deleteQuestionBankItemsBulk(ids);
       setQuestions((prev) => prev.filter((q) => !selectedIds.has(q.id)));
       setSelectedIds(new Set());
+      if (editingId && selectedIds.has(editingId)) { setEditingId(null); setEditingData(null); }
       setConfirmDeleteBulk(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi xóa hàng loạt.');
@@ -150,12 +448,9 @@ export default function AdminOccupationQuestionsPage() {
   if (!occupation) return <p className="text-red-600">Không tìm thấy nghề đào tạo.</p>;
 
   const handleModuleChange = (mId: string) => {
+    setEditingId(null); setEditingData(null);
     const params = new URLSearchParams(location.search);
-    if (mId) {
-      params.set('moduleId', mId);
-    } else {
-      params.delete('moduleId');
-    }
+    if (mId) params.set('moduleId', mId); else params.delete('moduleId');
     navigate({ pathname: `/admin/questions/occupation/${occupationId}`, search: params.toString() ? `?${params.toString()}` : '' });
   };
 
@@ -164,6 +459,7 @@ export default function AdminOccupationQuestionsPage() {
 
   return (
     <div>
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <Link to="/admin/questions" className="text-slate-500 hover:text-slate-700 text-sm">← Soạn câu hỏi</Link>
@@ -173,173 +469,130 @@ export default function AdminOccupationQuestionsPage() {
           </p>
         </div>
         <div className="flex gap-2 items-center">
-          <select
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          <select title="Chọn mô-đun" className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
             value={selectedModuleId ?? ''}
-            onChange={(e) => handleModuleChange(e.target.value || '')}
-          >
+            onChange={(e) => handleModuleChange(e.target.value || '')}>
             <option value="">-- Chọn mô-đun --</option>
             <option value={NO_MODULE_ID}>— Câu chưa gắn mô-đun (lang thang) —</option>
             {modules.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.code ? `${m.code} — ${m.name}` : m.name}
-              </option>
+              <option key={m.id} value={m.id}>{m.code ? `${m.code} — ${m.name}` : m.name}</option>
             ))}
           </select>
           <div className="flex gap-2">
             <Link
-              to={`/admin/questions/occupation/${occupationId}/new${selectedModuleId && selectedModuleId !== NO_MODULE_ID ? `?moduleId=${selectedModuleId}` : ''}`}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-50"
-              onClick={(e) => {
-                if (!canAddOrImport) {
-                  e.preventDefault();
-                  toast.info(
-                    isNoModuleView
-                      ? 'Đây là danh sách câu lang thang. Chọn mô-đun cụ thể ở trên để thêm/import câu hỏi.'
-                      : 'Hãy chọn mô-đun trước khi thêm câu hỏi.'
-                  );
-                }
-              }}
-            >
+              to={`/admin/questions/occupation/${occupationId}/new${canAddOrImport ? `?moduleId=${selectedModuleId}` : ''}`}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+              onClick={(e) => { if (!canAddOrImport) { e.preventDefault(); toast.info(isNoModuleView ? 'Chọn mô-đun cụ thể để thêm câu hỏi.' : 'Hãy chọn mô-đun trước.'); } }}>
               Thêm câu hỏi
             </Link>
             <Link
-              to={`/admin/questions/occupation/${occupationId}/import${selectedModuleId && selectedModuleId !== NO_MODULE_ID ? `?moduleId=${selectedModuleId}` : ''}`}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm disabled:opacity-50"
-              onClick={(e) => {
-                if (!canAddOrImport) {
-                  e.preventDefault();
-                  toast.info(
-                    isNoModuleView
-                      ? 'Đây là danh sách câu lang thang. Chọn mô-đun cụ thể để import.'
-                      : 'Hãy chọn mô-đun trước khi import từ Excel.'
-                  );
-                }
-              }}
-            >
+              to={`/admin/questions/occupation/${occupationId}/import${canAddOrImport ? `?moduleId=${selectedModuleId}` : ''}`}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm"
+              onClick={(e) => { if (!canAddOrImport) { e.preventDefault(); toast.info(isNoModuleView ? 'Chọn mô-đun cụ thể để import.' : 'Hãy chọn mô-đun trước.'); } }}>
               Import từ Excel
             </Link>
           </div>
         </div>
       </div>
 
+      {/* Content */}
       <div className="space-y-3">
         {!selectedModuleId && (
-          <p className="text-slate-500 text-sm">
-            Vui lòng chọn mô-đun ở góc phải trên để xem và soạn câu hỏi.
-          </p>
+          <p className="text-slate-500 text-sm">Vui lòng chọn mô-đun ở góc phải trên để xem và soạn câu hỏi.</p>
         )}
         {selectedModuleId === NO_MODULE_ID && (
           <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm">
-            <strong>Câu hỏi chưa gắn mô-đun (lang thang)</strong> — Các câu này thuộc nghề nhưng không gắn mô-đun nào.
-            Bạn có thể chọn từng câu hoặc <strong>Chọn tất cả</strong> rồi bấm <strong>Xóa các câu đã chọn</strong> để dọn dẹp.
+            <strong>Câu hỏi chưa gắn mô-đun (lang thang)</strong> — Chọn từng câu hoặc <strong>Chọn tất cả</strong> rồi xóa để dọn dẹp.
           </p>
         )}
         {selectedModuleId && selectedModuleId !== NO_MODULE_ID && questions.length === 0 && (
-          <p className="text-slate-500">
-            Mô-đun này chưa có câu hỏi. Bấm "Thêm câu hỏi" hoặc "Import từ Excel".
-          </p>
+          <p className="text-slate-500">Mô-đun này chưa có câu hỏi. Bấm "Thêm câu hỏi" hoặc "Import từ Excel".</p>
         )}
         {isNoModuleView && questions.length === 0 && (
-          <p className="text-slate-500">
-            Không có câu hỏi nào chưa gắn mô-đun trong nghề này.
-          </p>
+          <p className="text-slate-500">Không có câu hỏi nào chưa gắn mô-đun trong nghề này.</p>
         )}
+
         {selectedModuleId && questions.length > 0 && (
           <>
+            {/* Toolbar chọn/xóa hàng loạt */}
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 text-sm text-slate-600">
-                <button
-                  type="button"
-                  onClick={toggleSelectAllVisible}
-                  className="px-2 py-1 border border-slate-300 rounded text-xs hover:bg-slate-50"
-                >
+                <button type="button" onClick={toggleSelectAllVisible}
+                  className="px-2 py-1 border border-slate-300 rounded text-xs hover:bg-slate-50">
                   {questions.every((q) => selectedIds.has(q.id)) ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
                 </button>
-                <span>
-                  Đang chọn{' '}
-                  <strong>
-                    {questions.filter((q) => selectedIds.has(q.id)).length}
-                  </strong>{' '}
-                  / {questions.length} câu hỏi
-                </span>
+                <span>Đang chọn <strong>{questions.filter((q) => selectedIds.has(q.id)).length}</strong> / {questions.length} câu hỏi</span>
               </div>
-              <button
-                type="button"
+              <button type="button"
                 disabled={!questions.some((q) => selectedIds.has(q.id))}
-                onClick={handleDeleteSelected}
-                className="px-3 py-1.5 rounded bg-red-50 text-red-700 border border-red-200 text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-100"
-              >
+                onClick={() => setConfirmDeleteBulk(true)}
+                className="px-3 py-1.5 rounded bg-red-50 text-red-700 border border-red-200 text-xs disabled:opacity-40 hover:bg-red-100">
                 Xóa các câu đã chọn
               </button>
             </div>
 
-            {questions.map((q, idx) => (
-              <div
-                key={q.id}
-                className="bg-white border border-slate-200 rounded-lg p-4 flex justify-between items-start"
-              >
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-4 w-4 text-indigo-600 border-slate-300 rounded"
-                    checked={selectedIds.has(q.id)}
-                    onChange={() => toggleSelectOne(q.id)}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-800">
-                      Câu {idx + 1}. {q.stem.slice(0, 120)}
-                      {q.stem.length > 120 ? '...' : ''}
-                    </p>
-                    <p className="text-sm text-slate-500 mt-1">
-                      Chủ đề: {q.topic || '—'} | Độ khó: {q.difficulty} | Điểm: {q.points}
-                    </p>
+            {/* Danh sách câu hỏi */}
+            {questions.map((q, idx) => {
+              const isExpanded = editingId === q.id;
+              return (
+                <div key={q.id}
+                  className={`bg-white border rounded-lg transition-all ${isExpanded ? 'border-indigo-300 shadow-sm' : 'border-slate-200'}`}>
+                  {/* Row header */}
+                  <div className="p-4 flex justify-between items-start">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <input type="checkbox" title={`Chọn câu ${idx + 1}`} className="mt-1 h-4 w-4 text-indigo-600 border-slate-300 rounded"
+                        checked={selectedIds.has(q.id)} onChange={() => toggleSelectOne(q.id)} />
+                      <button type="button" onClick={() => handleStartEdit(q)}
+                        className="flex-1 min-w-0 text-left group">
+                        <p className="font-medium text-slate-800 group-hover:text-indigo-700 transition-colors">
+                          Câu {idx + 1}. {q.stem.slice(0, 120)}{q.stem.length > 120 ? '...' : ''}
+                        </p>
+                        <p className="text-sm text-slate-500 mt-1">
+                          Chủ đề: {q.topic || '—'} | Độ khó: {q.difficulty} | Điểm: {q.points}
+                        </p>
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-3 ml-2 flex-shrink-0">
+                      <button type="button" onClick={() => handleStartEdit(q)}
+                        className={`text-sm font-medium transition-colors ${isExpanded ? 'text-indigo-600' : 'text-indigo-500 hover:text-indigo-700'}`}>
+                        {isExpanded ? '▲ Đóng' : 'Sửa'}
+                      </button>
+                      <button type="button" onClick={() => handleDelete(q.id)}
+                        className="text-red-500 hover:text-red-700 text-sm">
+                        Xóa
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Inline edit form */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4">
+                      {loadingEdit && !editingData ? (
+                        <p className="text-slate-400 text-sm pt-2">Đang tải...</p>
+                      ) : editingData ? (
+                        <InlineEditForm
+                          question={editingData}
+                          occupationId={occupationId}
+                          onSave={handleSaved}
+                          onCancel={() => { setEditingId(null); setEditingData(null); }}
+                        />
+                      ) : null}
+                    </div>
+                  )}
                 </div>
-                <div className="flex gap-2 ml-2">
-                  <Link
-                    to={`/admin/questions/occupation/${occupationId}/questions/${q.id}${
-                      selectedModuleId && selectedModuleId !== NO_MODULE_ID ? `?moduleId=${selectedModuleId}` : ''
-                    }`}
-                    className="text-indigo-600 hover:underline text-sm"
-                  >
-                    Sửa
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(q.id)}
-                    className="text-red-600 hover:underline text-sm"
-                  >
-                    Xóa
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </>
         )}
       </div>
 
-      <ConfirmationModal
-        isOpen={!!confirmDeleteOne}
-        onClose={() => setConfirmDeleteOne(null)}
-        onConfirm={doDeleteOne}
-        title="Xóa câu hỏi"
-        isLoading={deleting}
-        confirmText="Xóa"
-      >
+      <ConfirmationModal isOpen={!!confirmDeleteOne} onClose={() => setConfirmDeleteOne(null)}
+        onConfirm={doDeleteOne} title="Xóa câu hỏi" isLoading={deleting} confirmText="Xóa">
         Xóa câu hỏi này khỏi ngân hàng?
       </ConfirmationModal>
-
-      <ConfirmationModal
-        isOpen={confirmDeleteBulk}
-        onClose={() => setConfirmDeleteBulk(false)}
-        onConfirm={doDeleteBulk}
-        title="Xóa nhiều câu hỏi"
-        isLoading={deleting}
-        confirmText="Xóa"
-      >
-        Xóa {questions.filter((q) => selectedIds.has(q.id)).length} câu hỏi đã chọn khỏi ngân hàng?
-        Thao tác này không thể hoàn tác.
+      <ConfirmationModal isOpen={confirmDeleteBulk} onClose={() => setConfirmDeleteBulk(false)}
+        onConfirm={doDeleteBulk} title="Xóa nhiều câu hỏi" isLoading={deleting} confirmText="Xóa">
+        Xóa {questions.filter((q) => selectedIds.has(q.id)).length} câu hỏi đã chọn khỏi ngân hàng? Thao tác này không thể hoàn tác.
       </ConfirmationModal>
     </div>
   );

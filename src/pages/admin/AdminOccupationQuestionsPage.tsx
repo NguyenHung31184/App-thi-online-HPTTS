@@ -19,7 +19,7 @@ import { ZonePositionPicker } from '../../components/ZonePositionPicker';
 import { validateMediaUrl } from '../../utils/mediaUrlValidator';
 
 const NO_MODULE_ID = '__no_module__';
-const OPTION_IDS = ['A', 'B', 'C', 'D', 'E'];
+const OPTION_IDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const DEFAULT_ZONE_POSITIONS: { x: number; y: number }[] = [
   { x: 10, y: 10 }, { x: 70, y: 10 }, { x: 10, y: 70 }, { x: 70, y: 70 },
 ];
@@ -63,8 +63,15 @@ function InlineEditForm({
       ? question.question_type : 'single_choice'
   );
   const [options, setOptions] = useState<{ id: string; text: string }[]>(() => {
-    const opts = Array.isArray(question.options) ? (question.options as { id: string; text: string }[]) : [];
-    return opts.length ? opts : emptyOptions();
+    const loaded = Array.isArray(question.options) ? (question.options as { id: string; text: string }[]) : [];
+    const base = loaded.length ? loaded : emptyOptions();
+    // Pad với slot trống để luôn có A–J trong state (cho UX mở rộng)
+    const existingIds = new Set(base.map((o) => o.id));
+    const padded = [...base];
+    for (const id of OPTION_IDS) {
+      if (!existingIds.has(id)) padded.push({ id, text: '' });
+    }
+    return padded;
   });
   const [answerKey, setAnswerKey] = useState(parsed.single || 'A');
   const [answerMultiple, setAnswerMultiple] = useState<string[]>(parsed.multiple.length ? parsed.multiple : [parsed.single]);
@@ -91,11 +98,26 @@ function InlineEditForm({
   const [rubric, setRubric] = useState(
     typeof question.rubric === 'string' ? question.rubric : (question.rubric ? JSON.stringify(question.rubric, null, 2) : '')
   );
+  const [essayKeys, setEssayKeys] = useState<{ text: string; points: number }[]>(() => {
+    const qType = (['single_choice', 'multiple_choice', 'drag_drop', 'video_paragraph', 'main_idea'] as QuestionType[]).includes(question.question_type)
+      ? question.question_type : 'single_choice';
+    if (qType !== 'video_paragraph' && qType !== 'main_idea') return [];
+    try {
+      const parsed: unknown = JSON.parse(question.answer_key || '[]');
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0] !== null && typeof parsed[0] === 'object' && 'text' in (parsed[0] as object)) {
+        return parsed as { text: string; points: number }[];
+      }
+    } catch { /* ignore */ }
+    return [];
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const isEssay = questionType === 'video_paragraph' || questionType === 'main_idea';
   const displayImage = imagePreview || existingImageUrl;
+  // UX tự động mở rộng: hiện tối thiểu 4 slot, thêm 1 slot trống sau slot cuối có nội dung, tối đa 10
+  const filledCount = options.filter((o) => o.text.trim() !== '').length;
+  const visibleOptionIds = OPTION_IDS.slice(0, Math.min(OPTION_IDS.length, Math.max(4, filledCount + 1)));
 
   const handleOptionChange = (id: string, text: string) =>
     setOptions((prev) => prev.map((o) => (o.id === id ? { ...o, text } : o)));
@@ -123,7 +145,9 @@ function InlineEditForm({
         }
         finalAnswerKey = JSON.stringify(za);
       } else if (isEssay) {
-        finalAnswerKey = ''; optsToSave = [];
+        const validKeys = essayKeys.filter((k) => k.text.trim() !== '' && k.points >= 0);
+        finalAnswerKey = validKeys.length > 0 ? JSON.stringify(validKeys) : '';
+        optsToSave = [];
       } else {
         if (!opts.some((o) => o.id === answerKey)) { setError('Đáp án đúng phải nằm trong danh sách đáp án đã nhập.'); setSaving(false); return; }
         finalAnswerKey = answerKey;
@@ -220,7 +244,7 @@ function InlineEditForm({
           <label className="block text-xs font-medium text-slate-600 mb-1">
             {questionType === 'drag_drop' ? '4 nhãn' : 'Đáp án'}
           </label>
-          {(questionType === 'drag_drop' ? ['A', 'B', 'C', 'D'] : OPTION_IDS).map((optId, idx) => (
+          {(questionType === 'drag_drop' ? ['A', 'B', 'C', 'D'] : visibleOptionIds).map((optId, idx) => (
             <div key={optId} className="flex items-center gap-2 mb-1.5">
               <span className="w-14 text-xs text-slate-500 flex-shrink-0">
                 {questionType === 'drag_drop' ? `Nhãn ${idx + 1}` : `${optId}.`}
@@ -288,12 +312,70 @@ function InlineEditForm({
         </div>
       )}
 
-      {/* Rubric */}
+      {/* Essay keys + Rubric */}
       {isEssay && (
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Rubric / gợi ý chấm</label>
-          <textarea value={rubric} onChange={(e) => setRubric(e.target.value)} rows={2}
-            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" placeholder="Tiêu chí hoặc gợi ý đáp án..." />
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Keys chấm ý (tự động)</label>
+            <p className="text-xs text-slate-400 mb-1.5">
+              Hệ thống cộng điểm từng key xuất hiện trong bài (substring, không phân biệt hoa/thường). Để trống = GV chấm thủ công.
+            </p>
+            {essayKeys.map((k, idx) => (
+              <div key={idx} className="flex items-center gap-2 mb-1.5">
+                <input
+                  type="text"
+                  value={k.text}
+                  onChange={(e) => {
+                    const updated = [...essayKeys];
+                    updated[idx] = { ...updated[idx], text: e.target.value };
+                    setEssayKeys(updated);
+                  }}
+                  className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                  placeholder={`Key ${idx + 1} (VD: tai nạn)`}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={k.points}
+                  onChange={(e) => {
+                    const updated = [...essayKeys];
+                    updated[idx] = { ...updated[idx], points: Number(e.target.value) };
+                    setEssayKeys(updated);
+                  }}
+                  className="w-16 border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                  placeholder="Đ"
+                />
+                <span className="text-slate-400 text-xs">đ</span>
+                <button
+                  type="button"
+                  onClick={() => setEssayKeys((prev) => prev.filter((_, i) => i !== idx))}
+                  className="text-red-500 hover:text-red-700 text-xs px-1"
+                >
+                  Xóa
+                </button>
+              </div>
+            ))}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setEssayKeys((prev) => [...prev, { text: '', points: 2 }])}
+                className="text-indigo-600 hover:underline text-xs"
+              >
+                + Thêm key
+              </button>
+              {essayKeys.length > 0 && (
+                <span className={`text-xs ${essayKeys.reduce((s, k) => s + k.points, 0) === points ? 'text-green-600' : 'text-amber-600'}`}>
+                  Tổng: {essayKeys.reduce((s, k) => s + k.points, 0)} / {points} điểm
+                </span>
+              )}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Rubric / gợi ý (cho GV)</label>
+            <textarea value={rubric} onChange={(e) => setRubric(e.target.value)} rows={2}
+              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" placeholder="Tiêu chí hoặc gợi ý bổ sung..." />
+          </div>
         </div>
       )}
 

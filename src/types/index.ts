@@ -214,6 +214,8 @@ export interface PracticalExamTemplate {
   title: string;
   description: string;
   duration_minutes?: number | null;
+  /** FK đến modules.id trong TTDT — dùng để đồng bộ điểm thực hành đúng mô-đun. */
+  module_id?: string | null;
   created_at?: string;
   updated_at?: string;
   created_by?: string | null;

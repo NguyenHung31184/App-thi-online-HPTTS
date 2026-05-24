@@ -1,48 +1,48 @@
 /**
- * Parse file Excel (.xlsx, .xls) hoặc CSV để lấy danh sách câu hỏi trắc nghiệm 1 đáp án.
- * Mẫu cột: [Nội dung, Đáp án A, Đáp án B, Đáp án C, Đáp án D, Đáp án đúng, Chủ đề, Độ khó, Điểm]
- * Có thể ánh xạ cột khác (column indices 0-based).
+ * Parse file Excel (.xlsx, .xls) hoặc CSV để lấy danh sách câu hỏi.
+ * Hỗ trợ tối đa 10 đáp án (A–J). Phát hiện cột tự động từ hàng tiêu đề.
  */
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 
+export const ALL_OPTION_IDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] as const;
+type OptionId = (typeof ALL_OPTION_IDS)[number];
+
 export interface ImportRow {
   stem: string;
-  optionA: string;
-  optionB: string;
-  optionC: string;
-  optionD: string;
-  answer: string; // A|B|C|D (sẽ chuẩn hóa)
+  /** Texts cho tối đa 10 đáp án theo thứ tự: index 0 = A, 1 = B, ..., 9 = J. Chuỗi rỗng = không có đáp án. */
+  optionTexts: string[];
+  answer: string; // A–J (đã chuẩn hóa)
   topic: string;
   difficulty: string;
   points: number;
+  /** Chuỗi keys cho câu tự luận, format: "tai nạn|2;sai quy trình|2;..." (text|điểm, phân cách bằng ;). */
+  keys: string;
 }
 
 export interface ImportColumnMap {
   stem: number;
-  optionA: number;
-  optionB: number;
-  optionC: number;
-  optionD: number;
+  /** Chỉ số các cột đáp án theo thứ tự A, B, C, ... (tối đa 10). */
+  optionCols: number[];
   answer: number;
   topic: number;
   difficulty: number;
   points: number;
+  keys: number;
 }
 
 const DEFAULT_MAP: ImportColumnMap = {
   stem: 0,
-  optionA: 1,
-  optionB: 2,
-  optionC: 3,
-  optionD: 4,
+  optionCols: [1, 2, 3, 4], // A=col1, B=col2, C=col3, D=col4
   answer: 5,
   topic: 6,
   difficulty: 7,
   points: 8,
+  keys: -1, // không có cột keys mặc định
 };
 
 function cell(row: unknown[], col: number): string {
+  if (col < 0) return '';
   const v = row[col];
   if (v == null) return '';
   if (typeof v === 'number') return String(v);
@@ -51,10 +51,12 @@ function cell(row: unknown[], col: number): string {
 
 function normalizeAnswer(a: string): string {
   const s = String(a).trim().toUpperCase();
-  if (s === '1' || s === 'A') return 'A';
-  if (s === '2' || s === 'B') return 'B';
-  if (s === '3' || s === 'C') return 'C';
-  if (s === '4' || s === 'D') return 'D';
+  const byNum: Record<string, string> = {
+    '1': 'A', '2': 'B', '3': 'C', '4': 'D', '5': 'E',
+    '6': 'F', '7': 'G', '8': 'H', '9': 'I', '10': 'J',
+  };
+  if (byNum[s]) return byNum[s];
+  if (/^[A-J]$/.test(s)) return s;
   return s.slice(0, 1);
 }
 
@@ -65,15 +67,65 @@ function normalizeDifficulty(d: string): string {
   return 'medium';
 }
 
+/** Phát hiện vị trí cột từ hàng tiêu đề. Trả về DEFAULT_MAP nếu không nhận dạng được. */
+function detectColumns(headerRow: unknown[]): ImportColumnMap {
+  const norm = (s: unknown) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const headers = (Array.isArray(headerRow) ? headerRow : []).map(norm);
+
+  const find = (...candidates: string[]): number => {
+    for (const c of candidates) {
+      const i = headers.indexOf(c);
+      if (i !== -1) return i;
+    }
+    return -1;
+  };
+
+  const stemIdx = find('nội dung câu hỏi', 'stem', 'câu hỏi', 'nội dung');
+  const answerIdx = find(
+    'đáp án đúng (a/b/c/d/e/f/g/h/i/j hoặc 1/2/3/4/5/6/7/8/9/10)',
+    'đáp án đúng (a/b/c/d hoặc 1/2/3/4)',
+    'đáp án đúng',
+    'answer',
+    'đáp án',
+  );
+  const topicIdx = find('chủ đề', 'topic');
+  const diffIdx = find('độ khó (easy/medium/hard hoặc dễ/trung bình/khó)', 'độ khó', 'difficulty');
+  const pointsIdx = find('điểm', 'points');
+  const keysIdx = find('keys', 'chấm ý', 'key', 'từ khóa');
+
+  // Tìm tuần tự cột đáp án A, B, C, ... — dừng ở chỗ đầu tiên không tìm thấy
+  const optionCols: number[] = [];
+  for (const id of ALL_OPTION_IDS) {
+    const lc = id.toLowerCase();
+    const idx = find(`đáp án ${lc}`, lc, `option ${lc}`, `option_${lc}`);
+    if (idx !== -1) optionCols.push(idx);
+    else break;
+  }
+
+  if (stemIdx === -1 || optionCols.length === 0 || answerIdx === -1) {
+    return DEFAULT_MAP;
+  }
+
+  return {
+    stem: stemIdx,
+    optionCols,
+    answer: answerIdx,
+    topic: topicIdx,
+    difficulty: diffIdx,
+    points: pointsIdx,
+    keys: keysIdx,
+  };
+}
+
 /**
- * Đọc file Excel/CSV, trả về mảng các dòng đã map theo columnMap.
- * firstRowIsHeader: true thì bỏ qua dòng đầu.
+ * Đọc file Excel/CSV, trả về mảng các ImportRow.
+ * Khi firstRowIsHeader=true: phát hiện cột tự động từ header, hỗ trợ A–J.
+ * Khi firstRowIsHeader=false: dùng vị trí cột cố định (A-D backward compat).
  */
 export function parseFileToRows(
   file: File,
   options: { firstRowIsHeader?: boolean; columnMap?: Partial<ImportColumnMap> }
 ): Promise<ImportRow[]> {
-  const map = { ...DEFAULT_MAP, ...options.columnMap };
   const firstRowIsHeader = options.firstRowIsHeader !== false;
 
   return new Promise((resolve, reject) => {
@@ -81,41 +133,46 @@ export function parseFileToRows(
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        if (!data) {
-          reject(new Error('Không đọc được file'));
-          return;
-        }
+        if (!data) { reject(new Error('Không đọc được file')); return; }
         const wb = XLSX.read(data, { type: 'binary', cellDates: false });
         const firstSheet = wb.SheetNames[0];
         const ws = wb.Sheets[firstSheet];
         const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' }) as unknown[][];
-        const start = firstRowIsHeader ? 1 : 0;
+
+        let map: ImportColumnMap;
+        let start: number;
+
+        if (firstRowIsHeader && rows.length > 0) {
+          map = detectColumns(rows[0]);
+          start = 1;
+        } else {
+          map = { ...DEFAULT_MAP, ...options.columnMap };
+          start = firstRowIsHeader ? 1 : 0;
+        }
+
         const result: ImportRow[] = [];
         for (let i = start; i < rows.length; i++) {
           const row = rows[i];
           if (!Array.isArray(row)) continue;
           const stem = cell(row, map.stem);
           if (!stem) continue;
-          const optionA = cell(row, map.optionA);
-          const optionB = cell(row, map.optionB);
-          const optionC = cell(row, map.optionC);
-          const optionD = cell(row, map.optionD);
-          const answerRaw = cell(row, map.answer);
-          const answer = normalizeAnswer(answerRaw);
+
+          const optionTexts = map.optionCols.map((col) => cell(row, col));
+          const answerRaw = normalizeAnswer(cell(row, map.answer));
+          const validAnswerIds = ALL_OPTION_IDS.slice(0, optionTexts.length) as string[];
           const topic = cell(row, map.topic);
           const difficulty = normalizeDifficulty(cell(row, map.difficulty));
           const pointsRaw = cell(row, map.points);
           const points = pointsRaw ? Math.max(1, parseInt(pointsRaw, 10) || 2) : 2;
+
           result.push({
             stem,
-            optionA,
-            optionB,
-            optionC,
-            optionD,
-            answer: ['A', 'B', 'C', 'D'].includes(answer) ? answer : 'A',
+            optionTexts,
+            answer: validAnswerIds.includes(answerRaw) ? answerRaw : (validAnswerIds[0] ?? 'A'),
             topic,
             difficulty,
             points,
+            keys: cell(row, map.keys),
           });
         }
         resolve(result);
@@ -129,7 +186,27 @@ export function parseFileToRows(
 }
 
 /**
- * Chuyển ImportRow sang options + answer_key cho single_choice.
+ * Parse chuỗi keys "tai nạn|2;sai quy trình|2" thành array JSON cho essay grading.
+ */
+export function parseEssayKeys(raw: string): { text: string; points: number }[] {
+  if (!raw || !raw.trim()) return [];
+  return raw
+    .split(';')
+    .map((part) => {
+      const pipeIdx = part.lastIndexOf('|');
+      if (pipeIdx === -1) return { text: part.trim(), points: 2 };
+      const text = part.slice(0, pipeIdx).trim();
+      const pts = parseFloat(part.slice(pipeIdx + 1).trim());
+      return { text, points: isNaN(pts) ? 2 : pts };
+    })
+    .filter((k) => k.text !== '');
+}
+
+/**
+ * Chuyển ImportRow sang payload cho question_bank.
+ * - ≥2 đáp án → single_choice
+ * - 0 đáp án + có keys → main_idea (câu tự luận chấm key)
+ * - 0 đáp án + không có keys → single_choice (fallback với đáp án giả)
  */
 export function importRowToQuestionPayload(row: ImportRow): {
   stem: string;
@@ -138,23 +215,42 @@ export function importRowToQuestionPayload(row: ImportRow): {
   points: number;
   topic: string;
   difficulty: string;
+  question_type: string;
 } {
-  const options = [
-    { id: 'A', text: row.optionA || '' },
-    { id: 'B', text: row.optionB || '' },
-    { id: 'C', text: row.optionC || '' },
-    { id: 'D', text: row.optionD || '' },
-  ].filter((o) => o.text.trim() !== '');
+  const options = row.optionTexts
+    .map((text, idx) => ({ id: ALL_OPTION_IDS[idx] as string, text: text || '' }))
+    .filter((o) => o.text.trim() !== '');
+
+  const parsedKeys = parseEssayKeys(row.keys);
+
+  // Nếu không có đáp án và có keys → câu tự luận chấm ý
+  if (options.length === 0 && parsedKeys.length > 0) {
+    return {
+      stem: row.stem,
+      options: [],
+      answer_key: JSON.stringify(parsedKeys),
+      points: row.points,
+      topic: row.topic,
+      difficulty: row.difficulty,
+      question_type: 'main_idea',
+    };
+  }
+
   if (options.length < 2) {
     return {
       stem: row.stem,
-      options: [{ id: 'A', text: row.optionA || '(Trống)' }, { id: 'B', text: row.optionB || '(Trống)' }],
+      options: [
+        { id: 'A', text: row.optionTexts[0] || '(Trống)' },
+        { id: 'B', text: row.optionTexts[1] || '(Trống)' },
+      ],
       answer_key: 'A',
       points: row.points,
       topic: row.topic,
       difficulty: row.difficulty,
+      question_type: 'single_choice',
     };
   }
+
   const validIds = options.map((o) => o.id);
   const answer_key = validIds.includes(row.answer) ? row.answer : validIds[0];
   return {
@@ -164,18 +260,16 @@ export function importRowToQuestionPayload(row: ImportRow): {
     points: row.points,
     topic: row.topic,
     difficulty: row.difficulty,
+    question_type: 'single_choice',
   };
 }
 
 function normalizeText(s: unknown): string {
-  return String(s ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ');
+  return String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 export interface ImportAuditIssue {
-  /** 1-based row number in the parsed list (after header removed). */
+  /** Số thứ tự dòng 1-based trong danh sách đã parse (sau khi bỏ header). */
   row: number;
   type: 'duplicate_in_file' | 'duplicate_existing' | 'invalid_answer';
   message: string;
@@ -189,12 +283,9 @@ export function buildSingleChoiceSignature(q: {
   const optById: Record<string, string> = {};
   for (const o of q.options ?? []) optById[o.id] = o.text ?? '';
   const stem = normalizeText(q.stem);
-  const a = normalizeText(optById.A ?? '');
-  const b = normalizeText(optById.B ?? '');
-  const c = normalizeText(optById.C ?? '');
-  const d = normalizeText(optById.D ?? '');
+  const optParts = ALL_OPTION_IDS.map((id) => normalizeText(optById[id] ?? '')).join('|');
   const ans = normalizeText(q.answer_key).toUpperCase();
-  return [stem, a, b, c, d, ans].join('|');
+  return [stem, optParts, ans].join('||');
 }
 
 export function auditSingleChoicePayloads(
@@ -202,59 +293,52 @@ export function auditSingleChoicePayloads(
   existing?: Array<{ stem: string; options: { id: string; text: string }[]; answer_key: string }>
 ): ImportAuditIssue[] {
   const issues: ImportAuditIssue[] = [];
-
-  const seen = new Map<string, number>(); // signature -> first row (1-based)
+  const seen = new Map<string, number>();
   const firstPayloadBySig = new Map<string, { stem: string; options: { id: string; text: string }[]; answer_key: string }>();
   const existingSet = new Set<string>((existing ?? []).map(buildSingleChoiceSignature));
 
   const formatPayload = (p: { stem: string; options: { id: string; text: string }[]; answer_key: string }): string => {
     const optById: Record<string, string> = {};
     for (const o of p.options ?? []) optById[o.id] = o.text ?? '';
-    const stem = String(p.stem ?? '').trim();
-    const a = String(optById.A ?? '').trim();
-    const b = String(optById.B ?? '').trim();
-    const c = String(optById.C ?? '').trim();
-    const d = String(optById.D ?? '').trim();
-    const ans = String(p.answer_key ?? '').trim().toUpperCase();
-    return `Q="${stem}" | A="${a}" | B="${b}" | C="${c}" | D="${d}" | Đúng=${ans}`;
+    const parts = (ALL_OPTION_IDS as readonly string[])
+      .map((id) => (optById[id] ? `${id}="${optById[id]}"` : null))
+      .filter(Boolean)
+      .join(' | ');
+    return `Q="${String(p.stem ?? '').trim()}" | ${parts} | Đúng=${String(p.answer_key ?? '').trim().toUpperCase()}`;
   };
 
   payloads.forEach((p, idx0) => {
     const row = idx0 + 1;
     const sig = buildSingleChoiceSignature(p);
-
-    // Invalid answer mapping
     const ids = (p.options ?? []).map((o) => o.id);
     const ans = String(p.answer_key ?? '').trim().toUpperCase();
-    const hasAnswer = ids.includes(ans);
-    if (!hasAnswer) {
+
+    if (!ids.includes(ans)) {
       issues.push({
         row,
         type: 'invalid_answer',
-        message: `Dòng ${row}: Đáp án đúng "${p.answer_key}" không khớp với bất kỳ lựa chọn nào (A/B/C/D) trong dòng.`,
+        message: `Dòng ${row}: Đáp án đúng "${p.answer_key}" không khớp với bất kỳ lựa chọn nào trong dòng.`,
       });
     }
 
-    // Duplicate in file
     const first = seen.get(sig);
     if (first != null) {
       const firstPayload = firstPayloadBySig.get(sig);
       issues.push({
         row,
         type: 'duplicate_in_file',
-        message: `Dòng ${row}: Trùng với dòng ${first}.\n- Dòng ${first}: ${firstPayload ? formatPayload(firstPayload) : '(không lấy được nội dung)'}\n- Dòng ${row}: ${formatPayload(p)}`,
+        message: `Dòng ${row}: Trùng với dòng ${first}.\n- Dòng ${first}: ${firstPayload ? formatPayload(firstPayload) : '...'}\n- Dòng ${row}: ${formatPayload(p)}`,
       });
     } else {
       seen.set(sig, row);
       firstPayloadBySig.set(sig, p);
     }
 
-    // Duplicate with existing
     if (existingSet.has(sig)) {
       issues.push({
         row,
         type: 'duplicate_existing',
-        message: `Dòng ${row}: Có vẻ đã tồn tại trong ngân hàng.\n- Dòng ${row}: ${formatPayload(p)}`,
+        message: `Dòng ${row}: Có vẻ đã tồn tại trong ngân hàng.\n- ${formatPayload(p)}`,
       });
     }
   });
@@ -266,17 +350,13 @@ export function auditSingleChoicePayloads(
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
-/** Câu hỏi đã parse từ zip: kết quả ImportRow + blob ảnh (nếu có). */
+/** Câu hỏi đã parse từ zip: ImportRow + blob ảnh (nếu có). */
 export interface ZipParsedRow extends ImportRow {
-  /** Tên file ảnh từ cột image_file trong Excel (rỗng nếu không có). */
   imageFile: string;
-  /** Blob ảnh đã extract từ zip, null nếu không tìm thấy / quá lớn. */
   imageBlob: Blob | null;
-  /** Cảnh báo riêng cho câu này (null = không có vấn đề). */
   imageWarning: string | null;
 }
 
-/** Dự đoán MIME type từ tên file ảnh. */
 function guessImageMime(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
   const map: Record<string, string> = {
@@ -286,14 +366,7 @@ function guessImageMime(filename: string): string {
   return map[ext] ?? 'image/jpeg';
 }
 
-/**
- * Nhận diện vị trí cột từ hàng tiêu đề (tiếng Việt hoặc tiếng Anh).
- * Trả về ImportColumnMap + index cột image_file (null nếu không có).
- */
-function detectZipColumns(headerRow: unknown[]): {
-  map: ImportColumnMap;
-  imageFileIdx: number | null;
-} {
+function detectZipColumns(headerRow: unknown[]): { map: ImportColumnMap; imageFileIdx: number | null } {
   const norm = (s: unknown) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
   const headers = (Array.isArray(headerRow) ? headerRow : []).map(norm);
 
@@ -305,40 +378,38 @@ function detectZipColumns(headerRow: unknown[]): {
     return -1;
   };
 
-  const stemIdx    = find('nội dung câu hỏi', 'stem', 'câu hỏi', 'nội dung');
-  const aIdx       = find('đáp án a', 'a', 'option a');
-  const bIdx       = find('đáp án b', 'b', 'option b');
-  const cIdx       = find('đáp án c', 'c', 'option c');
-  const dIdx       = find('đáp án d', 'd', 'option d');
-  const answerIdx  = find('đáp án đúng (a/b/c/d hoặc 1/2/3/4)', 'đáp án đúng', 'answer', 'đáp án');
-  const topicIdx   = find('chủ đề', 'topic');
-  const diffIdx    = find('độ khó (easy/medium/hard hoặc dễ/trung bình/khó)', 'độ khó', 'difficulty');
-  const pointsIdx  = find('điểm', 'points');
-  const imgIdx     = find('image_file', 'file ảnh', 'ảnh', 'hình ảnh');
+  const stemIdx = find('nội dung câu hỏi', 'stem', 'câu hỏi', 'nội dung');
+  const answerIdx = find(
+    'đáp án đúng (a/b/c/d/e/f/g/h/i/j hoặc 1/2/3/4/5/6/7/8/9/10)',
+    'đáp án đúng (a/b/c/d hoặc 1/2/3/4)',
+    'đáp án đúng',
+    'answer',
+    'đáp án',
+  );
+  const topicIdx = find('chủ đề', 'topic');
+  const diffIdx = find('độ khó (easy/medium/hard hoặc dễ/trung bình/khó)', 'độ khó', 'difficulty');
+  const pointsIdx = find('điểm', 'points');
+  const imgIdx = find('image_file', 'file ảnh', 'ảnh', 'hình ảnh');
+  const keysIdx = find('keys', 'chấm ý', 'key', 'từ khóa');
 
-  const map: ImportColumnMap = {
-    stem:       stemIdx   !== -1 ? stemIdx   : DEFAULT_MAP.stem,
-    optionA:    aIdx      !== -1 ? aIdx      : DEFAULT_MAP.optionA,
-    optionB:    bIdx      !== -1 ? bIdx      : DEFAULT_MAP.optionB,
-    optionC:    cIdx      !== -1 ? cIdx      : DEFAULT_MAP.optionC,
-    optionD:    dIdx      !== -1 ? dIdx      : DEFAULT_MAP.optionD,
-    answer:     answerIdx !== -1 ? answerIdx : DEFAULT_MAP.answer,
-    topic:      topicIdx  !== -1 ? topicIdx  : DEFAULT_MAP.topic,
-    difficulty: diffIdx   !== -1 ? diffIdx   : DEFAULT_MAP.difficulty,
-    points:     pointsIdx !== -1 ? pointsIdx : DEFAULT_MAP.points,
+  const optionCols: number[] = [];
+  for (const id of ALL_OPTION_IDS) {
+    const lc = id.toLowerCase();
+    const idx = find(`đáp án ${lc}`, lc, `option ${lc}`);
+    if (idx !== -1) optionCols.push(idx);
+    else break;
+  }
+
+  if (stemIdx === -1 || optionCols.length === 0 || answerIdx === -1) {
+    return { map: DEFAULT_MAP, imageFileIdx: imgIdx !== -1 ? imgIdx : null };
+  }
+
+  return {
+    map: { stem: stemIdx, optionCols, answer: answerIdx, topic: topicIdx, difficulty: diffIdx, points: pointsIdx, keys: keysIdx },
+    imageFileIdx: imgIdx !== -1 ? imgIdx : null,
   };
-
-  return { map, imageFileIdx: imgIdx !== -1 ? imgIdx : null };
 }
 
-/**
- * Giải nén zip, đọc file Excel bên trong, extract blob ảnh cho từng câu hỏi.
- * Không gọi network — chỉ xử lý local.
- *
- * @param zipFile  File .zip do admin chọn
- * @returns rows   Mảng ZipParsedRow đã kèm imageBlob (nếu có)
- * @returns warnings  Danh sách cảnh báo không nghiêm trọng (ảnh thiếu, quá lớn…)
- */
 export async function parseZipToRows(
   zipFile: File,
 ): Promise<{ rows: ZipParsedRow[]; warnings: string[] }> {
@@ -351,23 +422,16 @@ export async function parseZipToRows(
     throw new Error('Không thể giải nén file .zip. Vui lòng kiểm tra file hợp lệ.');
   }
 
-  // Tìm file Excel đầu tiên trong zip (bỏ qua __MACOSX/)
   const excelEntry = Object.values(zip.files).find(
     (f) => !f.dir && /\.(xlsx|xls)$/i.test(f.name.replace(/.*\//, '')) && !f.name.startsWith('__MACOSX'),
   );
-  if (!excelEntry) {
-    throw new Error('Không tìm thấy file Excel (.xlsx/.xls) trong zip.');
-  }
+  if (!excelEntry) throw new Error('Không tìm thấy file Excel (.xlsx/.xls) trong zip.');
 
-  // Kiểm tra thư mục images/
   const hasImages = Object.keys(zip.files).some(
     (k) => /^images\//i.test(k) && !zip.files[k].dir,
   );
-  if (!hasImages) {
-    warnings.push('Không tìm thấy thư mục images/ trong zip — các câu hỏi sẽ import không có ảnh.');
-  }
+  if (!hasImages) warnings.push('Không tìm thấy thư mục images/ trong zip — các câu hỏi sẽ import không có ảnh.');
 
-  // Đọc & parse Excel
   const excelBuffer = await excelEntry.async('arraybuffer');
   const wb = XLSX.read(excelBuffer, { type: 'array', cellDates: false });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -386,27 +450,26 @@ export async function parseZipToRows(
     const stem = cell(row, map.stem);
     if (!stem) continue;
 
+    const optionTexts = map.optionCols.map((col) => cell(row, col));
     const answerRaw = normalizeAnswer(cell(row, map.answer));
+    const validAnswerIds = ALL_OPTION_IDS.slice(0, optionTexts.length) as string[];
     const pointsRaw = cell(row, map.points);
     const imageFile = imageFileIdx !== null ? cell(row, imageFileIdx) : '';
 
     const importRow: ImportRow = {
       stem,
-      optionA:    cell(row, map.optionA),
-      optionB:    cell(row, map.optionB),
-      optionC:    cell(row, map.optionC),
-      optionD:    cell(row, map.optionD),
-      answer:     ['A', 'B', 'C', 'D'].includes(answerRaw) ? answerRaw : 'A',
-      topic:      cell(row, map.topic),
+      optionTexts,
+      answer: validAnswerIds.includes(answerRaw) ? answerRaw : (validAnswerIds[0] ?? 'A'),
+      topic: cell(row, map.topic),
       difficulty: normalizeDifficulty(cell(row, map.difficulty)),
-      points:     pointsRaw ? Math.max(1, parseInt(pointsRaw, 10) || 2) : 2,
+      points: pointsRaw ? Math.max(1, parseInt(pointsRaw, 10) || 2) : 2,
+      keys: cell(row, map.keys),
     };
 
     let imageBlob: Blob | null = null;
     let imageWarning: string | null = null;
 
     if (imageFile) {
-      // Tìm trong images/<tên> trước, fallback root zip
       const entry = zip.file(`images/${imageFile}`) ?? zip.file(imageFile);
       if (!entry) {
         imageWarning = `Câu ${i}: không tìm thấy ảnh "${imageFile}" trong zip → import không có ảnh.`;
@@ -427,3 +490,6 @@ export async function parseZipToRows(
 
   return { rows, warnings };
 }
+
+// Re-export OptionId type for consumers
+export type { OptionId };

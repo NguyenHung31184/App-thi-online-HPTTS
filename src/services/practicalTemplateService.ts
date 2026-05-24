@@ -30,6 +30,7 @@ export interface CreatePracticalTemplateInput {
   title: string;
   description?: string;
   duration_minutes?: number | null;
+  module_id?: string | null;
   created_by?: string | null;
 }
 
@@ -42,6 +43,7 @@ export async function createPracticalTemplate(
       title: input.title,
       description: input.description ?? '',
       duration_minutes: input.duration_minutes ?? null,
+      module_id: input.module_id ?? null,
       created_by: input.created_by ?? null,
     })
     .select()
@@ -54,6 +56,7 @@ export interface UpdatePracticalTemplateInput {
   title?: string;
   description?: string;
   duration_minutes?: number | null;
+  module_id?: string | null;
 }
 
 export async function updatePracticalTemplate(

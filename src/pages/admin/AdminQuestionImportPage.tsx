@@ -10,6 +10,7 @@ import {
   importRowToQuestionPayload,
   auditSingleChoicePayloads,
   parseZipToRows,
+  ALL_OPTION_IDS,
   type ImportRow,
   type ZipParsedRow,
 } from '../../services/questionImportService';
@@ -103,15 +104,26 @@ export default function AdminQuestionImportPage() {
 
   const handleDownloadExcelTemplate = () => {
     const header = [
-      'Nội dung câu hỏi', 'Đáp án A', 'Đáp án B', 'Đáp án C', 'Đáp án D',
-      'Đáp án đúng (A/B/C/D hoặc 1/2/3/4)', 'Chủ đề',
-      'Độ khó (easy/medium/hard hoặc Dễ/Trung bình/Khó)', 'Điểm',
+      'Nội dung câu hỏi',
+      ...ALL_OPTION_IDS.map((id) => `Đáp án ${id}`),
+      'Đáp án đúng (A/B/C/D/E/F/G/H/I/J hoặc 1/2/3/4/5/6/7/8/9/10)',
+      'Chủ đề',
+      'Độ khó (easy/medium/hard hoặc Dễ/Trung bình/Khó)',
+      'Điểm',
+      'Keys',
     ];
-    const exampleRow = [
+    const exampleSingleChoice = [
       'Máy nâng dùng để làm gì?', 'Nâng hàng', 'Lái xe', 'Đóng gói', 'Kiểm tra hàng',
-      'A', 'Kiến thức cơ bản', 'medium', '1',
+      '', '', '', '', '', '', // E–J để trống
+      'A', 'Kiến thức cơ bản', 'medium', '1', '',
     ];
-    const ws = XLSX.utils.aoa_to_sheet([header, exampleRow]);
+    const exampleEssay = [
+      'Nêu các nguyên nhân gây tai nạn lao động.',
+      '', '', '', '', '', '', '', '', '', '', // A–J trống
+      '', 'An toàn lao động', 'medium', '10',
+      'tai nạn|2;sai quy trình|2;thiếu bảo hộ|2;không kiểm tra|2;vi phạm quy định|2',
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([header, exampleSingleChoice, exampleEssay]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cau_hoi');
     XLSX.writeFile(wb, 'Mau_nhap_cau_hoi.xlsx');
@@ -211,17 +223,22 @@ export default function AdminQuestionImportPage() {
     const zip = new JSZip();
 
     const header = [
-      'Nội dung câu hỏi', 'Đáp án A', 'Đáp án B', 'Đáp án C', 'Đáp án D',
-      'Đáp án đúng (A/B/C/D hoặc 1/2/3/4)', 'Điểm', 'image_file', 'Chủ đề',
+      'Nội dung câu hỏi',
+      ...ALL_OPTION_IDS.map((id) => `Đáp án ${id}`),
+      'Đáp án đúng (A/B/C/D/E/F/G/H/I/J hoặc 1/2/3/4/5/6/7/8/9/10)',
+      'Điểm', 'image_file', 'Chủ đề',
       'Độ khó (easy/medium/hard hoặc Dễ/Trung bình/Khó)',
+      'Keys',
     ];
     const example1 = [
       'Máy nâng dùng để làm gì?', 'Nâng hàng', 'Lái xe', 'Đóng gói', 'Kiểm tra hàng',
-      'A', '1', 'cau1.jpg', 'Kiến thức cơ bản', 'medium',
+      '', '', '', '', '', '', // E–J để trống
+      'A', '1', 'cau1.jpg', 'Kiến thức cơ bản', 'medium', '',
     ];
     const example2 = [
       'Tốc độ nâng tối đa là bao nhiêu?', '1 m/s', '2 m/s', '3 m/s', '4 m/s',
-      'B', '2', '', 'An toàn', 'easy',
+      '', '', '', '', '', '', // E–J để trống
+      'B', '2', '', 'An toàn', 'easy', '',
     ];
     const ws = XLSX.utils.aoa_to_sheet([header, example1, example2]);
     const wb = XLSX.utils.book_new();
@@ -242,8 +259,9 @@ export default function AdminQuestionImportPage() {
 
   // ── Render ───────────────────────────────────────────────────────────────
 
-  const excelColumns = ['Nội dung', 'A', 'B', 'C', 'D', 'Đáp án', 'Chủ đề', 'Độ khó', 'Điểm'] as const;
   const excelPreview = rows.slice(0, 20);
+  const maxExcelOptCols = Math.max(4, ...excelPreview.map((r) => r.optionTexts.length));
+  const excelPreviewOptIds = ALL_OPTION_IDS.slice(0, maxExcelOptCols);
 
   const zipHasImages = zipRows.some((r) => r.imageBlob !== null);
   const zipRowsWithImageCount = zipRows.filter((r) => r.imageFile).length;
@@ -290,9 +308,9 @@ export default function AdminQuestionImportPage() {
       {activeTab === 'excel' && (
         <div className="space-y-4 max-w-2xl">
           <p className="text-slate-600">
-            File Excel/CSV cần có các cột theo thứ tự:{' '}
-            <strong>Nội dung câu hỏi, Đáp án A, B, C, D, Đáp án đúng (A/B/C/D hoặc 1/2/3/4), Chủ đề, Độ khó, Điểm</strong>.
-            Cột 7–9 có thể để trống.
+            File Excel/CSV cần có hàng tiêu đề với các cột:{' '}
+            <strong>Nội dung câu hỏi, Đáp án A, Đáp án B, ..., Đáp án đúng, Chủ đề, Độ khó, Điểm</strong>.
+            Hỗ trợ tối đa <strong>10 đáp án (A–J)</strong>. Cột Chủ đề, Độ khó, Điểm có thể để trống.
           </p>
           <div className="flex items-center gap-3">
             <button
@@ -358,25 +376,35 @@ export default function AdminQuestionImportPage() {
                 <table className="min-w-full text-sm">
                   <thead className="bg-slate-100">
                     <tr>
-                      {excelColumns.map((c) => (
-                        <th key={c} className="px-2 py-1 text-left border-b border-slate-200">{c}</th>
+                      <th className="px-2 py-1 text-left border-b border-slate-200">Nội dung</th>
+                      {excelPreviewOptIds.map((id) => (
+                        <th key={id} className="px-2 py-1 text-left border-b border-slate-200">{id}</th>
                       ))}
+                      <th className="px-2 py-1 text-left border-b border-slate-200">Đáp án</th>
+                      <th className="px-2 py-1 text-left border-b border-slate-200">Keys</th>
+                      <th className="px-2 py-1 text-left border-b border-slate-200">Chủ đề</th>
+                      <th className="px-2 py-1 text-left border-b border-slate-200">Độ khó</th>
+                      <th className="px-2 py-1 text-left border-b border-slate-200">Điểm</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {excelPreview.map((r, i) => (
-                      <tr key={i} className="border-b border-slate-100">
-                        <td className="px-2 py-1 max-w-xs truncate" title={r.stem}>{r.stem}</td>
-                        <td className="px-2 py-1 max-w-[120px] truncate">{r.optionA}</td>
-                        <td className="px-2 py-1 max-w-[120px] truncate">{r.optionB}</td>
-                        <td className="px-2 py-1 max-w-[120px] truncate">{r.optionC}</td>
-                        <td className="px-2 py-1 max-w-[120px] truncate">{r.optionD}</td>
-                        <td className="px-2 py-1">{r.answer}</td>
-                        <td className="px-2 py-1">{r.topic}</td>
-                        <td className="px-2 py-1">{r.difficulty}</td>
-                        <td className="px-2 py-1">{r.points}</td>
-                      </tr>
-                    ))}
+                    {excelPreview.map((r, i) => {
+                      const hasKeys = r.keys && r.keys.trim() !== '';
+                      const keyCount = hasKeys ? r.keys.split(';').filter(Boolean).length : 0;
+                      return (
+                        <tr key={i} className={`border-b border-slate-100 ${hasKeys ? 'bg-indigo-50' : ''}`}>
+                          <td className="px-2 py-1 max-w-xs truncate" title={r.stem}>{r.stem}</td>
+                          {excelPreviewOptIds.map((id, idx) => (
+                            <td key={id} className="px-2 py-1 max-w-[120px] truncate">{r.optionTexts[idx] ?? ''}</td>
+                          ))}
+                          <td className="px-2 py-1">{hasKeys ? <span className="text-indigo-600 text-xs font-medium">Tự luận</span> : r.answer}</td>
+                          <td className="px-2 py-1 text-xs">{hasKeys ? `${keyCount} keys` : ''}</td>
+                          <td className="px-2 py-1">{r.topic}</td>
+                          <td className="px-2 py-1">{r.difficulty}</td>
+                          <td className="px-2 py-1">{r.points}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -510,6 +538,9 @@ export default function AdminQuestionImportPage() {
                       <th className="px-2 py-1 text-left border-b border-slate-200">Nội dung</th>
                       <th className="px-2 py-1 text-left border-b border-slate-200">A</th>
                       <th className="px-2 py-1 text-left border-b border-slate-200">B</th>
+                      {zipPreview.some((r) => r.optionTexts.length > 2) && (
+                        <th className="px-2 py-1 text-left border-b border-slate-200">+thêm</th>
+                      )}
                       <th className="px-2 py-1 text-left border-b border-slate-200">Đáp án</th>
                       <th className="px-2 py-1 text-left border-b border-slate-200">Điểm</th>
                       <th className="px-2 py-1 text-left border-b border-slate-200">Ảnh</th>
@@ -519,8 +550,13 @@ export default function AdminQuestionImportPage() {
                     {zipPreview.map((r, i) => (
                       <tr key={i} className="border-b border-slate-100">
                         <td className="px-2 py-1 max-w-xs truncate" title={r.stem}>{r.stem}</td>
-                        <td className="px-2 py-1 max-w-[100px] truncate">{r.optionA}</td>
-                        <td className="px-2 py-1 max-w-[100px] truncate">{r.optionB}</td>
+                        <td className="px-2 py-1 max-w-[100px] truncate">{r.optionTexts[0] ?? ''}</td>
+                        <td className="px-2 py-1 max-w-[100px] truncate">{r.optionTexts[1] ?? ''}</td>
+                        {zipPreview.some((row) => row.optionTexts.length > 2) && (
+                          <td className="px-2 py-1 text-slate-400 text-xs">
+                            {r.optionTexts.length > 2 ? `+${r.optionTexts.length - 2}` : ''}
+                          </td>
+                        )}
                         <td className="px-2 py-1">{r.answer}</td>
                         <td className="px-2 py-1">{r.points}</td>
                         <td className="px-2 py-1">

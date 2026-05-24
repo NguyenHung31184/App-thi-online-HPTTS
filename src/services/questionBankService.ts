@@ -129,7 +129,7 @@ export async function deleteQuestionBankItemsBulk(ids: string[]): Promise<void> 
 export async function createQuestionBankBulk(
   occupationId: string,
   moduleId: string | null,
-  items: Array<{ stem: string; options: { id: string; text: string }[]; answer_key: string; points?: number; topic?: string; difficulty?: string }>
+  items: Array<{ stem: string; options: { id: string; text: string }[]; answer_key: string; points?: number; topic?: string; difficulty?: string; question_type?: string }>
 ): Promise<{ created: number; errors: string[] }> {
   const errors: string[] = [];
   let created = 0;
@@ -138,7 +138,7 @@ export async function createQuestionBankBulk(
     const row = {
       occupation_id: occupationId,
       module_id: moduleId,
-      question_type: 'single_choice',
+      question_type: it.question_type ?? 'single_choice',
       stem: it.stem,
       options: it.options,
       answer_key: it.answer_key,

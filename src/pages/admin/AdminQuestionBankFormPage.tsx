@@ -12,7 +12,7 @@ import { validateMediaUrl } from '../../utils/mediaUrlValidator';
 import type { QuestionType, ModuleItem } from '../../types';
 import { listModules } from '../../services/ttdtDataService';
 
-const OPTION_IDS = ['A', 'B', 'C', 'D', 'E'];
+const OPTION_IDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
 /** Tọa độ mặc định 4 ô (x, y theo % 0–100) cho câu hỏi kéo nhãn lên ảnh. */
 const DEFAULT_ZONE_POSITIONS: { x: number; y: number }[] = [
@@ -64,6 +64,7 @@ export default function AdminQuestionBankFormPage() {
   const [existingMediaUrl, setExistingMediaUrl] = useState<string | null>(null);
   const [mediaUrlError, setMediaUrlError] = useState<string>('');
   const [rubric, setRubric] = useState('');
+  const [essayKeys, setEssayKeys] = useState<{ text: string; points: number }[]>([]);
   const [zonePositions, setZonePositions] = useState<{ x: number; y: number }[]>(() => [...DEFAULT_ZONE_POSITIONS]);
   /** Với drag_drop + ảnh: đáp án từng ô [id ô 1, id ô 2, id ô 3, id ô 4]. */
   const [zoneAnswers, setZoneAnswers] = useState<string[]>(() => ['A', 'B', 'C', 'D']);
@@ -102,12 +103,18 @@ export default function AdminQuestionBankFormPage() {
     getQuestionBankItem(qId).then((q) => {
       if (cancelled || !q) return;
       setStem(q.stem);
-      const opts = Array.isArray(q.options)
+      const loaded = Array.isArray(q.options)
         ? (q.options as { id: string; text: string }[]).length
           ? (q.options as { id: string; text: string }[])
           : emptyOptions()
         : emptyOptions();
-      setOptions(opts.length ? opts : emptyOptions());
+      // Pad với slot trống để luôn có A–J trong state (cho UX mở rộng)
+      const existingIds = new Set(loaded.map((o) => o.id));
+      const padded = [...loaded];
+      for (const id of OPTION_IDS) {
+        if (!existingIds.has(id)) padded.push({ id, text: '' });
+      }
+      setOptions(padded);
       const parsed = parseAnswerKey(q.answer_key || 'A', q.question_type || 'single_choice');
       setAnswerKey(parsed.single);
       setAnswerMultiple(parsed.multiple.length ? parsed.multiple : [parsed.single]);
@@ -128,6 +135,19 @@ export default function AdminQuestionBankFormPage() {
       setExistingMediaUrl(q.media_url ?? null);
       setMediaUrl(q.media_url ?? '');
       setRubric(typeof q.rubric === 'string' ? q.rubric : (q.rubric ? JSON.stringify(q.rubric, null, 2) : ''));
+      // Load essay keys từ answer_key (JSON array objects)
+      if (qType === 'video_paragraph' || qType === 'main_idea') {
+        try {
+          const parsed: unknown = JSON.parse(q.answer_key || '[]');
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed[0] !== null && typeof parsed[0] === 'object' && 'text' in (parsed[0] as object)) {
+            setEssayKeys(parsed as { text: string; points: number }[]);
+          } else {
+            setEssayKeys([]);
+          }
+        } catch {
+          setEssayKeys([]);
+        }
+      }
       let r: unknown = q.rubric;
       if (typeof r === 'string' && r.trim()) {
         try {
@@ -180,7 +200,8 @@ export default function AdminQuestionBankFormPage() {
       } else if (questionType === 'drag_drop') {
         finalAnswerKey = JSON.stringify(zoneAnswers.slice(0, 4));
       } else if (isEssay) {
-        finalAnswerKey = '';
+        const validKeys = essayKeys.filter((k) => k.text.trim() !== '' && k.points >= 0);
+        finalAnswerKey = validKeys.length > 0 ? JSON.stringify(validKeys) : '';
         optsToSave = [];
       } else {
         finalAnswerKey = answer_key;
@@ -288,6 +309,9 @@ export default function AdminQuestionBankFormPage() {
   };
   const isEssay = questionType === 'video_paragraph' || questionType === 'main_idea';
   const showOptions = !isEssay;
+  // UX tự động mở rộng: hiện tối thiểu 4 slot, thêm 1 slot trống sau slot cuối có nội dung, tối đa 10
+  const filledCount = options.filter((o) => o.text.trim() !== '').length;
+  const visibleOptionIds = OPTION_IDS.slice(0, Math.min(OPTION_IDS.length, Math.max(4, filledCount + 1)));
 
   return (
     <div>
@@ -356,7 +380,7 @@ export default function AdminQuestionBankFormPage() {
                 </div>
               ))
             ) : (
-              OPTION_IDS.map((optId) => (
+              visibleOptionIds.map((optId) => (
                 <div key={optId} className="flex items-center gap-2 mb-2">
                   <span className="w-6 font-medium text-slate-600">{optId}.</span>
                   <input
@@ -405,9 +429,70 @@ export default function AdminQuestionBankFormPage() {
           </div>
         )}
         {isEssay && (
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Rubric / gợi ý chấm (cho GV)</label>
-            <textarea value={rubric} onChange={(e) => setRubric(e.target.value)} rows={3} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Tiêu chí hoặc gợi ý đáp án..." />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Keys chấm ý (tự động)
+              </label>
+              <p className="text-xs text-slate-500 mb-2">
+                Hệ thống tự cộng điểm mỗi key xuất hiện trong bài làm (so khớp chuỗi con, không phân biệt hoa/thường).
+                Tổng điểm keys nên bằng điểm câu ({points} điểm). Để trống nếu muốn GV chấm thủ công.
+              </p>
+              {essayKeys.map((k, idx) => (
+                <div key={idx} className="flex items-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={k.text}
+                    onChange={(e) => {
+                      const updated = [...essayKeys];
+                      updated[idx] = { ...updated[idx], text: e.target.value };
+                      setEssayKeys(updated);
+                    }}
+                    className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    placeholder={`Key ${idx + 1} (VD: tai nạn)`}
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={k.points}
+                    onChange={(e) => {
+                      const updated = [...essayKeys];
+                      updated[idx] = { ...updated[idx], points: Number(e.target.value) };
+                      setEssayKeys(updated);
+                    }}
+                    className="w-20 border border-slate-300 rounded-lg px-2 py-2 text-sm"
+                    placeholder="Điểm"
+                  />
+                  <span className="text-slate-500 text-sm whitespace-nowrap">đ</span>
+                  <button
+                    type="button"
+                    onClick={() => setEssayKeys((prev) => prev.filter((_, i) => i !== idx))}
+                    className="text-red-500 hover:text-red-700 text-sm px-1"
+                  >
+                    Xóa
+                  </button>
+                </div>
+              ))}
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setEssayKeys((prev) => [...prev, { text: '', points: 2 }])}
+                  className="text-indigo-600 hover:underline text-sm"
+                >
+                  + Thêm key
+                </button>
+                {essayKeys.length > 0 && (
+                  <span className={`text-xs ${essayKeys.reduce((s, k) => s + k.points, 0) === points ? 'text-green-600' : 'text-amber-600'}`}>
+                    Tổng: {essayKeys.reduce((s, k) => s + k.points, 0)} / {points} điểm
+                  </span>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Rubric / gợi ý chấm (cho GV khi chấm lại)</label>
+              <textarea value={rubric} onChange={(e) => setRubric(e.target.value)} rows={2} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Tiêu chí hoặc gợi ý bổ sung cho giáo viên..." />
+            </div>
           </div>
         )}
         <div className="grid grid-cols-2 gap-4">

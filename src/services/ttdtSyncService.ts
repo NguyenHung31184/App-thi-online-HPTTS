@@ -116,7 +116,13 @@ export async function syncAttemptToTtdt(
 export async function syncPracticalAttemptToTtdt(
   practicalAttemptId: string,
   totalScore: number,
-  options?: { studentId?: string | null; classId?: string | null; moduleId?: string | null }
+  options?: {
+    studentId?: string | null;
+    classId?: string | null;
+    moduleId?: string | null;
+    /** passed: mặc định true nếu totalScore > 0 */
+    passed?: boolean;
+  }
 ): Promise<SyncResult> {
   if (!isTtdtSyncConfigured()) {
     return { success: false, message: 'Chưa cấu hình VITE_TTDT_RECEIVE_GRADES_URL hoặc VITE_TTDT_API_KEY.' };
@@ -131,7 +137,7 @@ export async function syncPracticalAttemptToTtdt(
     enrollment_id: null,
     final_exam_score: totalScore,
     raw_score: totalScore,
-    passed: totalScore > 0,
+    passed: options?.passed ?? totalScore > 0,
     disqualified: false,
   };
 

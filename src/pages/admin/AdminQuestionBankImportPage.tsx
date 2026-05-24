@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { getOccupation } from '../../services/occupationService';
 import { createQuestionBankBulk, listQuestionsByOccupation } from '../../services/questionBankService';
-import { parseFileToRows, importRowToQuestionPayload, auditSingleChoicePayloads } from '../../services/questionImportService';
+import { parseFileToRows, importRowToQuestionPayload, auditSingleChoicePayloads, ALL_OPTION_IDS, parseEssayKeys } from '../../services/questionImportService';
 import * as XLSX from 'xlsx';
 
 type QuestionPayload = ReturnType<typeof importRowToQuestionPayload>;
@@ -85,32 +85,43 @@ export default function AdminQuestionBankImportPage() {
   };
 
   const previewRows = rows.slice(0, 20);
-  const columns = ['Nội dung', 'A', 'B', 'C', 'D', 'Đáp án', 'Chủ đề', 'Độ khó', 'Điểm'] as const;
+  // Tính số cột đáp án tối đa trong dữ liệu preview (tối thiểu 4)
+  const maxOptCols = Math.max(4, ...previewRows.map((r) => r.options.length));
+  const previewOptIds = ALL_OPTION_IDS.slice(0, maxOptCols);
 
   const handleDownloadTemplate = () => {
     const header = [
       'Nội dung câu hỏi',
-      'Đáp án A',
-      'Đáp án B',
-      'Đáp án C',
-      'Đáp án D',
-      'Đáp án đúng (A/B/C/D hoặc 1/2/3/4)',
+      ...ALL_OPTION_IDS.map((id) => `Đáp án ${id}`),
+      'Đáp án đúng (A/B/C/D/E/F/G/H/I/J hoặc 1/2/3/4/5/6/7/8/9/10)',
       'Chủ đề',
       'Độ khó (easy/medium/hard hoặc Dễ/Trung bình/Khó)',
       'Điểm',
+      'Keys',
     ];
-    const exampleRow = [
+    const exampleSingleChoice = [
       'Máy nâng dùng để làm gì?',
-      'Nâng hàng',
-      'Lái xe',
-      'Đóng gói',
-      'Kiểm tra hàng',
+      'Nâng hàng',    // A
+      'Lái xe',       // B
+      'Đóng gói',     // C
+      'Kiểm tra hàng',// D
+      '', '', '', '', '', '', // E–J (để trống)
       'A',
       'Kiến thức cơ bản',
       'medium',
       '1',
+      '', // Keys (để trống cho trắc nghiệm)
     ];
-    const ws = XLSX.utils.aoa_to_sheet([header, exampleRow]);
+    const exampleEssay = [
+      'Nêu các nguyên nhân gây tai nạn lao động tại cảng biển.',
+      '', '', '', '', '', '', '', '', '', '', // A–J đều trống
+      '', // Đáp án đúng để trống
+      'An toàn lao động',
+      'medium',
+      '10',
+      'tai nạn|2;sai quy trình|2;thiếu bảo hộ|2;không kiểm tra|2;vi phạm quy định|2',
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([header, exampleSingleChoice, exampleEssay]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cau_hoi');
     XLSX.writeFile(wb, 'Mau_nhap_cau_hoi.xlsx');
@@ -128,7 +139,8 @@ export default function AdminQuestionBankImportPage() {
       </h1>
 
       <p className="text-slate-600 mb-4 max-w-2xl">
-        File Excel/CSV cần có các cột: <strong>Nội dung câu hỏi, Đáp án A, B, C, D, Đáp án đúng (A/B/C/D), Chủ đề, Độ khó, Điểm</strong>. Cột 7–9 có thể để trống.
+        File Excel/CSV cần có hàng tiêu đề. Hỗ trợ tối đa <strong>10 đáp án (A–J)</strong>. Cột Chủ đề, Độ khó, Điểm có thể để trống.
+        Để import <strong>câu tự luận chấm ý</strong>: bỏ trống các cột Đáp án A–J và Đáp án đúng, điền cột <strong>Keys</strong> với format <code className="bg-slate-100 px-1 rounded text-xs">tai nạn|2;sai quy trình|2;...</code> (tên key | điểm, ngăn cách bằng chấm phẩy).
       </p>
 
       <div className="space-y-4 max-w-2xl">
@@ -180,25 +192,46 @@ export default function AdminQuestionBankImportPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-slate-100">
                   <tr>
-                    {columns.map((c) => (
-                      <th key={c} className="px-2 py-1 text-left border-b border-slate-200">{c}</th>
+                    <th className="px-2 py-1 text-left border-b border-slate-200">Loại</th>
+                    <th className="px-2 py-1 text-left border-b border-slate-200">Nội dung</th>
+                    {previewOptIds.map((id) => (
+                      <th key={id} className="px-2 py-1 text-left border-b border-slate-200">{id}</th>
                     ))}
+                    <th className="px-2 py-1 text-left border-b border-slate-200">Đáp án / Keys</th>
+                    <th className="px-2 py-1 text-left border-b border-slate-200">Chủ đề</th>
+                    <th className="px-2 py-1 text-left border-b border-slate-200">Độ khó</th>
+                    <th className="px-2 py-1 text-left border-b border-slate-200">Điểm</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {previewRows.map((r, i) => (
-                    <tr key={i} className="border-b border-slate-100">
-                      <td className="px-2 py-1 max-w-xs truncate" title={r.stem}>{r.stem}</td>
-                      <td className="px-2 py-1 max-w-[120px] truncate">{r.options[0]?.text}</td>
-                      <td className="px-2 py-1 max-w-[120px] truncate">{r.options[1]?.text}</td>
-                      <td className="px-2 py-1 max-w-[120px] truncate">{r.options[2]?.text}</td>
-                      <td className="px-2 py-1 max-w-[120px] truncate">{r.options[3]?.text}</td>
-                      <td className="px-2 py-1">{r.answer_key}</td>
-                      <td className="px-2 py-1">{r.topic}</td>
-                      <td className="px-2 py-1">{r.difficulty}</td>
-                      <td className="px-2 py-1">{r.points}</td>
-                    </tr>
-                  ))}
+                  {previewRows.map((r, i) => {
+                    const isEssay = r.question_type === 'main_idea' || r.question_type === 'video_paragraph';
+                    const optById: Record<string, string> = {};
+                    r.options.forEach((o) => { optById[o.id] = o.text; });
+                    const keysSummary = isEssay
+                      ? (() => {
+                          const ks = parseEssayKeys(
+                            (() => { try { const arr = JSON.parse(r.answer_key); return Array.isArray(arr) ? arr.map((k: { text: string; points: number }) => `${k.text}|${k.points}`).join(';') : ''; } catch { return ''; } })()
+                          );
+                          return ks.length > 0 ? `${ks.length} keys` : '—';
+                        })()
+                      : r.answer_key;
+                    return (
+                      <tr key={i} className={`border-b border-slate-100 ${isEssay ? 'bg-indigo-50' : ''}`}>
+                        <td className="px-2 py-1 text-xs whitespace-nowrap">
+                          {isEssay ? <span className="text-indigo-600 font-medium">Tự luận</span> : 'TN'}
+                        </td>
+                        <td className="px-2 py-1 max-w-xs truncate" title={r.stem}>{r.stem}</td>
+                        {previewOptIds.map((id) => (
+                          <td key={id} className="px-2 py-1 max-w-[120px] truncate">{optById[id] ?? ''}</td>
+                        ))}
+                        <td className="px-2 py-1 text-xs">{keysSummary}</td>
+                        <td className="px-2 py-1">{r.topic}</td>
+                        <td className="px-2 py-1">{r.difficulty}</td>
+                        <td className="px-2 py-1">{r.points}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

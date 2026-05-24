@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 import {
   getPracticalAttempt,
   listPracticalPhotos,
@@ -86,8 +87,32 @@ export default function AdminPracticalGradingDetailPage() {
     setSyncing(true);
     setSyncMessage('');
     try {
+      // Lấy student_id (TTDT) từ profiles của user thi
+      let studentId: string | null = null;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('student_id')
+        .eq('id', attempt.user_id)
+        .maybeSingle();
+      studentId = (profile as { student_id?: string | null } | null)?.student_id ?? null;
+
+      const moduleId = session.template?.module_id ?? null;
+
+      if (!studentId) {
+        setSyncMessage('Không tìm thấy student_id trong profiles. Thí sinh chưa được gắn với TTDT.');
+        setSyncing(false);
+        return;
+      }
+      if (!moduleId) {
+        setSyncMessage('Đề thi chưa gắn module_id. Vào Admin → Đề thi thực hành → chỉnh sửa để chọn mô-đun.');
+        setSyncing(false);
+        return;
+      }
+
       const result = await syncPracticalAttemptToTtdt(attempt.id, attempt.total_score, {
         classId: session.class_id,
+        studentId,
+        moduleId,
       });
       setSyncMessage(result.success ? 'Đã đồng bộ sang TTDT.' : (result.message ?? 'Lỗi đồng bộ.'));
       if (result.success) {

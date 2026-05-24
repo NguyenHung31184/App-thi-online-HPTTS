@@ -68,6 +68,10 @@ export default function AdminQuestionBankFormPage() {
   const [zonePositions, setZonePositions] = useState<{ x: number; y: number }[]>(() => [...DEFAULT_ZONE_POSITIONS]);
   /** Với drag_drop + ảnh: đáp án từng ô [id ô 1, id ô 2, id ô 3, id ô 4]. */
   const [zoneAnswers, setZoneAnswers] = useState<string[]>(() => ['A', 'B', 'C', 'D']);
+  // true_false_multi: T/F per statement
+  const [tfAnswers, setTfAnswers] = useState<string[]>([]);
+  // matching: cột phải text array
+  const [matchingRight, setMatchingRight] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -118,7 +122,7 @@ export default function AdminQuestionBankFormPage() {
       const parsed = parseAnswerKey(q.answer_key || 'A', q.question_type || 'single_choice');
       setAnswerKey(parsed.single);
       setAnswerMultiple(parsed.multiple.length ? parsed.multiple : [parsed.single]);
-      const qType = (['single_choice', 'multiple_choice', 'drag_drop', 'video_paragraph', 'main_idea'] as QuestionType[]).includes(q.question_type)
+      const qType = (['single_choice', 'multiple_choice', 'drag_drop', 'video_paragraph', 'main_idea', 'true_false_multi', 'matching'] as QuestionType[]).includes(q.question_type)
         ? q.question_type
         : 'single_choice';
       setQuestionType(qType);
@@ -126,6 +130,15 @@ export default function AdminQuestionBankFormPage() {
         setZoneAnswers(parsed.order);
       } else if (qType === 'drag_drop') {
         setZoneAnswers(['A', 'B', 'C', 'D']);
+      }
+      if (qType === 'true_false_multi') {
+        try { const p = JSON.parse(q.answer_key || '[]'); if (Array.isArray(p)) setTfAnswers(p as string[]); } catch { /* ignore */ }
+      }
+      if (qType === 'matching') {
+        try {
+          const p = JSON.parse(q.answer_key || '{}') as { right?: string[] };
+          if (Array.isArray(p?.right)) setMatchingRight(p.right);
+        } catch { /* ignore */ }
       }
       setPoints(q.points ?? 2);
       setTopic(q.topic ?? '');
@@ -186,8 +199,10 @@ export default function AdminQuestionBankFormPage() {
     setLoading(true);
     try {
       const isEssay = questionType === 'video_paragraph' || questionType === 'main_idea';
+      const isTrueFalseMulti = questionType === 'true_false_multi';
+      const isMatching = questionType === 'matching';
       const opts = options.filter((o) => o.text.trim() !== '');
-      if (!isEssay && opts.length < 2) {
+      if (!isEssay && !isTrueFalseMulti && !isMatching && opts.length < 2) {
         setError('Cần ít nhất 2 đáp án.');
         setLoading(false);
         return;
@@ -203,6 +218,17 @@ export default function AdminQuestionBankFormPage() {
         const validKeys = essayKeys.filter((k) => k.text.trim() !== '' && k.points >= 0);
         finalAnswerKey = validKeys.length > 0 ? JSON.stringify(validKeys) : '';
         optsToSave = [];
+      } else if (isTrueFalseMulti) {
+        if (opts.length < 2) { setError('Cần ít nhất 2 phát biểu.'); setLoading(false); return; }
+        const tf = opts.map((_, i) => (tfAnswers[i] === 'F' ? 'F' : 'T'));
+        finalAnswerKey = JSON.stringify(tf);
+      } else if (isMatching) {
+        if (opts.length < 2) { setError('Cần ít nhất 2 cặp nối đôi.'); setLoading(false); return; }
+        const right = opts.map((_, i) => (matchingRight[i] ?? '').trim());
+        if (right.some((r) => r === '')) { setError('Nhập đủ nội dung cột phải cho mỗi cặp.'); setLoading(false); return; }
+        const map: Record<string, string> = {};
+        opts.forEach((o, i) => { map[o.id] = String(i + 1); });
+        finalAnswerKey = JSON.stringify({ right, map });
       } else {
         finalAnswerKey = answer_key;
       }
@@ -304,11 +330,15 @@ export default function AdminQuestionBankFormPage() {
     single_choice: 'Trắc nghiệm 1 đáp án',
     multiple_choice: 'Nhiều đáp án đúng',
     drag_drop: 'Sắp thứ tự (kéo thả)',
+    true_false_multi: 'Đúng/Sai đa phát biểu',
+    matching: 'Nối đôi',
     video_paragraph: 'Clip + Tự luận',
     main_idea: 'Phân tích ý chính',
   };
   const isEssay = questionType === 'video_paragraph' || questionType === 'main_idea';
-  const showOptions = !isEssay;
+  const isTrueFalseMultiView = questionType === 'true_false_multi';
+  const isMatchingView = questionType === 'matching';
+  const showOptions = !isEssay && !isTrueFalseMultiView && !isMatchingView;
   // UX tự động mở rộng: hiện tối thiểu 4 slot, thêm 1 slot trống sau slot cuối có nội dung, tối đa 10
   const filledCount = options.filter((o) => o.text.trim() !== '').length;
   const visibleOptionIds = OPTION_IDS.slice(0, Math.min(OPTION_IDS.length, Math.max(4, filledCount + 1)));
@@ -342,6 +372,8 @@ export default function AdminQuestionBankFormPage() {
             <option value="single_choice">Trắc nghiệm một đáp án đúng</option>
             <option value="multiple_choice">Trắc nghiệm nhiều đáp án đúng</option>
             <option value="drag_drop">Sắp thứ tự (kéo thả)</option>
+            <option value="true_false_multi">Đúng/Sai đa phát biểu</option>
+            <option value="matching">Nối đôi</option>
             <option value="video_paragraph">Clip + Tự luận</option>
             <option value="main_idea">Phân tích ý chính</option>
           </select>
@@ -495,6 +527,64 @@ export default function AdminQuestionBankFormPage() {
             </div>
           </div>
         )}
+
+        {/* Đúng/Sai đa phát biểu */}
+        {isTrueFalseMultiView && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Phát biểu và Đúng/Sai</label>
+            <p className="text-xs text-slate-500 mb-2">Nhập từng phát biểu, chọn Đúng hoặc Sai. Khi chấm: điểm phân bổ đều theo số phát biểu đúng.</p>
+            {visibleOptionIds.map((optId, idx) => (
+              <div key={optId} className="flex items-center gap-2 mb-2">
+                <span className="w-8 font-medium text-slate-600">{optId}.</span>
+                <input type="text" value={options.find((o) => o.id === optId)?.text ?? ''}
+                  onChange={(e) => handleOptionChange(optId, e.target.value)}
+                  className="flex-1 border border-slate-300 rounded-lg px-3 py-2"
+                  placeholder={`Phát biểu ${optId}`} />
+                <select
+                  title={`Đáp án phát biểu ${optId}`}
+                  value={tfAnswers[idx] === 'F' ? 'F' : 'T'}
+                  onChange={(e) => setTfAnswers((prev) => {
+                    const next = [...prev];
+                    while (next.length <= idx) next.push('T');
+                    next[idx] = e.target.value;
+                    return next;
+                  })}
+                  className="w-28 border border-slate-300 rounded-lg px-2 py-2 text-sm flex-shrink-0">
+                  <option value="T">✓ Đúng</option>
+                  <option value="F">✗ Sai</option>
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Nối đôi */}
+        {isMatchingView && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Cặp nối đôi (Cột trái ↔ Cột phải đúng)</label>
+            <p className="text-xs text-slate-500 mb-2">Mỗi hàng = một cặp đúng. Khi thi, cột phải sẽ được hiển thị xáo trộn. Điểm phân bổ đều theo số cặp đúng.</p>
+            {visibleOptionIds.map((optId, idx) => (
+              <div key={optId} className="flex items-center gap-2 mb-2">
+                <span className="w-8 font-medium text-slate-600">{optId}.</span>
+                <input type="text" value={options.find((o) => o.id === optId)?.text ?? ''}
+                  onChange={(e) => handleOptionChange(optId, e.target.value)}
+                  className="flex-1 border border-slate-300 rounded-lg px-3 py-2"
+                  placeholder={`Cột trái ${optId}`} />
+                <span className="text-slate-400 flex-shrink-0">↔</span>
+                <input type="text" value={matchingRight[idx] ?? ''}
+                  onChange={(e) => setMatchingRight((prev) => {
+                    const next = [...prev];
+                    while (next.length <= idx) next.push('');
+                    next[idx] = e.target.value;
+                    return next;
+                  })}
+                  className="flex-1 border border-slate-300 rounded-lg px-3 py-2"
+                  placeholder={`Cột phải ${idx + 1}`} />
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Điểm</label>

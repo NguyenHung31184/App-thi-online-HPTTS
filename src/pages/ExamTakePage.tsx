@@ -746,7 +746,13 @@ export default function ExamTakePage() {
 
   const answeredCount = questions.filter((q) => {
     const v = answers[q.id];
-    if (v == null || typeof v !== 'string') return false;
+    if (v == null || typeof v !== 'string' || v.trim() === '') return false;
+    if (q.question_type === 'true_false_multi') {
+      try { const p = JSON.parse(v); return Array.isArray(p) && (p as string[]).some((x) => x === 'T' || x === 'F'); } catch { return false; }
+    }
+    if (q.question_type === 'matching') {
+      try { const p = JSON.parse(v) as object; return Object.keys(p).length > 0; } catch { return false; }
+    }
     return v.trim() !== '';
   }).length;
   const totalQuestions = questions.length;
@@ -996,19 +1002,47 @@ export default function ExamTakePage() {
           const isDragDrop = q.question_type === 'drag_drop';
           const isLabelOnImage = isDragDrop && q.image_url && opts.length === 4;
           const isEssay = q.question_type === 'video_paragraph' || q.question_type === 'main_idea';
+          const isTrueFalseMulti = q.question_type === 'true_false_multi';
+          const isMatchingQ = q.question_type === 'matching';
           const currentSingle = answers[q.id] ?? '';
           let currentMultiple: string[] = [];
           let currentOrder: string[] = [];
+          // true_false_multi: answers[q.id] = JSON array ["T","F","T","F"]
+          let currentTfAnswers: string[] = opts.map(() => '');
+          // matching: answers[q.id] = JSON object {"A":"1","B":"2",...}
+          let currentMatchMap: Record<string, string> = {};
+          // matching: cột phải đã xáo trộn (lấy từ answer_key của câu hỏi)
+          let matchingRightItems: { idx: string; text: string }[] = [];
           try {
             if (answers[q.id]?.startsWith('[')) {
               const parsed = JSON.parse(answers[q.id]) as string[];
               if (isDragDrop) currentOrder = parsed;
+              else if (isTrueFalseMulti) currentTfAnswers = parsed;
               else currentMultiple = parsed;
+            } else if (answers[q.id]?.startsWith('{')) {
+              const parsed = JSON.parse(answers[q.id]) as Record<string, string>;
+              if (isMatchingQ) currentMatchMap = parsed;
             } else if (answers[q.id]) {
               currentMultiple = [answers[q.id]];
               currentOrder = opts.length ? opts.map((o) => o.id) : [];
             }
           } catch { /* JSON.parse lỗi → giữ giá trị default ở trên */ }
+          if (isTrueFalseMulti && currentTfAnswers.length !== opts.length) {
+            currentTfAnswers = opts.map((_, i) => currentTfAnswers[i] ?? '');
+          }
+          if (isMatchingQ) {
+            // Lấy right items từ question.answer_key (dạng {right:[...], map:{...}})
+            try {
+              const ak = JSON.parse((q as unknown as { answer_key?: string }).answer_key ?? '{}') as { right?: string[] };
+              if (Array.isArray(ak?.right)) {
+                const seed = hashStringToSeed(`${attemptId ?? 'seed'}|${q.id}|right`);
+                matchingRightItems = shuffleWithSeed(
+                  ak.right.map((text, i) => ({ idx: String(i + 1), text })),
+                  seed
+                );
+              }
+            } catch { /* ignore */ }
+          }
           if (isDragDrop && currentOrder.length === 0 && opts.length) currentOrder = opts.map((o) => o.id);
           const labelOnImageValue = isLabelOnImage
             ? (currentOrder.length >= 4 ? currentOrder : [...currentOrder, '', '', '', ''].slice(0, 4))
@@ -1022,6 +1056,8 @@ export default function ExamTakePage() {
                 {isDragDrop && <span className="text-slate-500 text-sm ml-1">(kéo thả sắp xếp đúng thứ tự)</span>}
                 {isLabelOnImage && <span className="text-slate-500 text-sm ml-1">(kéo nhãn vào đúng ô trên hình)</span>}
                 {isEssay && <span className="text-slate-500 text-sm ml-1">(tự luận)</span>}
+                {isTrueFalseMulti && <span className="text-slate-500 text-sm ml-1">(chọn Đúng hoặc Sai cho từng phát biểu)</span>}
+                {isMatchingQ && <span className="text-slate-500 text-sm ml-1">(nối đôi)</span>}
               </p>
               {q.image_url && !isLabelOnImage && (
                 <img src={q.image_url} alt="" className="max-w-full rounded mb-2 max-h-48 object-contain" />
@@ -1074,6 +1110,63 @@ export default function ExamTakePage() {
                   value={currentOrder}
                   onChange={(orderedIds) => setAnswers((prev) => ({ ...prev, [q.id]: JSON.stringify(orderedIds) }))}
                 />
+              ) : isTrueFalseMulti ? (
+                <div className="space-y-2">
+                  {opts.map((opt, optIdx) => (
+                    <div key={opt.id} className="flex items-center gap-3 border border-slate-200 rounded-lg px-3 py-2">
+                      <span className="flex-1 text-slate-800 text-sm">{opt.id}. {opt.text}</span>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <label className={`flex items-center gap-1 px-3 py-1 rounded-lg border cursor-pointer text-sm font-medium transition-colors
+                          ${currentTfAnswers[optIdx] === 'T' ? 'bg-green-100 border-green-400 text-green-800' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}>
+                          <input type="radio" name={`tf_${q.id}_${opt.id}`} className="sr-only"
+                            checked={currentTfAnswers[optIdx] === 'T'}
+                            onChange={() => {
+                              const next = [...currentTfAnswers];
+                              next[optIdx] = 'T';
+                              setAnswers((prev) => ({ ...prev, [q.id]: JSON.stringify(next) }));
+                            }} />
+                          Đúng
+                        </label>
+                        <label className={`flex items-center gap-1 px-3 py-1 rounded-lg border cursor-pointer text-sm font-medium transition-colors
+                          ${currentTfAnswers[optIdx] === 'F' ? 'bg-red-100 border-red-400 text-red-800' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}>
+                          <input type="radio" name={`tf_${q.id}_${opt.id}`} className="sr-only"
+                            checked={currentTfAnswers[optIdx] === 'F'}
+                            onChange={() => {
+                              const next = [...currentTfAnswers];
+                              next[optIdx] = 'F';
+                              setAnswers((prev) => ({ ...prev, [q.id]: JSON.stringify(next) }));
+                            }} />
+                          Sai
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : isMatchingQ ? (
+                <div className="space-y-2">
+                  {opts.map((opt) => (
+                    <div key={opt.id} className="flex items-center gap-3">
+                      <span className="flex-1 text-slate-800 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50">
+                        {opt.id}. {opt.text}
+                      </span>
+                      <span className="text-slate-400 flex-shrink-0 text-lg">↔</span>
+                      <select
+                        title={`Chọn cột phải cho ${opt.id}`}
+                        value={currentMatchMap[opt.id] ?? ''}
+                        onChange={(e) => {
+                          const next = { ...currentMatchMap, [opt.id]: e.target.value };
+                          setAnswers((prev) => ({ ...prev, [q.id]: JSON.stringify(next) }));
+                        }}
+                        className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="">-- Chọn --</option>
+                        {matchingRightItems.map((item) => (
+                          <option key={item.idx} value={item.idx}>{item.text}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="space-y-2">
                   {opts.map((opt) =>

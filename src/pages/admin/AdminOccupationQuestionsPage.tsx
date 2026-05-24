@@ -59,7 +59,7 @@ function InlineEditForm({
 
   const [stem, setStem] = useState(question.stem);
   const [questionType, setQuestionType] = useState<QuestionType>(
-    (['single_choice', 'multiple_choice', 'drag_drop', 'video_paragraph', 'main_idea'] as QuestionType[]).includes(question.question_type)
+    (['single_choice', 'multiple_choice', 'drag_drop', 'video_paragraph', 'main_idea', 'true_false_multi', 'matching'] as QuestionType[]).includes(question.question_type)
       ? question.question_type : 'single_choice'
   );
   const [options, setOptions] = useState<{ id: string; text: string }[]>(() => {
@@ -98,6 +98,21 @@ function InlineEditForm({
   const [rubric, setRubric] = useState(
     typeof question.rubric === 'string' ? question.rubric : (question.rubric ? JSON.stringify(question.rubric, null, 2) : '')
   );
+  // true_false_multi: mảng "T"/"F" tương ứng với từng option
+  const [tfAnswers, setTfAnswers] = useState<string[]>(() => {
+    if (question.question_type !== 'true_false_multi') return [];
+    try { const p = JSON.parse(question.answer_key || '[]'); if (Array.isArray(p)) return p as string[]; } catch { /* ignore */ }
+    return [];
+  });
+  // matching: cột phải (text) + map ghép đôi (auto A→1, B→2,...)
+  const [matchingRight, setMatchingRight] = useState<string[]>(() => {
+    if (question.question_type !== 'matching') return [];
+    try {
+      const p = JSON.parse(question.answer_key || '{}') as { right?: string[] };
+      if (Array.isArray(p?.right)) return p.right;
+    } catch { /* ignore */ }
+    return [];
+  });
   const [essayKeys, setEssayKeys] = useState<{ text: string; points: number }[]>(() => {
     const qType = (['single_choice', 'multiple_choice', 'drag_drop', 'video_paragraph', 'main_idea'] as QuestionType[]).includes(question.question_type)
       ? question.question_type : 'single_choice';
@@ -114,6 +129,8 @@ function InlineEditForm({
   const [error, setError] = useState('');
 
   const isEssay = questionType === 'video_paragraph' || questionType === 'main_idea';
+  const isTrueFalseMulti = questionType === 'true_false_multi';
+  const isMatching = questionType === 'matching';
   const displayImage = imagePreview || existingImageUrl;
   // UX tự động mở rộng: hiện tối thiểu 4 slot, thêm 1 slot trống sau slot cuối có nội dung, tối đa 10
   const filledCount = options.filter((o) => o.text.trim() !== '').length;
@@ -131,7 +148,7 @@ function InlineEditForm({
     setSaving(true);
     try {
       const opts = options.filter((o) => o.text.trim() !== '');
-      if (!isEssay && opts.length < 2) { setError('Cần ít nhất 2 đáp án.'); setSaving(false); return; }
+      if (!isEssay && !isTrueFalseMulti && !isMatching && opts.length < 2) { setError('Cần ít nhất 2 đáp án.'); setSaving(false); return; }
       const validIds = opts.map((o) => o.id);
       let finalAnswerKey: string;
       let optsToSave = opts;
@@ -148,6 +165,17 @@ function InlineEditForm({
         const validKeys = essayKeys.filter((k) => k.text.trim() !== '' && k.points >= 0);
         finalAnswerKey = validKeys.length > 0 ? JSON.stringify(validKeys) : '';
         optsToSave = [];
+      } else if (isTrueFalseMulti) {
+        if (opts.length < 2) { setError('Cần ít nhất 2 phát biểu.'); setSaving(false); return; }
+        const tf = opts.map((_, i) => (tfAnswers[i] === 'F' ? 'F' : 'T'));
+        finalAnswerKey = JSON.stringify(tf);
+      } else if (isMatching) {
+        if (opts.length < 2) { setError('Cần ít nhất 2 cặp nối đôi.'); setSaving(false); return; }
+        const right = opts.map((_, i) => (matchingRight[i] ?? '').trim());
+        if (right.some((r) => r === '')) { setError('Nhập đủ nội dung cột phải cho mỗi cặp.'); setSaving(false); return; }
+        const map: Record<string, string> = {};
+        opts.forEach((o, i) => { map[o.id] = String(i + 1); });
+        finalAnswerKey = JSON.stringify({ right, map });
       } else {
         if (!opts.some((o) => o.id === answerKey)) { setError('Đáp án đúng phải nằm trong danh sách đáp án đã nhập.'); setSaving(false); return; }
         finalAnswerKey = answerKey;
@@ -202,6 +230,8 @@ function InlineEditForm({
             <option value="single_choice">Trắc nghiệm 1 đáp án</option>
             <option value="multiple_choice">Nhiều đáp án đúng</option>
             <option value="drag_drop">Sắp thứ tự (kéo thả)</option>
+            <option value="true_false_multi">Đúng/Sai đa phát biểu</option>
+            <option value="matching">Nối đôi</option>
             <option value="video_paragraph">Clip + Tự luận</option>
             <option value="main_idea">Phân tích ý chính</option>
           </select>
@@ -238,8 +268,8 @@ function InlineEditForm({
           title="Nội dung câu hỏi" className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
       </div>
 
-      {/* Đáp án */}
-      {!isEssay && (
+      {/* Đáp án — trắc nghiệm, kéo thả */}
+      {!isEssay && !isTrueFalseMulti && !isMatching && (
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">
             {questionType === 'drag_drop' ? '4 nhãn' : 'Đáp án'}
@@ -265,6 +295,64 @@ function InlineEditForm({
                   Đúng
                 </label>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Đúng/Sai đa phát biểu */}
+      {isTrueFalseMulti && (
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Phát biểu và Đúng/Sai</label>
+          <p className="text-xs text-slate-400 mb-2">Nhập từng phát biểu, chọn Đúng hoặc Sai cho mỗi cái.</p>
+          {visibleOptionIds.map((optId, idx) => (
+            <div key={optId} className="flex items-center gap-2 mb-1.5">
+              <span className="w-8 text-xs text-slate-500 flex-shrink-0">{optId}.</span>
+              <input type="text" value={options.find((o) => o.id === optId)?.text ?? ''}
+                onChange={(e) => handleOptionChange(optId, e.target.value)}
+                className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                placeholder={`Phát biểu ${optId}`} />
+              <select
+                title={`Đáp án phát biểu ${optId}`}
+                value={tfAnswers[idx] === 'F' ? 'F' : 'T'}
+                onChange={(e) => setTfAnswers((prev) => {
+                  const next = [...prev];
+                  while (next.length <= idx) next.push('T');
+                  next[idx] = e.target.value;
+                  return next;
+                })}
+                className="w-24 border border-slate-300 rounded-lg px-1 py-1.5 text-sm flex-shrink-0">
+                <option value="T">✓ Đúng</option>
+                <option value="F">✗ Sai</option>
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Nối đôi */}
+      {isMatching && (
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Cặp nối đôi (Cột trái ↔ Cột phải)</label>
+          <p className="text-xs text-slate-400 mb-2">Mỗi hàng là một cặp đúng. Khi thi, cột phải sẽ được hiển thị xáo trộn.</p>
+          {visibleOptionIds.map((optId, idx) => (
+            <div key={optId} className="flex items-center gap-2 mb-1.5">
+              <span className="w-8 text-xs text-slate-500 flex-shrink-0">{optId}.</span>
+              <input type="text" value={options.find((o) => o.id === optId)?.text ?? ''}
+                onChange={(e) => handleOptionChange(optId, e.target.value)}
+                className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                placeholder={`Cột trái ${optId}`} />
+              <span className="text-slate-400 text-sm flex-shrink-0">↔</span>
+              <input type="text"
+                value={matchingRight[idx] ?? ''}
+                onChange={(e) => setMatchingRight((prev) => {
+                  const next = [...prev];
+                  while (next.length <= idx) next.push('');
+                  next[idx] = e.target.value;
+                  return next;
+                })}
+                className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                placeholder={`Cột phải ${idx + 1}`} />
             </div>
           ))}
         </div>
@@ -549,6 +637,8 @@ export default function AdminOccupationQuestionsPage() {
     { value: 'single_choice', label: 'Trắc nghiệm 1 ĐA' },
     { value: 'multiple_choice', label: 'Trắc nghiệm nhiều ĐA' },
     { value: 'drag_drop', label: 'Kéo thả / sắp xếp' },
+    { value: 'true_false_multi', label: 'Đúng/Sai đa phát biểu' },
+    { value: 'matching', label: 'Nối đôi' },
     { value: 'main_idea', label: 'Tự luận (chấm key)' },
     { value: 'video_paragraph', label: 'Tự luận + video' },
   ];

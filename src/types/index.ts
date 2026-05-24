@@ -50,7 +50,7 @@ export interface BlueprintRule {
   count: number;
 }
 
-export type QuestionType = 'single_choice' | 'multiple_choice' | 'drag_drop' | 'video_paragraph' | 'main_idea';
+export type QuestionType = 'single_choice' | 'multiple_choice' | 'drag_drop' | 'video_paragraph' | 'main_idea' | 'true_false_multi' | 'matching';
 
 export interface Question {
   id: string;

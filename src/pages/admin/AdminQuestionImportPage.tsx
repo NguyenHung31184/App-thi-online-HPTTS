@@ -103,6 +103,7 @@ export default function AdminQuestionImportPage() {
   };
 
   const handleDownloadExcelTemplate = () => {
+    // Header: Nội dung | A–J | Đáp án đúng | Chủ đề | Độ khó | Điểm | Loại câu hỏi | Keys
     const header = [
       'Nội dung câu hỏi',
       ...ALL_OPTION_IDS.map((id) => `Đáp án ${id}`),
@@ -110,20 +111,36 @@ export default function AdminQuestionImportPage() {
       'Chủ đề',
       'Độ khó (easy/medium/hard hoặc Dễ/Trung bình/Khó)',
       'Điểm',
+      'Loại câu hỏi',
       'Keys',
     ];
-    const exampleSingleChoice = [
+    // single_choice — loại mặc định, có thể bỏ trống cột "Loại câu hỏi"
+    const exSingle = [
       'Máy nâng dùng để làm gì?', 'Nâng hàng', 'Lái xe', 'Đóng gói', 'Kiểm tra hàng',
-      '', '', '', '', '', '', // E–J để trống
-      'A', 'Kiến thức cơ bản', 'medium', '1', '',
+      '', '', '', '', '', '',
+      'A', 'Kiến thức cơ bản', 'medium', '1', 'single_choice', '',
     ];
-    const exampleEssay = [
+    // drag_drop — "Đáp án đúng" = thứ tự đúng phân cách bằng ";" (B trước, rồi A, D, C)
+    const exDragDrop = [
+      'Sắp xếp quy trình nâng hàng theo đúng thứ tự', 'Móc cẩu vào hàng', 'Kiểm tra tải trọng', 'Ra lệnh nâng', 'Quan sát vùng nguy hiểm',
+      '', '', '', '', '', '',
+      'B;A;D;C', 'Vận hành thiết bị', 'medium', '2', 'drag_drop', '',
+    ];
+    // multiple_choice — "Đáp án đúng" = các đáp án đúng phân cách bằng ";"
+    const exMultiple = [
+      'Thiết bị nào sau đây thuộc nhóm thiết bị nâng?', 'Cẩu trục', 'Palăng xích', 'Xe đẩy tay', 'Thang nâng',
+      '', '', '', '', '', '',
+      'A;B;D', 'Thiết bị', 'medium', '2', 'multiple_choice', '',
+    ];
+    // main_idea — bỏ trống A–J và "Đáp án đúng", điền cột Keys
+    const exEssay = [
       'Nêu các nguyên nhân gây tai nạn lao động.',
-      '', '', '', '', '', '', '', '', '', '', // A–J trống
-      '', 'An toàn lao động', 'medium', '10',
+      '', '', '', '', '', '', '', '', '', '',
+      '', 'An toàn lao động', 'medium', '10', 'main_idea',
       'tai nạn|2;sai quy trình|2;thiếu bảo hộ|2;không kiểm tra|2;vi phạm quy định|2',
     ];
-    const ws = XLSX.utils.aoa_to_sheet([header, exampleSingleChoice, exampleEssay]);
+    const ws = XLSX.utils.aoa_to_sheet([header, exSingle, exDragDrop, exMultiple, exEssay]);
+    ws['!cols'] = [{ wch: 50 }, ...ALL_OPTION_IDS.map(() => ({ wch: 22 })), { wch: 15 }, { wch: 18 }, { wch: 10 }, { wch: 5 }, { wch: 16 }, { wch: 50 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cau_hoi');
     XLSX.writeFile(wb, 'Mau_nhap_cau_hoi.xlsx');
@@ -309,9 +326,16 @@ export default function AdminQuestionImportPage() {
         <div className="space-y-4 max-w-2xl">
           <p className="text-slate-600">
             File Excel/CSV cần có hàng tiêu đề với các cột:{' '}
-            <strong>Nội dung câu hỏi, Đáp án A, Đáp án B, ..., Đáp án đúng, Chủ đề, Độ khó, Điểm</strong>.
-            Hỗ trợ tối đa <strong>10 đáp án (A–J)</strong>. Cột Chủ đề, Độ khó, Điểm có thể để trống.
+            <strong>Nội dung câu hỏi, Đáp án A–J, Đáp án đúng, Chủ đề, Độ khó, Điểm, Loại câu hỏi, Keys</strong>.
+            Hỗ trợ tối đa <strong>10 đáp án (A–J)</strong>. Cột Chủ đề, Độ khó, Điểm, Loại câu hỏi có thể để trống.
           </p>
+          <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1">
+            <p className="font-medium text-slate-600">Cột "Loại câu hỏi" và "Đáp án đúng" tương ứng:</p>
+            <p><span className="font-mono bg-white px-1 rounded border">single_choice</span> — Đáp án đúng: <span className="font-mono">A</span> hoặc <span className="font-mono">1</span> (mặc định nếu để trống)</p>
+            <p><span className="font-mono bg-white px-1 rounded border">drag_drop</span> — Đáp án đúng: thứ tự đúng phân cách bằng <span className="font-mono">;</span>, vd <span className="font-mono">B;A;D;C</span></p>
+            <p><span className="font-mono bg-white px-1 rounded border">multiple_choice</span> — Đáp án đúng: các đáp án đúng phân cách bằng <span className="font-mono">;</span>, vd <span className="font-mono">A;C</span></p>
+            <p><span className="font-mono bg-white px-1 rounded border">main_idea</span> — Để trống "Đáp án đúng"; điền cột <span className="font-mono">Keys</span>: <span className="font-mono">từ khóa|điểm;...</span></p>
+          </div>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -380,27 +404,44 @@ export default function AdminQuestionImportPage() {
                       {excelPreviewOptIds.map((id) => (
                         <th key={id} className="px-2 py-1 text-left border-b border-slate-200">{id}</th>
                       ))}
+                      <th className="px-2 py-1 text-left border-b border-slate-200">Loại</th>
                       <th className="px-2 py-1 text-left border-b border-slate-200">Đáp án</th>
                       <th className="px-2 py-1 text-left border-b border-slate-200">Keys</th>
                       <th className="px-2 py-1 text-left border-b border-slate-200">Chủ đề</th>
-                      <th className="px-2 py-1 text-left border-b border-slate-200">Độ khó</th>
                       <th className="px-2 py-1 text-left border-b border-slate-200">Điểm</th>
                     </tr>
                   </thead>
                   <tbody>
                     {excelPreview.map((r, i) => {
+                      const payload = importRowToQuestionPayload(r);
+                      const qtype = payload.question_type;
+                      const typeLabel: Record<string, { label: string; cls: string }> = {
+                        drag_drop:       { label: 'Kéo thả', cls: 'text-purple-700 bg-purple-50' },
+                        multiple_choice: { label: 'Nhiều ĐA', cls: 'text-blue-700 bg-blue-50' },
+                        main_idea:       { label: 'Tự luận', cls: 'text-indigo-700 bg-indigo-50' },
+                        video_paragraph: { label: 'Video', cls: 'text-teal-700 bg-teal-50' },
+                        single_choice:   { label: 'Trắc nghiệm', cls: 'text-slate-600 bg-slate-100' },
+                      };
+                      const tl = typeLabel[qtype] ?? { label: qtype, cls: 'text-slate-500' };
                       const hasKeys = r.keys && r.keys.trim() !== '';
                       const keyCount = hasKeys ? r.keys.split(';').filter(Boolean).length : 0;
+                      const ansDisplay = qtype === 'drag_drop'
+                        ? r.answerRaw
+                        : qtype === 'multiple_choice'
+                          ? r.answerRaw
+                          : hasKeys ? '' : r.answer;
                       return (
-                        <tr key={i} className={`border-b border-slate-100 ${hasKeys ? 'bg-indigo-50' : ''}`}>
+                        <tr key={i} className={`border-b border-slate-100`}>
                           <td className="px-2 py-1 max-w-xs truncate" title={r.stem}>{r.stem}</td>
                           {excelPreviewOptIds.map((id, idx) => (
                             <td key={id} className="px-2 py-1 max-w-[120px] truncate">{r.optionTexts[idx] ?? ''}</td>
                           ))}
-                          <td className="px-2 py-1">{hasKeys ? <span className="text-indigo-600 text-xs font-medium">Tự luận</span> : r.answer}</td>
+                          <td className="px-2 py-1">
+                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${tl.cls}`}>{tl.label}</span>
+                          </td>
+                          <td className="px-2 py-1 font-mono text-xs">{ansDisplay}</td>
                           <td className="px-2 py-1 text-xs">{hasKeys ? `${keyCount} keys` : ''}</td>
                           <td className="px-2 py-1">{r.topic}</td>
-                          <td className="px-2 py-1">{r.difficulty}</td>
                           <td className="px-2 py-1">{r.points}</td>
                         </tr>
                       );

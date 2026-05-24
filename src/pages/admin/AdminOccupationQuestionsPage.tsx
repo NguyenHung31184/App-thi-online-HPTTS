@@ -420,6 +420,7 @@ export default function AdminOccupationQuestionsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<QuestionBankItem | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
+  const [filterType, setFilterType] = useState<string>('');
 
   const load = async (moduleId: string | null) => {
     if (!occupationId) return;
@@ -539,6 +540,19 @@ export default function AdminOccupationQuestionsPage() {
   const isNoModuleView = selectedModuleId === NO_MODULE_ID;
   const canAddOrImport = selectedModuleId && selectedModuleId !== NO_MODULE_ID;
 
+  const visibleQuestions = filterType
+    ? questions.filter((q) => q.question_type === filterType)
+    : questions;
+
+  const TYPE_OPTIONS = [
+    { value: '', label: 'Tất cả loại' },
+    { value: 'single_choice', label: 'Trắc nghiệm 1 ĐA' },
+    { value: 'multiple_choice', label: 'Trắc nghiệm nhiều ĐA' },
+    { value: 'drag_drop', label: 'Kéo thả / sắp xếp' },
+    { value: 'main_idea', label: 'Tự luận (chấm key)' },
+    { value: 'video_paragraph', label: 'Tự luận + video' },
+  ];
+
   return (
     <div>
       {/* Header */}
@@ -596,25 +610,43 @@ export default function AdminOccupationQuestionsPage() {
 
         {selectedModuleId && questions.length > 0 && (
           <>
-            {/* Toolbar chọn/xóa hàng loạt */}
-            <div className="flex items-center justify-between mb-2">
+            {/* Toolbar: filter + chọn/xóa hàng loạt */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <div className="flex items-center gap-2 text-sm text-slate-600">
+                <select
+                  title="Lọc theo loại câu hỏi"
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 bg-white"
+                >
+                  {TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
                 <button type="button" onClick={toggleSelectAllVisible}
                   className="px-2 py-1 border border-slate-300 rounded text-xs hover:bg-slate-50">
-                  {questions.every((q) => selectedIds.has(q.id)) ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                  {visibleQuestions.every((q) => selectedIds.has(q.id)) ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
                 </button>
-                <span>Đang chọn <strong>{questions.filter((q) => selectedIds.has(q.id)).length}</strong> / {questions.length} câu hỏi</span>
+                <span>
+                  Đang chọn <strong>{visibleQuestions.filter((q) => selectedIds.has(q.id)).length}</strong>
+                  {' '}/ {visibleQuestions.length}
+                  {filterType ? ` (lọc từ ${questions.length})` : ''} câu hỏi
+                </span>
               </div>
               <button type="button"
-                disabled={!questions.some((q) => selectedIds.has(q.id))}
+                disabled={!visibleQuestions.some((q) => selectedIds.has(q.id))}
                 onClick={() => setConfirmDeleteBulk(true)}
                 className="px-3 py-1.5 rounded bg-red-50 text-red-700 border border-red-200 text-xs disabled:opacity-40 hover:bg-red-100">
                 Xóa các câu đã chọn
               </button>
             </div>
 
+            {visibleQuestions.length === 0 && (
+              <p className="text-slate-400 text-sm py-4 text-center">Không có câu hỏi nào thuộc loại đã chọn.</p>
+            )}
+
             {/* Danh sách câu hỏi */}
-            {questions.map((q, idx) => {
+            {visibleQuestions.map((q, idx) => {
               const isExpanded = editingId === q.id;
               return (
                 <div key={q.id}

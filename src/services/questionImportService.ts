@@ -12,12 +12,16 @@ export interface ImportRow {
   stem: string;
   /** Texts cho tối đa 10 đáp án theo thứ tự: index 0 = A, 1 = B, ..., 9 = J. Chuỗi rỗng = không có đáp án. */
   optionTexts: string[];
-  answer: string; // A–J (đã chuẩn hóa)
+  answer: string; // A–J (đã chuẩn hóa, dùng cho single_choice)
+  /** Giá trị gốc từ ô "Đáp án đúng" — dùng để parse drag_drop (A;C;B;D) / multiple_choice (A;C). */
+  answerRaw: string;
   topic: string;
   difficulty: string;
   points: number;
   /** Chuỗi keys cho câu tự luận, format: "tai nạn|2;sai quy trình|2;..." (text|điểm, phân cách bằng ;). */
   keys: string;
+  /** Loại câu hỏi từ cột "Loại câu hỏi" trong Excel — để trống nếu tự nhận dạng. */
+  questionType: string;
 }
 
 export interface ImportColumnMap {
@@ -29,6 +33,7 @@ export interface ImportColumnMap {
   difficulty: number;
   points: number;
   keys: number;
+  questionType: number;
 }
 
 const DEFAULT_MAP: ImportColumnMap = {
@@ -38,7 +43,8 @@ const DEFAULT_MAP: ImportColumnMap = {
   topic: 6,
   difficulty: 7,
   points: 8,
-  keys: -1, // không có cột keys mặc định
+  keys: -1,
+  questionType: -1,
 };
 
 function cell(row: unknown[], col: number): string {
@@ -67,6 +73,17 @@ function normalizeDifficulty(d: string): string {
   return 'medium';
 }
 
+/** Chuẩn hóa giá trị cột "Loại câu hỏi" sang question_type hợp lệ, hoặc '' nếu không nhận dạng được. */
+function normalizeQuestionType(raw: string): string {
+  const s = raw.trim().toLowerCase().replace(/[\s_\-]/g, '');
+  if (['dragdrop','kéothả','keothả','sapxep','sắpxếp','thutu','thứtự','order','ordering'].some((k) => s.includes(k))) return 'drag_drop';
+  if (['multiplechoice','nhieudapan','nhiềuđápán','multiple','checkbox','nhieu'].some((k) => s.includes(k))) return 'multiple_choice';
+  if (['mainidea','tuluan','tựluận','essay','tluận'].some((k) => s.includes(k))) return 'main_idea';
+  if (['videoparagraph','video'].some((k) => s.includes(k))) return 'video_paragraph';
+  if (['singlechoice','tracnghiem','trắcnghiệm','single','radio'].some((k) => s.includes(k))) return 'single_choice';
+  return '';
+}
+
 /** Phát hiện vị trí cột từ hàng tiêu đề. Trả về DEFAULT_MAP nếu không nhận dạng được. */
 function detectColumns(headerRow: unknown[]): ImportColumnMap {
   const norm = (s: unknown) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -92,6 +109,7 @@ function detectColumns(headerRow: unknown[]): ImportColumnMap {
   const diffIdx = find('độ khó (easy/medium/hard hoặc dễ/trung bình/khó)', 'độ khó', 'difficulty');
   const pointsIdx = find('điểm', 'points');
   const keysIdx = find('keys', 'chấm ý', 'key', 'từ khóa');
+  const questionTypeIdx = find('loại câu hỏi', 'loai cau hoi', 'question_type', 'type', 'loại');
 
   // Tìm tuần tự cột đáp án A, B, C, ... — dừng ở chỗ đầu tiên không tìm thấy
   const optionCols: number[] = [];
@@ -114,6 +132,7 @@ function detectColumns(headerRow: unknown[]): ImportColumnMap {
     difficulty: diffIdx,
     points: pointsIdx,
     keys: keysIdx,
+    questionType: questionTypeIdx,
   };
 }
 
@@ -158,7 +177,8 @@ export function parseFileToRows(
           if (!stem) continue;
 
           const optionTexts = map.optionCols.map((col) => cell(row, col));
-          const answerRaw = normalizeAnswer(cell(row, map.answer));
+          const answerCellRaw = cell(row, map.answer);
+          const answerNorm = normalizeAnswer(answerCellRaw);
           const validAnswerIds = ALL_OPTION_IDS.slice(0, optionTexts.length) as string[];
           const topic = cell(row, map.topic);
           const difficulty = normalizeDifficulty(cell(row, map.difficulty));
@@ -168,11 +188,13 @@ export function parseFileToRows(
           result.push({
             stem,
             optionTexts,
-            answer: validAnswerIds.includes(answerRaw) ? answerRaw : (validAnswerIds[0] ?? 'A'),
+            answer: validAnswerIds.includes(answerNorm) ? answerNorm : (validAnswerIds[0] ?? 'A'),
+            answerRaw: answerCellRaw,
             topic,
             difficulty,
             points,
             keys: cell(row, map.keys),
+            questionType: cell(row, map.questionType),
           });
         }
         resolve(result);
@@ -204,9 +226,10 @@ export function parseEssayKeys(raw: string): { text: string; points: number }[] 
 
 /**
  * Chuyển ImportRow sang payload cho question_bank.
- * - ≥2 đáp án → single_choice
+ * - Cột "Loại câu hỏi" = drag_drop  → answer_key là JSON array thứ tự, vd ["B","A","D","C"]
+ * - Cột "Loại câu hỏi" = multiple_choice → answer_key là JSON array các đáp án đúng
  * - 0 đáp án + có keys → main_idea (câu tự luận chấm key)
- * - 0 đáp án + không có keys → single_choice (fallback với đáp án giả)
+ * - Còn lại → single_choice
  */
 export function importRowToQuestionPayload(row: ImportRow): {
   stem: string;
@@ -221,9 +244,50 @@ export function importRowToQuestionPayload(row: ImportRow): {
     .map((text, idx) => ({ id: ALL_OPTION_IDS[idx] as string, text: text || '' }))
     .filter((o) => o.text.trim() !== '');
 
+  const hintType = normalizeQuestionType(row.questionType ?? '');
+
+  // drag_drop: "Đáp án đúng" = thứ tự đúng, vd "B;A;D;C"
+  if (hintType === 'drag_drop' && options.length >= 2) {
+    const validIds = options.map((o) => o.id);
+    const orderParts = (row.answerRaw ?? '')
+      .split(';')
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => /^[A-J]$/.test(s));
+    const order = orderParts.length === validIds.length ? orderParts : validIds;
+    return {
+      stem: row.stem,
+      options,
+      answer_key: JSON.stringify(order),
+      points: row.points,
+      topic: row.topic,
+      difficulty: row.difficulty,
+      question_type: 'drag_drop',
+    };
+  }
+
+  // multiple_choice: "Đáp án đúng" = các đáp án đúng phân cách bằng ";", vd "A;C"
+  if (hintType === 'multiple_choice' && options.length >= 2) {
+    const validIds = options.map((o) => o.id);
+    const correctIds = (row.answerRaw ?? '')
+      .split(';')
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => validIds.includes(s))
+      .sort();
+    const answer_key = correctIds.length > 0 ? JSON.stringify(correctIds) : JSON.stringify([validIds[0]]);
+    return {
+      stem: row.stem,
+      options,
+      answer_key,
+      points: row.points,
+      topic: row.topic,
+      difficulty: row.difficulty,
+      question_type: 'multiple_choice',
+    };
+  }
+
   const parsedKeys = parseEssayKeys(row.keys);
 
-  // Nếu không có đáp án và có keys → câu tự luận chấm ý
+  // 0 đáp án + có keys → main_idea
   if (options.length === 0 && parsedKeys.length > 0) {
     return {
       stem: row.stem,
@@ -232,7 +296,7 @@ export function importRowToQuestionPayload(row: ImportRow): {
       points: row.points,
       topic: row.topic,
       difficulty: row.difficulty,
-      question_type: 'main_idea',
+      question_type: hintType === 'video_paragraph' ? 'video_paragraph' : 'main_idea',
     };
   }
 
@@ -391,6 +455,7 @@ function detectZipColumns(headerRow: unknown[]): { map: ImportColumnMap; imageFi
   const pointsIdx = find('điểm', 'points');
   const imgIdx = find('image_file', 'file ảnh', 'ảnh', 'hình ảnh');
   const keysIdx = find('keys', 'chấm ý', 'key', 'từ khóa');
+  const questionTypeIdx = find('loại câu hỏi', 'loai cau hoi', 'question_type', 'type', 'loại');
 
   const optionCols: number[] = [];
   for (const id of ALL_OPTION_IDS) {
@@ -405,7 +470,7 @@ function detectZipColumns(headerRow: unknown[]): { map: ImportColumnMap; imageFi
   }
 
   return {
-    map: { stem: stemIdx, optionCols, answer: answerIdx, topic: topicIdx, difficulty: diffIdx, points: pointsIdx, keys: keysIdx },
+    map: { stem: stemIdx, optionCols, answer: answerIdx, topic: topicIdx, difficulty: diffIdx, points: pointsIdx, keys: keysIdx, questionType: questionTypeIdx },
     imageFileIdx: imgIdx !== -1 ? imgIdx : null,
   };
 }
@@ -451,7 +516,8 @@ export async function parseZipToRows(
     if (!stem) continue;
 
     const optionTexts = map.optionCols.map((col) => cell(row, col));
-    const answerRaw = normalizeAnswer(cell(row, map.answer));
+    const answerCellRaw = cell(row, map.answer);
+    const answerNorm = normalizeAnswer(answerCellRaw);
     const validAnswerIds = ALL_OPTION_IDS.slice(0, optionTexts.length) as string[];
     const pointsRaw = cell(row, map.points);
     const imageFile = imageFileIdx !== null ? cell(row, imageFileIdx) : '';
@@ -459,11 +525,13 @@ export async function parseZipToRows(
     const importRow: ImportRow = {
       stem,
       optionTexts,
-      answer: validAnswerIds.includes(answerRaw) ? answerRaw : (validAnswerIds[0] ?? 'A'),
+      answer: validAnswerIds.includes(answerNorm) ? answerNorm : (validAnswerIds[0] ?? 'A'),
+      answerRaw: answerCellRaw,
       topic: cell(row, map.topic),
       difficulty: normalizeDifficulty(cell(row, map.difficulty)),
       points: pointsRaw ? Math.max(1, parseInt(pointsRaw, 10) || 2) : 2,
       keys: cell(row, map.keys),
+      questionType: cell(row, map.questionType),
     };
 
     let imageBlob: Blob | null = null;

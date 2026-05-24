@@ -97,31 +97,32 @@ export default function AdminQuestionBankImportPage() {
       'Chủ đề',
       'Độ khó (easy/medium/hard hoặc Dễ/Trung bình/Khó)',
       'Điểm',
+      'Loại câu hỏi',
       'Keys',
     ];
-    const exampleSingleChoice = [
-      'Máy nâng dùng để làm gì?',
-      'Nâng hàng',    // A
-      'Lái xe',       // B
-      'Đóng gói',     // C
-      'Kiểm tra hàng',// D
-      '', '', '', '', '', '', // E–J (để trống)
-      'A',
-      'Kiến thức cơ bản',
-      'medium',
-      '1',
-      '', // Keys (để trống cho trắc nghiệm)
+    const exSingle = [
+      'Máy nâng dùng để làm gì?', 'Nâng hàng', 'Lái xe', 'Đóng gói', 'Kiểm tra hàng',
+      '', '', '', '', '', '',
+      'A', 'Kiến thức cơ bản', 'medium', '1', 'single_choice', '',
     ];
-    const exampleEssay = [
+    const exDragDrop = [
+      'Sắp xếp quy trình nâng hàng theo đúng thứ tự', 'Móc cẩu vào hàng', 'Kiểm tra tải trọng', 'Ra lệnh nâng', 'Quan sát vùng nguy hiểm',
+      '', '', '', '', '', '',
+      'B;A;D;C', 'Vận hành thiết bị', 'medium', '2', 'drag_drop', '',
+    ];
+    const exMultiple = [
+      'Thiết bị nào sau đây thuộc nhóm thiết bị nâng?', 'Cẩu trục', 'Palăng xích', 'Xe đẩy tay', 'Thang nâng',
+      '', '', '', '', '', '',
+      'A;B;D', 'Thiết bị', 'medium', '2', 'multiple_choice', '',
+    ];
+    const exEssay = [
       'Nêu các nguyên nhân gây tai nạn lao động tại cảng biển.',
-      '', '', '', '', '', '', '', '', '', '', // A–J đều trống
-      '', // Đáp án đúng để trống
-      'An toàn lao động',
-      'medium',
-      '10',
+      '', '', '', '', '', '', '', '', '', '',
+      '', 'An toàn lao động', 'medium', '10', 'main_idea',
       'tai nạn|2;sai quy trình|2;thiếu bảo hộ|2;không kiểm tra|2;vi phạm quy định|2',
     ];
-    const ws = XLSX.utils.aoa_to_sheet([header, exampleSingleChoice, exampleEssay]);
+    const ws = XLSX.utils.aoa_to_sheet([header, exSingle, exDragDrop, exMultiple, exEssay]);
+    ws['!cols'] = [{ wch: 50 }, ...ALL_OPTION_IDS.map(() => ({ wch: 22 })), { wch: 15 }, { wch: 18 }, { wch: 10 }, { wch: 5 }, { wch: 16 }, { wch: 50 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cau_hoi');
     XLSX.writeFile(wb, 'Mau_nhap_cau_hoi.xlsx');
@@ -138,10 +139,16 @@ export default function AdminQuestionBankImportPage() {
         Nhập câu hỏi vào ngân hàng: {occupationName || '...'}
       </h1>
 
-      <p className="text-slate-600 mb-4 max-w-2xl">
-        File Excel/CSV cần có hàng tiêu đề. Hỗ trợ tối đa <strong>10 đáp án (A–J)</strong>. Cột Chủ đề, Độ khó, Điểm có thể để trống.
-        Để import <strong>câu tự luận chấm ý</strong>: bỏ trống các cột Đáp án A–J và Đáp án đúng, điền cột <strong>Keys</strong> với format <code className="bg-slate-100 px-1 rounded text-xs">tai nạn|2;sai quy trình|2;...</code> (tên key | điểm, ngăn cách bằng chấm phẩy).
+      <p className="text-slate-600 mb-2 max-w-2xl">
+        File Excel/CSV cần có hàng tiêu đề. Hỗ trợ tối đa <strong>10 đáp án (A–J)</strong>. Cột Chủ đề, Độ khó, Điểm, Loại câu hỏi có thể để trống.
       </p>
+      <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 max-w-2xl space-y-1">
+        <p className="font-medium text-slate-600">Cột "Loại câu hỏi" và "Đáp án đúng" tương ứng:</p>
+        <p><span className="font-mono bg-white px-1 rounded border">single_choice</span> — Đáp án đúng: <span className="font-mono">A</span> (mặc định nếu để trống)</p>
+        <p><span className="font-mono bg-white px-1 rounded border">drag_drop</span> — Đáp án đúng: thứ tự đúng, vd <span className="font-mono">B;A;D;C</span></p>
+        <p><span className="font-mono bg-white px-1 rounded border">multiple_choice</span> — Đáp án đúng: các đáp án đúng, vd <span className="font-mono">A;C</span></p>
+        <p><span className="font-mono bg-white px-1 rounded border">main_idea</span> — Để trống "Đáp án đúng"; điền cột Keys: <span className="font-mono">từ khóa|điểm;...</span></p>
+      </div>
 
       <div className="space-y-4 max-w-2xl">
         <div className="flex items-center gap-3">
@@ -205,7 +212,8 @@ export default function AdminQuestionBankImportPage() {
                 </thead>
                 <tbody>
                   {previewRows.map((r, i) => {
-                    const isEssay = r.question_type === 'main_idea' || r.question_type === 'video_paragraph';
+                    const qtype = r.question_type;
+                    const isEssay = qtype === 'main_idea' || qtype === 'video_paragraph';
                     const optById: Record<string, string> = {};
                     r.options.forEach((o) => { optById[o.id] = o.text; });
                     const keysSummary = isEssay
@@ -216,10 +224,18 @@ export default function AdminQuestionBankImportPage() {
                           return ks.length > 0 ? `${ks.length} keys` : '—';
                         })()
                       : r.answer_key;
+                    const typeLabel: Record<string, { label: string; cls: string }> = {
+                      drag_drop:       { label: 'Kéo thả', cls: 'text-purple-700' },
+                      multiple_choice: { label: 'Nhiều ĐA', cls: 'text-blue-700' },
+                      main_idea:       { label: 'Tự luận', cls: 'text-indigo-600' },
+                      video_paragraph: { label: 'Video', cls: 'text-teal-700' },
+                      single_choice:   { label: 'TN', cls: 'text-slate-500' },
+                    };
+                    const tl = typeLabel[qtype] ?? { label: qtype, cls: 'text-slate-400' };
                     return (
                       <tr key={i} className={`border-b border-slate-100 ${isEssay ? 'bg-indigo-50' : ''}`}>
                         <td className="px-2 py-1 text-xs whitespace-nowrap">
-                          {isEssay ? <span className="text-indigo-600 font-medium">Tự luận</span> : 'TN'}
+                          <span className={`font-medium ${tl.cls}`}>{tl.label}</span>
                         </td>
                         <td className="px-2 py-1 max-w-xs truncate" title={r.stem}>{r.stem}</td>
                         {previewOptIds.map((id) => (

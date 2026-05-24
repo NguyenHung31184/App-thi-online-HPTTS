@@ -247,6 +247,8 @@ export default function AdminQuestionFormPage() {
     drag_drop: 'Sắp thứ tự (kéo thả)',
     video_paragraph: 'Clip + Tự luận',
     main_idea: 'Phân tích ý chính',
+    true_false_multi: 'Đúng/Sai đa phát biểu',
+    matching: 'Nối đôi',
   };
   const isEssay = questionType === 'video_paragraph' || questionType === 'main_idea';
   const showOptions = !isEssay;

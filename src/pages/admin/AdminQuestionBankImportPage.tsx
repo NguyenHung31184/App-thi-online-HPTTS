@@ -121,8 +121,29 @@ export default function AdminQuestionBankImportPage() {
       '', 'An toàn lao động', 'medium', '10', 'main_idea',
       'tai nạn|2;sai quy trình|2;thiếu bảo hộ|2;không kiểm tra|2;vi phạm quy định|2',
     ];
-    const ws = XLSX.utils.aoa_to_sheet([header, exSingle, exDragDrop, exMultiple, exEssay]);
-    ws['!cols'] = [{ wch: 50 }, ...ALL_OPTION_IDS.map(() => ({ wch: 22 })), { wch: 15 }, { wch: 18 }, { wch: 10 }, { wch: 5 }, { wch: 16 }, { wch: 50 }];
+    // true_false_multi: đáp án = T;F;T;F theo thứ tự phát biểu A→B→C→D
+    const exTrueFalse = [
+      'Xác định ĐÚNG (T) hoặc SAI (F) cho từng phát biểu về an toàn vận hành cẩu RTG:',
+      'Phải kiểm tra khu vực trước khi nâng hàng.',
+      'Được phép nâng vượt tải trọng 20% trong tình huống khẩn cấp.',
+      'Tất cả hạn vị phải hoạt động bình thường trước mỗi ca vận hành.',
+      'Không cần tắt nguồn khi thực hiện bảo trì nhỏ.',
+      '', '', '', '', '', '',
+      'T;F;T;F', 'An toàn vận hành', 'medium', '4', 'true_false_multi', '',
+    ];
+    // matching: cột trái = A–D (options), cột phải = Keys (dấu ";" phân cách), đáp án = A-1;B-2;C-3;D-4
+    const exMatching = [
+      'Nối thiết bị RTG (cột trái) với chức năng kỹ thuật đúng (cột phải):',
+      'Bộ điều chỉnh chống lắc hàng',
+      'Công tắc hành trình (Limit switch)',
+      'Thiết bị đo tải (Load cell)',
+      'Hệ thống cơ cấu Skew',
+      '', '', '', '', '', '',
+      'A-1;B-2;C-3;D-4', 'Thiết bị', 'medium', '4', 'matching',
+      'Hãm lắc container do tăng/giảm tốc xe con;Ngắt mạch khi bộ phận chạm điểm giới hạn;Đo tải và ngắt tời khi quá tải;Vi chỉnh góc xoay căn chỉnh lỗ chốt gù',
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([header, exSingle, exDragDrop, exMultiple, exEssay, exTrueFalse, exMatching]);
+    ws['!cols'] = [{ wch: 55 }, ...ALL_OPTION_IDS.map(() => ({ wch: 22 })), { wch: 15 }, { wch: 18 }, { wch: 10 }, { wch: 5 }, { wch: 18 }, { wch: 60 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cau_hoi');
     XLSX.writeFile(wb, 'Mau_nhap_cau_hoi.xlsx');
@@ -148,6 +169,8 @@ export default function AdminQuestionBankImportPage() {
         <p><span className="font-mono bg-white px-1 rounded border">drag_drop</span> — Đáp án đúng: thứ tự đúng, vd <span className="font-mono">B;A;D;C</span></p>
         <p><span className="font-mono bg-white px-1 rounded border">multiple_choice</span> — Đáp án đúng: các đáp án đúng, vd <span className="font-mono">A;C</span></p>
         <p><span className="font-mono bg-white px-1 rounded border">main_idea</span> — Để trống "Đáp án đúng"; điền cột Keys: <span className="font-mono">từ khóa|điểm;...</span></p>
+        <p><span className="font-mono bg-white px-1 rounded border">true_false_multi</span> — Đáp án đúng: <span className="font-mono">T;F;T;T;F</span> (T hoặc F theo thứ tự mỗi phát biểu A→B→C...)</p>
+        <p><span className="font-mono bg-white px-1 rounded border">matching</span> — Đáp án đúng: <span className="font-mono">A-1;B-2;C-3;D-4</span> · Cột Keys: nội dung cột phải cách nhau bằng <span className="font-mono">;</span></p>
       </div>
 
       <div className="space-y-4 max-w-2xl">
@@ -225,11 +248,13 @@ export default function AdminQuestionBankImportPage() {
                         })()
                       : r.answer_key;
                     const typeLabel: Record<string, { label: string; cls: string }> = {
-                      drag_drop:       { label: 'Kéo thả', cls: 'text-purple-700' },
-                      multiple_choice: { label: 'Nhiều ĐA', cls: 'text-blue-700' },
-                      main_idea:       { label: 'Tự luận', cls: 'text-indigo-600' },
-                      video_paragraph: { label: 'Video', cls: 'text-teal-700' },
-                      single_choice:   { label: 'TN', cls: 'text-slate-500' },
+                      drag_drop:          { label: 'Kéo thả', cls: 'text-purple-700' },
+                      multiple_choice:    { label: 'Nhiều ĐA', cls: 'text-blue-700' },
+                      main_idea:          { label: 'Tự luận', cls: 'text-indigo-600' },
+                      video_paragraph:    { label: 'Video', cls: 'text-teal-700' },
+                      single_choice:      { label: 'TN', cls: 'text-slate-500' },
+                      true_false_multi:   { label: 'Đúng/Sai', cls: 'text-orange-700' },
+                      matching:           { label: 'Nối đôi', cls: 'text-rose-700' },
                     };
                     const tl = typeLabel[qtype] ?? { label: qtype, cls: 'text-slate-400' };
                     return (

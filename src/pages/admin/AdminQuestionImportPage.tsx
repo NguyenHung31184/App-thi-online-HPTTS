@@ -103,7 +103,6 @@ export default function AdminQuestionImportPage() {
   };
 
   const handleDownloadExcelTemplate = () => {
-    // Header: Nội dung | A–J | Đáp án đúng | Chủ đề | Độ khó | Điểm | Loại câu hỏi | Keys
     const header = [
       'Nội dung câu hỏi',
       ...ALL_OPTION_IDS.map((id) => `Đáp án ${id}`),
@@ -114,33 +113,50 @@ export default function AdminQuestionImportPage() {
       'Loại câu hỏi',
       'Keys',
     ];
-    // single_choice — loại mặc định, có thể bỏ trống cột "Loại câu hỏi"
     const exSingle = [
       'Máy nâng dùng để làm gì?', 'Nâng hàng', 'Lái xe', 'Đóng gói', 'Kiểm tra hàng',
       '', '', '', '', '', '',
       'A', 'Kiến thức cơ bản', 'medium', '1', 'single_choice', '',
     ];
-    // drag_drop — "Đáp án đúng" = thứ tự đúng phân cách bằng ";" (B trước, rồi A, D, C)
     const exDragDrop = [
       'Sắp xếp quy trình nâng hàng theo đúng thứ tự', 'Móc cẩu vào hàng', 'Kiểm tra tải trọng', 'Ra lệnh nâng', 'Quan sát vùng nguy hiểm',
       '', '', '', '', '', '',
       'B;A;D;C', 'Vận hành thiết bị', 'medium', '2', 'drag_drop', '',
     ];
-    // multiple_choice — "Đáp án đúng" = các đáp án đúng phân cách bằng ";"
     const exMultiple = [
       'Thiết bị nào sau đây thuộc nhóm thiết bị nâng?', 'Cẩu trục', 'Palăng xích', 'Xe đẩy tay', 'Thang nâng',
       '', '', '', '', '', '',
       'A;B;D', 'Thiết bị', 'medium', '2', 'multiple_choice', '',
     ];
-    // main_idea — bỏ trống A–J và "Đáp án đúng", điền cột Keys
     const exEssay = [
       'Nêu các nguyên nhân gây tai nạn lao động.',
       '', '', '', '', '', '', '', '', '', '',
       '', 'An toàn lao động', 'medium', '10', 'main_idea',
       'tai nạn|2;sai quy trình|2;thiếu bảo hộ|2;không kiểm tra|2;vi phạm quy định|2',
     ];
-    const ws = XLSX.utils.aoa_to_sheet([header, exSingle, exDragDrop, exMultiple, exEssay]);
-    ws['!cols'] = [{ wch: 50 }, ...ALL_OPTION_IDS.map(() => ({ wch: 22 })), { wch: 15 }, { wch: 18 }, { wch: 10 }, { wch: 5 }, { wch: 16 }, { wch: 50 }];
+    // true_false_multi: đáp án = T;F;T;F theo thứ tự phát biểu A→B→C→D
+    const exTrueFalse = [
+      'Xác định ĐÚNG (T) hoặc SAI (F) cho từng phát biểu về an toàn vận hành cẩu RTG:',
+      'Phải kiểm tra khu vực trước khi nâng hàng.',
+      'Được phép nâng vượt tải trọng 20% trong tình huống khẩn cấp.',
+      'Tất cả hạn vị phải hoạt động bình thường trước mỗi ca vận hành.',
+      'Không cần tắt nguồn khi thực hiện bảo trì nhỏ.',
+      '', '', '', '', '', '',
+      'T;F;T;F', 'An toàn vận hành', 'medium', '4', 'true_false_multi', '',
+    ];
+    // matching: cột trái = A–D (options), cột phải = Keys (dấu ";" phân cách), đáp án = A-1;B-2;C-3;D-4
+    const exMatching = [
+      'Nối thiết bị RTG (cột trái) với chức năng kỹ thuật đúng (cột phải):',
+      'Bộ điều chỉnh chống lắc hàng',
+      'Công tắc hành trình (Limit switch)',
+      'Thiết bị đo tải (Load cell)',
+      'Hệ thống cơ cấu Skew',
+      '', '', '', '', '', '',
+      'A-1;B-2;C-3;D-4', 'Thiết bị', 'medium', '4', 'matching',
+      'Hãm lắc container do tăng/giảm tốc xe con;Ngắt mạch khi bộ phận chạm điểm giới hạn;Đo tải và ngắt tời khi quá tải;Vi chỉnh góc xoay căn chỉnh lỗ chốt gù',
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([header, exSingle, exDragDrop, exMultiple, exEssay, exTrueFalse, exMatching]);
+    ws['!cols'] = [{ wch: 55 }, ...ALL_OPTION_IDS.map(() => ({ wch: 22 })), { wch: 15 }, { wch: 18 }, { wch: 10 }, { wch: 5 }, { wch: 18 }, { wch: 60 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cau_hoi');
     XLSX.writeFile(wb, 'Mau_nhap_cau_hoi.xlsx');
@@ -335,6 +351,8 @@ export default function AdminQuestionImportPage() {
             <p><span className="font-mono bg-white px-1 rounded border">drag_drop</span> — Đáp án đúng: thứ tự đúng phân cách bằng <span className="font-mono">;</span>, vd <span className="font-mono">B;A;D;C</span></p>
             <p><span className="font-mono bg-white px-1 rounded border">multiple_choice</span> — Đáp án đúng: các đáp án đúng phân cách bằng <span className="font-mono">;</span>, vd <span className="font-mono">A;C</span></p>
             <p><span className="font-mono bg-white px-1 rounded border">main_idea</span> — Để trống "Đáp án đúng"; điền cột <span className="font-mono">Keys</span>: <span className="font-mono">từ khóa|điểm;...</span></p>
+            <p><span className="font-mono bg-white px-1 rounded border">true_false_multi</span> — Đáp án đúng: <span className="font-mono">T;F;T;T;F</span> (T hoặc F theo thứ tự mỗi phát biểu A→B→C...)</p>
+            <p><span className="font-mono bg-white px-1 rounded border">matching</span> — Đáp án đúng: <span className="font-mono">A-1;B-2;C-3;D-4</span> · Cột Keys: nội dung cột phải cách nhau bằng <span className="font-mono">;</span></p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -416,11 +434,13 @@ export default function AdminQuestionImportPage() {
                       const payload = importRowToQuestionPayload(r);
                       const qtype = payload.question_type;
                       const typeLabel: Record<string, { label: string; cls: string }> = {
-                        drag_drop:       { label: 'Kéo thả', cls: 'text-purple-700 bg-purple-50' },
-                        multiple_choice: { label: 'Nhiều ĐA', cls: 'text-blue-700 bg-blue-50' },
-                        main_idea:       { label: 'Tự luận', cls: 'text-indigo-700 bg-indigo-50' },
-                        video_paragraph: { label: 'Video', cls: 'text-teal-700 bg-teal-50' },
-                        single_choice:   { label: 'Trắc nghiệm', cls: 'text-slate-600 bg-slate-100' },
+                        drag_drop:          { label: 'Kéo thả', cls: 'text-purple-700 bg-purple-50' },
+                        multiple_choice:    { label: 'Nhiều ĐA', cls: 'text-blue-700 bg-blue-50' },
+                        main_idea:          { label: 'Tự luận', cls: 'text-indigo-700 bg-indigo-50' },
+                        video_paragraph:    { label: 'Video', cls: 'text-teal-700 bg-teal-50' },
+                        single_choice:      { label: 'Trắc nghiệm', cls: 'text-slate-600 bg-slate-100' },
+                        true_false_multi:   { label: 'Đúng/Sai', cls: 'text-orange-700 bg-orange-50' },
+                        matching:           { label: 'Nối đôi', cls: 'text-rose-700 bg-rose-50' },
                       };
                       const tl = typeLabel[qtype] ?? { label: qtype, cls: 'text-slate-500' };
                       const hasKeys = r.keys && r.keys.trim() !== '';

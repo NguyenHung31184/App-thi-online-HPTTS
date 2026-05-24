@@ -81,6 +81,8 @@ function normalizeQuestionType(raw: string): string {
   if (['mainidea','tuluan','tựluận','essay','tluận'].some((k) => s.includes(k))) return 'main_idea';
   if (['videoparagraph','video'].some((k) => s.includes(k))) return 'video_paragraph';
   if (['singlechoice','tracnghiem','trắcnghiệm','single','radio'].some((k) => s.includes(k))) return 'single_choice';
+  if (['truefalsemulti','duncsai','đúngsai','tf','trufalse','đúngsaimulti','dungvsai'].some((k) => s.includes(k))) return 'true_false_multi';
+  if (['matching','noidoi','nốiđôi','noi','match','ghepnoi','ghépnối'].some((k) => s.includes(k))) return 'matching';
   return '';
 }
 
@@ -282,6 +284,63 @@ export function importRowToQuestionPayload(row: ImportRow): {
       topic: row.topic,
       difficulty: row.difficulty,
       question_type: 'multiple_choice',
+    };
+  }
+
+  // true_false_multi: options = các phát biểu, answer_key = ["T","F","T","T","F"]
+  // "Đáp án đúng" = "T;F;T;T;F" (T hoặc F theo thứ tự phát biểu)
+  if (hintType === 'true_false_multi' && options.length >= 2) {
+    const rawParts = (row.answerRaw ?? '').split(';').map((s) => s.trim().toUpperCase());
+    const normalized = rawParts.map((a) =>
+      a === 'T' || a === 'TRUE' || a === 'ĐÚNG' || a === 'DUNG' || a === '1' ? 'T' : 'F'
+    );
+    // Nếu số phần tử không khớp số phát biểu → mặc định tất cả TRUE
+    const answer_key = normalized.length === options.length
+      ? JSON.stringify(normalized)
+      : JSON.stringify(options.map(() => 'T'));
+    return {
+      stem: row.stem,
+      options,
+      answer_key,
+      points: row.points,
+      topic: row.topic,
+      difficulty: row.difficulty,
+      question_type: 'true_false_multi',
+    };
+  }
+
+  // matching: options = cột trái (A,B,C...), Keys = cột phải cách nhau bằng ";"
+  // "Đáp án đúng" = "A-1;B-2;C-3;D-4;E-5" (trái-phải)
+  // answer_key = JSON {"right":["text1","text2",...], "map":{"A":"1","B":"2",...}}
+  if (hintType === 'matching' && options.length >= 2) {
+    const rightTexts = (row.keys ?? '')
+      .split(';')
+      .map((s) => s.trim())
+      .filter((s) => s !== '');
+
+    const mapParts = (row.answerRaw ?? '')
+      .split(';')
+      .map((s) => s.trim())
+      .filter((s) => /^[A-Ja-j]-\d+$/.test(s));
+
+    const map: Record<string, string> = {};
+    for (const part of mapParts) {
+      const dashIdx = part.indexOf('-');
+      map[part.slice(0, dashIdx).toUpperCase()] = part.slice(dashIdx + 1);
+    }
+    // Nếu không parse được mapping → mặc định 1-1 theo thứ tự
+    if (Object.keys(map).length === 0) {
+      options.forEach((o, i) => { map[o.id] = String(i + 1); });
+    }
+
+    return {
+      stem: row.stem,
+      options,
+      answer_key: JSON.stringify({ right: rightTexts, map }),
+      points: row.points,
+      topic: row.topic,
+      difficulty: row.difficulty,
+      question_type: 'matching',
     };
   }
 

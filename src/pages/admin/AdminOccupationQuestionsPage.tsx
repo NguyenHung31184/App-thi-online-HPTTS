@@ -78,9 +78,6 @@ const DEFAULT_ZONE_POSITIONS: { x: number; y: number }[] = [
   { x: 10, y: 10 }, { x: 70, y: 10 }, { x: 10, y: 70 }, { x: 70, y: 70 },
 ];
 
-function emptyOptions() {
-  return OPTION_IDS.map((id) => ({ id, text: '' }));
-}
 
 function parseAnswerKey(v: string, type: QuestionType) {
   const s = (v || '').trim();
@@ -125,13 +122,9 @@ function InlineEditForm({
         text: rawOpts.find((o) => o.id === id)?.text ?? '',
       }));
     }
-    const base = rawOpts.length ? rawOpts : emptyOptions();
-    const existingIds = new Set(base.map((o) => o.id));
-    const padded = [...base];
-    for (const id of OPTION_IDS) {
-      if (!existingIds.has(id)) padded.push({ id, text: '' });
-    }
-    return padded;
+    // Compact array — no padding; minimum 4 empty slots if no data
+    if (rawOpts.length >= 2) return rawOpts;
+    return OPTION_IDS.slice(0, 4).map((id) => ({ id, text: '' }));
   });
   const [answerKey, setAnswerKey] = useState(parsed.single || 'A');
   const [answerMultiple, setAnswerMultiple] = useState<string[]>(parsed.multiple.length ? parsed.multiple : [parsed.single]);
@@ -223,14 +216,30 @@ function InlineEditForm({
   const isTrueFalseMulti = questionType === 'true_false_multi';
   const isMatching = questionType === 'matching';
   const displayImage = imagePreview || existingImageUrl;
-  const filledCount = options.filter((o) => o.text.trim() !== '').length;
-  const visibleOptionIds = OPTION_IDS.slice(0, Math.min(OPTION_IDS.length, Math.max(4, filledCount + 1)));
+  const visibleOptionIds = options.map((o) => o.id);
 
   const handleOptionChange = (id: string, text: string) =>
     setOptions((prev) => prev.map((o) => (o.id === id ? { ...o, text } : o)));
 
   const handleToggleMultiple = (optId: string) =>
     setAnswerMultiple((prev) => prev.includes(optId) ? prev.filter((x) => x !== optId) : [...prev, optId].sort());
+
+  const handleAddOption = () => {
+    const usedIds = new Set(options.map((o) => o.id));
+    const nextId = OPTION_IDS.find((id) => !usedIds.has(id));
+    if (!nextId) return;
+    setOptions((prev) => [...prev, { id: nextId, text: '' }]);
+  };
+
+  const handleRemoveOption = (id: string) => {
+    const idx = options.findIndex((o) => o.id === id);
+    if (idx === -1 || options.length <= 2) return;
+    setOptions((prev) => prev.filter((o) => o.id !== id));
+    if (answerKey === id) setAnswerKey(options.find((o) => o.id !== id)?.id ?? 'A');
+    setAnswerMultiple((prev) => prev.filter((x) => x !== id));
+    setTfAnswers((prev) => { const next = [...prev]; next.splice(idx, 1); return next; });
+    setMatchingRight((prev) => { const next = [...prev]; next.splice(idx, 1); return next; });
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -398,8 +407,20 @@ function InlineEditForm({
                   Đúng
                 </label>
               )}
+              {questionType !== 'drag_drop' && (
+                <button type="button" onClick={() => handleRemoveOption(optId)}
+                  disabled={options.length <= 2}
+                  className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 text-base leading-none"
+                  title="Xóa đáp án">−</button>
+              )}
             </div>
           ))}
+          {questionType !== 'drag_drop' && options.length < OPTION_IDS.length && (
+            <button type="button" onClick={handleAddOption}
+              className="mt-1 text-xs text-indigo-600 hover:underline">
+              + Thêm đáp án
+            </button>
+          )}
         </div>
       )}
 
@@ -428,8 +449,18 @@ function InlineEditForm({
                 <option value="T">✓ Đúng</option>
                 <option value="F">✗ Sai</option>
               </select>
+              <button type="button" onClick={() => handleRemoveOption(optId)}
+                disabled={options.length <= 2}
+                className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 text-base leading-none"
+                title="Xóa phát biểu">−</button>
             </div>
           ))}
+          {options.length < OPTION_IDS.length && (
+            <button type="button" onClick={handleAddOption}
+              className="mt-1 text-xs text-indigo-600 hover:underline">
+              + Thêm phát biểu
+            </button>
+          )}
         </div>
       )}
 
@@ -456,8 +487,18 @@ function InlineEditForm({
                 })}
                 className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
                 placeholder={`Cột phải ${idx + 1}`} />
+              <button type="button" onClick={() => handleRemoveOption(optId)}
+                disabled={options.length <= 2}
+                className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 text-base leading-none"
+                title="Xóa cặp">−</button>
             </div>
           ))}
+          {options.length < OPTION_IDS.length && (
+            <button type="button" onClick={handleAddOption}
+              className="mt-1 text-xs text-indigo-600 hover:underline">
+              + Thêm cặp
+            </button>
+          )}
         </div>
       )}
 

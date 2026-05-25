@@ -1,23 +1,24 @@
 /**
- * OCR CCCD — gửi ảnh dạng base64 trực tiếp lên Edge Function scan-id-card (Gemini Vision).
- * Không cần upload lên Storage trước — nhanh hơn, không phụ thuộc proxy server.
- * Tương tự cách Chatbot tuyển sinh đang dùng.
+ * OCR CCCD — gửi ảnh base64 lên proxy Vercel /api/scan-id-card.
+ * Proxy giữ POTENTIAL_STUDENT_API_KEY server-side; client không cần biết key.
+ *
+ * Dev local override: đặt VITE_TTDT_SCAN_ID_CARD_URL để gọi thẳng Edge Function (kèm VITE_TTDT_API_KEY).
+ * KHÔNG dùng VITE_TTDT_VERIFY_CCCD_URL để derive URL — verify URL luôn được set và sẽ bypass proxy.
  */
 import type { OcrCccdResult } from '../types';
 
-const TTDT_API_KEY = import.meta.env.VITE_TTDT_API_KEY || '';
-const TTDT_VERIFY_CCCD_URL = import.meta.env.VITE_TTDT_VERIFY_CCCD_URL || '';
+/** Dùng proxy Vercel mặc định; hoặc gọi thẳng nếu dev đặt VITE_TTDT_SCAN_ID_CARD_URL. */
+function getScanConfig(): { url: string; apiKey: string } {
+  const directUrl = (import.meta.env.VITE_TTDT_SCAN_ID_CARD_URL || '').trim();
+  const directKey = (import.meta.env.VITE_TTDT_API_KEY || '').trim();
 
-function getScanIdCardUrl(): string {
-  const explicit = (import.meta.env.VITE_TTDT_SCAN_ID_CARD_URL || '').trim();
-  if (explicit) return explicit;
-  if (!TTDT_VERIFY_CCCD_URL) return '';
-  // Derive từ verify-cccd URL: thay đuôi function name thành scan-id-card
-  return TTDT_VERIFY_CCCD_URL.replace(/\/verify-cccd-for-exam\/?$/, '/scan-id-card');
+  if (directUrl) return { url: directUrl, apiKey: directKey };
+  // Production: luôn dùng proxy Vercel — key giữ server-side, client không cần biết
+  return { url: '/api/scan-id-card', apiKey: '' };
 }
 
 export function isOcrConfigured(): boolean {
-  return Boolean(getScanIdCardUrl() && TTDT_API_KEY);
+  return true;
 }
 
 /** Đọc File thành base64 (không kèm prefix data URI). */
@@ -36,19 +37,12 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 /**
- * Gửi file ảnh CCCD lên scan-id-card (Gemini Vision) qua base64.
- * Không cần upload Storage trước — đọc trực tiếp trên thiết bị.
+ * Gửi file ảnh CCCD lên proxy /api/scan-id-card (hoặc Edge Function trực tiếp nếu dev).
  */
 export async function analyzeCccdByImageFile(
   file: File,
 ): Promise<{ success: boolean; data?: OcrCccdResult; error?: string }> {
-  const url = getScanIdCardUrl();
-  if (!url || !TTDT_API_KEY) {
-    return {
-      success: false,
-      error: 'Chưa cấu hình dịch vụ đọc CCCD (cần VITE_TTDT_API_KEY và VITE_TTDT_VERIFY_CCCD_URL).',
-    };
-  }
+  const { url, apiKey } = getScanConfig();
 
   let image_data: string;
   try {
@@ -58,16 +52,24 @@ export async function analyzeCccdByImageFile(
   }
 
   const mime_type = file.type || 'image/jpeg';
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['x-api-key'] = apiKey;
 
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': TTDT_API_KEY,
-      },
-      body: JSON.stringify({ image_data, mime_type }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 50_000);
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ image_data, mime_type }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     let result: Record<string, unknown>;
     try {
@@ -91,7 +93,6 @@ export async function analyzeCccdByImageFile(
       return { success: false, error: result.error as string };
     }
 
-    // scan-id-card (Gemini) trả về: id_card_number, name, dob, gender, address, id_card_issue_date, id_card_issue_place
     const data: OcrCccdResult = {
       id_card_number: result.id_card_number as string | undefined,
       full_name: result.name as string | undefined,
@@ -107,6 +108,9 @@ export async function analyzeCccdByImageFile(
 
     return { success: true, data };
   } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { success: false, error: 'Hệ thống OCR mất quá nhiều thời gian. Vui lòng nhập tay CCCD bên dưới.' };
+    }
     const message = err instanceof Error ? err.message : 'Lỗi mạng khi gọi OCR.';
     return {
       success: false,

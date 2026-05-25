@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 import { getOccupation } from '../../services/occupationService';
 import {
   listQuestionsByOccupation,
@@ -20,6 +21,58 @@ import { validateMediaUrl } from '../../utils/mediaUrlValidator';
 import { validateQuestion, questionTypeLabel } from '../../utils/questionValidation';
 
 const NO_MODULE_ID = '__no_module__';
+
+const OPTION_EXPORT_IDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] as const;
+
+function exportQuestionsToXlsx(questions: QuestionBankItem[], filename: string) {
+  const header = [
+    'Nội dung câu hỏi',
+    ...OPTION_EXPORT_IDS.map((id) => `Đáp án ${id}`),
+    'Đáp án đúng',
+    'Chủ đề',
+    'Độ khó',
+    'Điểm',
+    'Keys',
+    'Loại câu hỏi',
+  ];
+
+  const rows = questions.map((q) => {
+    const opts = Array.isArray(q.options) ? (q.options as { id: string; text: string }[]) : [];
+    const optCols = OPTION_EXPORT_IDS.map((id) => opts.find((o) => o.id === id)?.text ?? '');
+
+    let answerCell = '';
+    let keysCell = '';
+
+    if (q.question_type === 'single_choice') {
+      answerCell = q.answer_key ?? '';
+    } else if (q.question_type === 'multiple_choice' || q.question_type === 'drag_drop' || q.question_type === 'true_false_multi') {
+      try {
+        const arr = JSON.parse(q.answer_key ?? '[]') as string[];
+        answerCell = Array.isArray(arr) ? arr.join(';') : (q.answer_key ?? '');
+      } catch { answerCell = q.answer_key ?? ''; }
+    } else if (q.question_type === 'matching') {
+      try {
+        const parsed = JSON.parse(q.answer_key ?? '{}') as { right?: string[]; map?: Record<string, string> };
+        keysCell = (parsed.right ?? []).join(';');
+        answerCell = Object.entries(parsed.map ?? {}).map(([k, v]) => `${k}-${v}`).join(';');
+      } catch { /* leave blank */ }
+    } else if (q.question_type === 'main_idea' || q.question_type === 'video_paragraph') {
+      try {
+        const arr = JSON.parse(q.answer_key ?? '[]') as { text: string; points: number }[];
+        keysCell = Array.isArray(arr) ? arr.map((k) => `${k.text}|${k.points}`).join(';') : '';
+      } catch { /* leave blank */ }
+    }
+
+    return [q.stem, ...optCols, answerCell, q.topic ?? '', q.difficulty ?? 'medium', q.points ?? 2, keysCell, q.question_type];
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  // Căn rộng cột nội dung câu hỏi
+  ws['!cols'] = [{ wch: 60 }, ...OPTION_EXPORT_IDS.map(() => ({ wch: 30 })), { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 8 }, { wch: 40 }, { wch: 20 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Câu hỏi');
+  XLSX.writeFile(wb, filename);
+}
 const OPTION_IDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const DEFAULT_ZONE_POSITIONS: { x: number; y: number }[] = [
   { x: 10, y: 10 }, { x: 70, y: 10 }, { x: 10, y: 70 }, { x: 70, y: 70 },
@@ -685,6 +738,20 @@ export default function AdminOccupationQuestionsPage() {
               onClick={(e) => { if (!canAddOrImport) { e.preventDefault(); toast.info(isNoModuleView ? 'Chọn mô-đun cụ thể để import.' : 'Hãy chọn mô-đun trước.'); } }}>
               Import từ Excel
             </Link>
+            {questions.length > 0 && canAddOrImport && (
+              <button
+                type="button"
+                title={`Xuất ${visibleQuestions.length} câu hỏi${filterType ? ' (đang lọc)' : ''} ra file Excel`}
+                onClick={() => {
+                  const moduleName = modules.find((m) => m.id === selectedModuleId)?.name ?? 'module';
+                  const safeName = `${occupation.name}-${moduleName}`.replace(/[/\\?%*:|"<>]/g, '-');
+                  exportQuestionsToXlsx(visibleQuestions, `cau-hoi-${safeName}.xlsx`);
+                  toast.success(`Đã xuất ${visibleQuestions.length} câu hỏi ra Excel.`);
+                }}
+                className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm">
+                Export Excel
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -17,6 +17,7 @@ import { listModulesByOccupationId } from '../../services/ttdtDataService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { ZonePositionPicker } from '../../components/ZonePositionPicker';
 import { validateMediaUrl } from '../../utils/mediaUrlValidator';
+import { validateQuestion, questionTypeLabel } from '../../utils/questionValidation';
 
 const NO_MODULE_ID = '__no_module__';
 const OPTION_IDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -628,12 +629,19 @@ export default function AdminOccupationQuestionsPage() {
   const isNoModuleView = selectedModuleId === NO_MODULE_ID;
   const canAddOrImport = selectedModuleId && selectedModuleId !== NO_MODULE_ID;
 
-  const visibleQuestions = filterType
+  const visibleQuestions = filterType === '__broken__'
+    ? questions.filter((q) => !validateQuestion({ ...q, answer_key: q.answer_key ?? '', options: q.options ?? [] }).ok)
+    : filterType
     ? questions.filter((q) => q.question_type === filterType)
     : questions;
 
+  const brokenQuestions = questions.filter(
+    (q) => !validateQuestion({ ...q, answer_key: q.answer_key ?? '', options: q.options ?? [] }).ok
+  );
+
   const TYPE_OPTIONS = [
     { value: '', label: 'Tất cả loại' },
+    { value: '__broken__', label: `⚠ Câu có lỗi (${brokenQuestions.length})` },
     { value: 'single_choice', label: 'Trắc nghiệm 1 ĐA' },
     { value: 'multiple_choice', label: 'Trắc nghiệm nhiều ĐA' },
     { value: 'drag_drop', label: 'Kéo thả / sắp xếp' },
@@ -731,6 +739,23 @@ export default function AdminOccupationQuestionsPage() {
               </button>
             </div>
 
+            {/* Banner cảnh báo câu lỗi */}
+            {brokenQuestions.length > 0 && filterType !== '__broken__' && (
+              <div className="flex items-center gap-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-2.5 text-sm text-amber-800">
+                <span className="text-lg leading-none">⚠</span>
+                <span>
+                  Có <strong>{brokenQuestions.length}</strong> câu hỏi có lỗi dữ liệu — học viên sẽ không làm được câu đó khi thi.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFilterType('__broken__')}
+                  className="ml-auto px-3 py-1 bg-amber-200 hover:bg-amber-300 rounded text-amber-900 font-medium text-xs whitespace-nowrap"
+                >
+                  Xem câu lỗi
+                </button>
+              </div>
+            )}
+
             {visibleQuestions.length === 0 && (
               <p className="text-slate-400 text-sm py-4 text-center">Không có câu hỏi nào thuộc loại đã chọn.</p>
             )}
@@ -738,9 +763,10 @@ export default function AdminOccupationQuestionsPage() {
             {/* Danh sách câu hỏi */}
             {visibleQuestions.map((q, idx) => {
               const isExpanded = editingId === q.id;
+              const vResult = validateQuestion({ ...q, answer_key: q.answer_key ?? '', options: q.options ?? [] });
               return (
                 <div key={q.id}
-                  className={`bg-white border rounded-lg transition-all ${isExpanded ? 'border-indigo-300 shadow-sm' : 'border-slate-200'}`}>
+                  className={`bg-white border rounded-lg transition-all ${isExpanded ? 'border-indigo-300 shadow-sm' : vResult.ok ? 'border-slate-200' : 'border-amber-300'}`}>
                   {/* Row header */}
                   <div className="p-4 flex justify-between items-start">
                     <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -748,12 +774,33 @@ export default function AdminOccupationQuestionsPage() {
                         checked={selectedIds.has(q.id)} onChange={() => toggleSelectOne(q.id)} />
                       <button type="button" onClick={() => handleStartEdit(q)}
                         className="flex-1 min-w-0 text-left group">
-                        <p className="font-medium text-slate-800 group-hover:text-indigo-700 transition-colors">
-                          Câu {idx + 1}. {q.stem.slice(0, 120)}{q.stem.length > 120 ? '...' : ''}
+                        <p className="font-medium text-slate-800 group-hover:text-indigo-700 transition-colors flex items-center gap-2 flex-wrap">
+                          <span>Câu {idx + 1}. {q.stem.slice(0, 120)}{q.stem.length > 120 ? '...' : ''}</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-normal shrink-0">
+                            {questionTypeLabel(q.question_type)}
+                          </span>
+                          {!vResult.ok && (
+                            <span
+                              title={vResult.issues.map((i) => `• ${i.message}\n  → ${i.fix}`).join('\n')}
+                              className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-medium shrink-0 cursor-help"
+                            >
+                              ⚠ {vResult.issues.length} lỗi
+                            </span>
+                          )}
                         </p>
                         <p className="text-sm text-slate-500 mt-1">
                           Chủ đề: {q.topic || '—'} | Độ khó: {q.difficulty} | Điểm: {q.points}
                         </p>
+                        {!vResult.ok && isExpanded && (
+                          <div className="mt-2 space-y-1">
+                            {vResult.issues.map((issue, i) => (
+                              <div key={i} className="text-xs bg-amber-50 border border-amber-200 rounded px-2 py-1 text-amber-800">
+                                <span className="font-medium">• {issue.message}</span>
+                                <span className="text-amber-600"> → {issue.fix}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </button>
                     </div>
                     <div className="flex items-center gap-3 ml-2 flex-shrink-0">

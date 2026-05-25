@@ -16,6 +16,7 @@ import { ViolationAlertModal } from '../components/proctoring/ViolationAlertModa
 import { PortraitCameraGuide } from '../components/PortraitCameraGuide';
 import type { Attempt, Exam, QuestionForStudent } from '../types';
 import { loadBlazeFaceModel, validateAndBuildStartExamPortrait } from '../utils/blazeFaceProctor';
+import { validateQuestion } from '../utils/questionValidation';
 
 function hashStringToSeed(s: string): number {
   // FNV-1a 32-bit
@@ -1047,6 +1048,25 @@ export default function ExamTakePage() {
           const labelOnImageValue = isLabelOnImage
             ? (currentOrder.length >= 4 ? currentOrder : [...currentOrder, '', '', '', ''].slice(0, 4))
             : [];
+
+          // Validate câu hỏi — nếu lỗi dữ liệu thì hiển thị thông báo thay vì crash
+          const qValidation = validateQuestion({
+            question_type: q.question_type,
+            stem: q.stem,
+            options: q.options,
+            answer_key: (q as unknown as { answer_key?: string }).answer_key ?? '',
+            points: q.points ?? 0,
+          });
+          if (!qValidation.ok) {
+            return (
+              <div key={q.id} className="bg-slate-50 border border-slate-300 rounded-lg p-4 opacity-70">
+                <p className="text-slate-500 text-sm font-medium">Câu {idx + 1}. {q.stem}</p>
+                <p className="mt-2 text-amber-700 text-sm bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                  Câu hỏi này có lỗi kỹ thuật và không thể hiển thị. Vui lòng báo giám thị để được hỗ trợ.
+                </p>
+              </div>
+            );
+          }
 
           return (
             <div key={q.id} className="bg-white border border-slate-200 rounded-lg p-4">

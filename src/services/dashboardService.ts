@@ -99,17 +99,37 @@ export async function listRecentCompletedAttemptsForDashboard(
     } | null;
   }[];
 
-  // Batch fetch profiles để lấy tên thật (name/email) theo user_id
+  // Batch fetch profiles (name, email, student_id) theo user_id
   const userIds = [...new Set(rows.map((r) => r.user_id).filter((id): id is string => typeof id === 'string'))];
-  const profileMap = new Map<string, { name?: string | null; email?: string | null }>();
+  const profileMap = new Map<string, { name?: string | null; email?: string | null; student_id?: string | null }>();
   if (userIds.length > 0) {
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('id, name, email')
+      .select('id, name, email, student_id')
       .in('id', userIds);
-    for (const p of (profileData ?? []) as { id: string; name?: string | null; email?: string | null }[]) {
-      profileMap.set(p.id, { name: p.name, email: p.email });
+    for (const p of (profileData ?? []) as { id: string; name?: string | null; email?: string | null; student_id?: string | null }[]) {
+      profileMap.set(p.id, { name: p.name, email: p.email, student_id: p.student_id });
     }
+  }
+
+  // Batch fetch tên học viên từ bảng students (TTDT) — theo student_id và theo exam_account_email
+  const studentIds = [...new Set(Array.from(profileMap.values()).map((p) => p.student_id).filter((id): id is string => typeof id === 'string'))];
+  const profileEmails = [...new Set(Array.from(profileMap.values()).map((p) => p.email).filter((e): e is string => typeof e === 'string' && e.length > 0))];
+  const studentNameById = new Map<string, string>();
+  const studentNameByEmail = new Map<string, string>();
+  const [studentByIdRes, studentByEmailRes] = await Promise.all([
+    studentIds.length > 0
+      ? supabase.from('students').select('id, name').in('id', studentIds)
+      : Promise.resolve({ data: [] }),
+    profileEmails.length > 0
+      ? supabase.from('students').select('exam_account_email, name').in('exam_account_email', profileEmails)
+      : Promise.resolve({ data: [] }),
+  ]);
+  for (const s of ((studentByIdRes as { data: unknown[] }).data ?? []) as { id: string; name?: string | null }[]) {
+    if (s.name?.trim()) studentNameById.set(s.id, s.name.trim());
+  }
+  for (const s of ((studentByEmailRes as { data: unknown[] }).data ?? []) as { exam_account_email?: string | null; name?: string | null }[]) {
+    if (s.exam_account_email && s.name?.trim()) studentNameByEmail.set(s.exam_account_email, s.name.trim());
   }
 
   // Batch fetch class names theo class_id của exam_windows
@@ -144,9 +164,11 @@ export async function listRecentCompletedAttemptsForDashboard(
           ? `${Math.round(scoreNum * 1000) / 10}%`
           : '—';
 
-    // Tên học viên: lấy từ profiles (name → email → '—')
+    // Tên học viên: students.name (by student_id) → students.name (by email) → profiles.name → profiles.email → '—'
     const profile = profileMap.get(r.user_id ?? '');
-    const studentLabel = profile?.name?.trim() || profile?.email?.trim() || '—';
+    const nameByStudentId = profile?.student_id ? studentNameById.get(profile.student_id) : undefined;
+    const nameByEmail = profile?.email ? studentNameByEmail.get(profile.email) : undefined;
+    const studentLabel = nameByStudentId || nameByEmail || profile?.name?.trim() || profile?.email?.trim() || '—';
 
     // Nhãn kỳ thi: lớp + ngày giờ + mã (nếu có)
     const winStart = win?.start_at != null ? Number(win.start_at) : 0;

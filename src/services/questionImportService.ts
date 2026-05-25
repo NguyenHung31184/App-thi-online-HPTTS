@@ -412,7 +412,7 @@ export function buildSingleChoiceSignature(q: {
 }
 
 export function auditSingleChoicePayloads(
-  payloads: Array<{ stem: string; options: { id: string; text: string }[]; answer_key: string }>,
+  payloads: Array<{ stem: string; options: { id: string; text: string }[]; answer_key: string; question_type?: string }>,
   existing?: Array<{ stem: string; options: { id: string; text: string }[]; answer_key: string }>
 ): ImportAuditIssue[] {
   const issues: ImportAuditIssue[] = [];
@@ -436,7 +436,9 @@ export function auditSingleChoicePayloads(
     const ids = (p.options ?? []).map((o) => o.id);
     const ans = String(p.answer_key ?? '').trim().toUpperCase();
 
-    if (!ids.includes(ans)) {
+    // Chỉ kiểm tra đáp án đơn cho single_choice — các loại khác có answer_key dạng JSON/map riêng
+    const isSingleChoice = !p.question_type || p.question_type === 'single_choice';
+    if (isSingleChoice && !ids.includes(ans)) {
       issues.push({
         row,
         type: 'invalid_answer',

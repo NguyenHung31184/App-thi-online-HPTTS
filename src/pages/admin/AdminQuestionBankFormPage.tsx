@@ -26,6 +26,22 @@ function emptyOptions(): { id: string; text: string }[] {
   return OPTION_IDS.map((id) => ({ id, text: '' }));
 }
 
+/** Chia đều tổng điểm cho các key; key cuối nhận phần dư để tổng chính xác. */
+function distributeEssayPoints(
+  keys: { text: string; points: number }[],
+  totalPoints: number,
+): { text: string; points: number }[] {
+  if (keys.length === 0) return keys;
+  const each = Math.round((totalPoints / keys.length) * 100) / 100;
+  return keys.map((k, i) => ({
+    ...k,
+    points:
+      i < keys.length - 1
+        ? each
+        : Math.round((totalPoints - each * (keys.length - 1)) * 100) / 100,
+  }));
+}
+
 function parseAnswerKey(v: string, type: QuestionType): { single: string; multiple: string[]; order: string[] } {
   const s = (v || '').trim();
   if (s.startsWith('[')) {
@@ -148,12 +164,12 @@ export default function AdminQuestionBankFormPage() {
       setExistingMediaUrl(q.media_url ?? null);
       setMediaUrl(q.media_url ?? '');
       setRubric(typeof q.rubric === 'string' ? q.rubric : (q.rubric ? JSON.stringify(q.rubric, null, 2) : ''));
-      // Load essay keys từ answer_key (JSON array objects)
+      // Load essay keys từ answer_key (JSON array objects) — luôn chia đều lại điểm theo points câu hỏi
       if (qType === 'video_paragraph' || qType === 'main_idea') {
         try {
           const parsed: unknown = JSON.parse(q.answer_key || '[]');
           if (Array.isArray(parsed) && parsed.length > 0 && parsed[0] !== null && typeof parsed[0] === 'object' && 'text' in (parsed[0] as object)) {
-            setEssayKeys(parsed as { text: string; points: number }[]);
+            setEssayKeys(distributeEssayPoints(parsed as { text: string; points: number }[], q.points ?? 2));
           } else {
             setEssayKeys([]);
           }
@@ -472,6 +488,7 @@ export default function AdminQuestionBankFormPage() {
               </p>
               {essayKeys.map((k, idx) => (
                 <div key={idx} className="flex items-center gap-2 mb-2">
+                  <span className="text-slate-400 text-xs w-5 text-right flex-shrink-0">{idx + 1}.</span>
                   <input
                     type="text"
                     value={k.text}
@@ -483,23 +500,13 @@ export default function AdminQuestionBankFormPage() {
                     className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm"
                     placeholder={`Key ${idx + 1} (VD: tai nạn)`}
                   />
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={k.points}
-                    onChange={(e) => {
-                      const updated = [...essayKeys];
-                      updated[idx] = { ...updated[idx], points: Number(e.target.value) };
-                      setEssayKeys(updated);
-                    }}
-                    className="w-20 border border-slate-300 rounded-lg px-2 py-2 text-sm"
-                    placeholder="Điểm"
-                  />
-                  <span className="text-slate-500 text-sm whitespace-nowrap">đ</span>
+                  <span className="text-slate-500 text-xs whitespace-nowrap">{k.points}đ</span>
                   <button
                     type="button"
-                    onClick={() => setEssayKeys((prev) => prev.filter((_, i) => i !== idx))}
+                    onClick={() => {
+                      const remaining = essayKeys.filter((_, i) => i !== idx);
+                      setEssayKeys(distributeEssayPoints(remaining, points));
+                    }}
                     className="text-red-500 hover:text-red-700 text-sm px-1"
                   >
                     Xóa
@@ -509,14 +516,26 @@ export default function AdminQuestionBankFormPage() {
               <div className="flex items-center gap-4">
                 <button
                   type="button"
-                  onClick={() => setEssayKeys((prev) => [...prev, { text: '', points: 2 }])}
+                  onClick={() => {
+                    const next = [...essayKeys, { text: '', points: 0 }];
+                    setEssayKeys(distributeEssayPoints(next, points));
+                  }}
                   className="text-indigo-600 hover:underline text-sm"
                 >
                   + Thêm key
                 </button>
                 {essayKeys.length > 0 && (
-                  <span className={`text-xs ${essayKeys.reduce((s, k) => s + k.points, 0) === points ? 'text-green-600' : 'text-amber-600'}`}>
-                    Tổng: {essayKeys.reduce((s, k) => s + k.points, 0)} / {points} điểm
+                  <button
+                    type="button"
+                    onClick={() => setEssayKeys(distributeEssayPoints(essayKeys, points))}
+                    className="text-slate-500 hover:text-slate-700 text-xs underline"
+                  >
+                    Chia đều lại
+                  </button>
+                )}
+                {essayKeys.length > 0 && (
+                  <span className={`text-xs ${Math.abs(essayKeys.reduce((s, k) => s + k.points, 0) - points) < 0.01 ? 'text-green-600' : 'text-amber-600'}`}>
+                    Tổng: {Math.round(essayKeys.reduce((s, k) => s + k.points, 0) * 100) / 100} / {points} điểm
                   </span>
                 )}
               </div>

@@ -69,6 +69,8 @@ export interface UpdateExamWindowInput {
   start_at?: number;
   end_at?: number;
   access_code?: string;
+  /** Đổi đề (chế độ 1 đề). Chỉ dùng khi exam_ids = []. */
+  exam_id?: string;
   /** Cập nhật danh sách đề (quay 1 trong N). Null = giữ nguyên; [] = xóa, quay lại 1 đề (exam_id). */
   exam_ids?: string[] | null;
 }
@@ -77,7 +79,7 @@ export async function updateExamWindow(id: string, input: UpdateExamWindowInput)
   const update: Record<string, unknown> = { ...input };
   if (input.exam_ids !== undefined) {
     const ids = input.exam_ids?.filter(Boolean) ?? [];
-    (update as Record<string, unknown>).exam_id = ids.length > 0 ? ids[0] : (await getExamWindow(id))?.exam_id;
+    (update as Record<string, unknown>).exam_id = ids.length > 0 ? ids[0] : (input.exam_id ?? (await getExamWindow(id))?.exam_id);
   }
   const { data, error } = await supabase
     .from('exam_windows')

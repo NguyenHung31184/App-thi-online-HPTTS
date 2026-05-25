@@ -420,11 +420,11 @@ export default function AdminAttemptResultPage() {
           <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
             <p className="text-xs text-slate-500 mb-1">Điểm</p>
             <p className="text-2xl font-bold text-slate-800">
-              {Math.round(earned * 10) / 10}
-              <span className="text-base font-normal text-slate-500"> / {denom ?? '—'}</span>
+              {Math.round(earned)}
+              <span className="text-base font-normal text-slate-500"> / {denom != null ? Math.round(denom) : '—'}</span>
             </p>
             <p className="text-xs text-slate-500 mt-1">
-              Ngưỡng đạt: {passValue != null ? Math.round(passValue * 10) / 10 : '—'} / {denom ?? '—'}
+              Ngưỡng đạt: {passValue != null ? Math.round(passValue) : '—'} / {denom != null ? Math.round(denom) : '—'}
             </p>
           </div>
           <div className={`rounded-lg p-4 border ${passed ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>

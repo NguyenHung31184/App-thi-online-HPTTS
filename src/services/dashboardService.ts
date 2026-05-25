@@ -159,9 +159,9 @@ export async function listRecentCompletedAttemptsForDashboard(
     const max = r.total_max != null ? Number(r.total_max) : null;
     const rawDisplay =
       raw != null && max != null && max > 0
-        ? `${Math.round(raw * 10) / 10} / ${Math.round(max * 10) / 10}`
+        ? `${Math.round(raw)} / ${Math.round(max)}`
         : scoreNum != null
-          ? `${Math.round(scoreNum * 1000) / 10}%`
+          ? `${Math.round(scoreNum * 100)}%`
           : '—';
 
     // Tên học viên: students.name (by student_id) → students.name (by email) → profiles.name → profiles.email → '—'

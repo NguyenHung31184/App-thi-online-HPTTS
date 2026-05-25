@@ -159,6 +159,7 @@ export default function AdminWindowFormPage() {
           start_at: startTs,
           end_at: endTs,
           access_code,
+          exam_id: useMultiExams ? undefined : exam_id,
           exam_ids: useMultiExams ? selectedExamIds : [],
         });
         navigate('/admin/windows');
@@ -375,7 +376,21 @@ export default function AdminWindowFormPage() {
               </label>
             </div>
             {!useMultiExams ? (
-              <p className="text-sm text-slate-600">{exams.find((e) => e.id === exam_id) ? examOptionLabel(exams.find((e) => e.id === exam_id)!) : exam_id}</p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Đề thi *</label>
+                <select
+                  value={exam_id}
+                  onChange={(e) => setExamId(e.target.value)}
+                  required
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                >
+                  <option value="">— Chọn đề —</option>
+                  {exams.map((e) => (
+                    <option key={e.id} value={e.id}>{examOptionLabel(e)}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-1">Nếu tiêu đề giống nhau, dùng thêm mô tả (— Mô tả) để phân biệt.</p>
+              </div>
             ) : (
               <>
                 <div className="flex flex-wrap gap-2 mb-2">

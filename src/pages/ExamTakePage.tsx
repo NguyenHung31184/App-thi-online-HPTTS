@@ -1050,13 +1050,14 @@ export default function ExamTakePage() {
             : [];
 
           // Validate câu hỏi — nếu lỗi dữ liệu thì hiển thị thông báo thay vì crash
+          // skipAnswerKey=true vì RPC không trả answer_key cho thí sinh (bảo mật)
           const qValidation = validateQuestion({
             question_type: q.question_type,
             stem: q.stem,
             options: q.options,
             answer_key: (q as unknown as { answer_key?: string }).answer_key ?? '',
             points: q.points ?? 0,
-          });
+          }, { skipAnswerKey: true });
           if (!qValidation.ok) {
             return (
               <div key={q.id} className="bg-slate-50 border border-slate-300 rounded-lg p-4 opacity-70">

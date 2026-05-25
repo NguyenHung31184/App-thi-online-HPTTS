@@ -33,7 +33,8 @@ function getOpts(options: unknown): { id: string; text: string }[] {
     .map((o) => ({ id: o.id as string, text: o.text as string }));
 }
 
-export function validateQuestion(q: ValidatableQuestion): ValidationResult {
+export function validateQuestion(q: ValidatableQuestion, callOpts?: { skipAnswerKey?: boolean }): ValidationResult {
+  const skipAnswerKey = callOpts?.skipAnswerKey ?? false;
   const issues: QuestionIssue[] = [];
 
   // ─── Kiểm tra chung ───────────────────────────────────────────────────────
@@ -55,12 +56,14 @@ export function validateQuestion(q: ValidatableQuestion): ValidationResult {
     if (opts.length < 2) {
       issues.push({ message: `Chỉ có ${opts.length} đáp án (cần ≥ 2)`, fix: 'Thêm đáp án trong form sửa câu hỏi' });
     }
-    const ak = (q.answer_key || '').trim();
-    if (!opts.find((o) => o.id === ak)) {
-      issues.push({
-        message: `Đáp án đúng "${ak}" không khớp với bất kỳ đáp án nào`,
-        fix: 'Chọn lại đáp án đúng trong form sửa câu hỏi',
-      });
+    if (!skipAnswerKey) {
+      const ak = (q.answer_key || '').trim();
+      if (!opts.find((o) => o.id === ak)) {
+        issues.push({
+          message: `Đáp án đúng "${ak}" không khớp với bất kỳ đáp án nào`,
+          fix: 'Chọn lại đáp án đúng trong form sửa câu hỏi',
+        });
+      }
     }
   }
 
@@ -69,19 +72,21 @@ export function validateQuestion(q: ValidatableQuestion): ValidationResult {
     if (opts.length < 2) {
       issues.push({ message: `Chỉ có ${opts.length} đáp án (cần ≥ 2)`, fix: 'Thêm đáp án trong form sửa câu hỏi' });
     }
-    try {
-      const ak = JSON.parse(q.answer_key || '[]') as unknown;
-      if (!Array.isArray(ak) || (ak as string[]).length === 0) {
-        issues.push({ message: 'Chưa chọn đáp án đúng nào', fix: 'Tích chọn ít nhất 1 đáp án đúng trong form sửa' });
-      } else {
-        const optIds = opts.map((o) => o.id);
-        const bad = (ak as string[]).filter((id) => !optIds.includes(id));
-        if (bad.length) {
-          issues.push({ message: `Đáp án đúng có ID không tồn tại: ${bad.join(', ')}`, fix: 'Chọn lại đáp án đúng trong form sửa câu hỏi' });
+    if (!skipAnswerKey) {
+      try {
+        const ak = JSON.parse(q.answer_key || '[]') as unknown;
+        if (!Array.isArray(ak) || (ak as string[]).length === 0) {
+          issues.push({ message: 'Chưa chọn đáp án đúng nào', fix: 'Tích chọn ít nhất 1 đáp án đúng trong form sửa' });
+        } else {
+          const optIds = opts.map((o) => o.id);
+          const bad = (ak as string[]).filter((id) => !optIds.includes(id));
+          if (bad.length) {
+            issues.push({ message: `Đáp án đúng có ID không tồn tại: ${bad.join(', ')}`, fix: 'Chọn lại đáp án đúng trong form sửa câu hỏi' });
+          }
         }
+      } catch {
+        issues.push({ message: 'answer_key không đúng định dạng JSON array', fix: 'Sửa lại câu hỏi — có thể do import lỗi' });
       }
-    } catch {
-      issues.push({ message: 'answer_key không đúng định dạng JSON array', fix: 'Sửa lại câu hỏi — có thể do import lỗi' });
     }
   }
 
@@ -90,24 +95,26 @@ export function validateQuestion(q: ValidatableQuestion): ValidationResult {
     if (opts.length < 2) {
       issues.push({ message: `Chỉ có ${opts.length} mục (cần ≥ 2 để sắp xếp)`, fix: 'Thêm mục trong form sửa câu hỏi' });
     }
-    try {
-      const ak = JSON.parse(q.answer_key || '[]') as unknown;
-      if (!Array.isArray(ak) || (ak as string[]).length === 0) {
-        issues.push({ message: 'Chưa thiết lập thứ tự đúng', fix: 'Chọn thứ tự đúng trong form sửa câu hỏi' });
-      } else if ((ak as string[]).length !== opts.length) {
-        issues.push({
-          message: `Số mục thứ tự đúng (${(ak as string[]).length}) ≠ số đáp án (${opts.length})`,
-          fix: 'Sửa lại thứ tự đúng trong form sửa để khớp số mục',
-        });
-      } else {
-        const optIds = opts.map((o) => o.id);
-        const bad = (ak as string[]).filter((id) => !optIds.includes(id));
-        if (bad.length) {
-          issues.push({ message: `Thứ tự đúng có ID không tồn tại: ${bad.join(', ')}`, fix: 'Sửa lại trong form sửa câu hỏi' });
+    if (!skipAnswerKey) {
+      try {
+        const ak = JSON.parse(q.answer_key || '[]') as unknown;
+        if (!Array.isArray(ak) || (ak as string[]).length === 0) {
+          issues.push({ message: 'Chưa thiết lập thứ tự đúng', fix: 'Chọn thứ tự đúng trong form sửa câu hỏi' });
+        } else if ((ak as string[]).length !== opts.length) {
+          issues.push({
+            message: `Số mục thứ tự đúng (${(ak as string[]).length}) ≠ số đáp án (${opts.length})`,
+            fix: 'Sửa lại thứ tự đúng trong form sửa để khớp số mục',
+          });
+        } else {
+          const optIds = opts.map((o) => o.id);
+          const bad = (ak as string[]).filter((id) => !optIds.includes(id));
+          if (bad.length) {
+            issues.push({ message: `Thứ tự đúng có ID không tồn tại: ${bad.join(', ')}`, fix: 'Sửa lại trong form sửa câu hỏi' });
+          }
         }
+      } catch {
+        issues.push({ message: 'answer_key không đúng định dạng JSON array', fix: 'Sửa lại câu hỏi — có thể do import lỗi' });
       }
-    } catch {
-      issues.push({ message: 'answer_key không đúng định dạng JSON array', fix: 'Sửa lại câu hỏi — có thể do import lỗi' });
     }
   }
 
@@ -116,24 +123,26 @@ export function validateQuestion(q: ValidatableQuestion): ValidationResult {
     if (opts.length < 2) {
       issues.push({ message: `Chỉ có ${opts.length} phát biểu (cần ≥ 2)`, fix: 'Thêm phát biểu trong form sửa câu hỏi' });
     }
-    try {
-      const ak = JSON.parse(q.answer_key || '[]') as unknown;
-      if (!Array.isArray(ak)) {
-        issues.push({ message: 'answer_key phải là JSON array ["T","F",...]', fix: 'Sửa lại trong form sửa câu hỏi' });
-      } else {
-        if ((ak as string[]).length !== opts.length) {
-          issues.push({
-            message: `Số phát biểu (${opts.length}) ≠ số đáp án T/F (${(ak as string[]).length})`,
-            fix: 'Sửa lại để số T/F bằng số phát biểu trong form sửa',
-          });
+    if (!skipAnswerKey) {
+      try {
+        const ak = JSON.parse(q.answer_key || '[]') as unknown;
+        if (!Array.isArray(ak)) {
+          issues.push({ message: 'answer_key phải là JSON array ["T","F",...]', fix: 'Sửa lại trong form sửa câu hỏi' });
+        } else {
+          if ((ak as string[]).length !== opts.length) {
+            issues.push({
+              message: `Số phát biểu (${opts.length}) ≠ số đáp án T/F (${(ak as string[]).length})`,
+              fix: 'Sửa lại để số T/F bằng số phát biểu trong form sửa',
+            });
+          }
+          const bad = (ak as string[]).filter((v) => v !== 'T' && v !== 'F');
+          if (bad.length) {
+            issues.push({ message: `Đáp án T/F có giá trị không hợp lệ: ${bad.join(', ')} (chỉ chấp nhận "T" hoặc "F")`, fix: 'Sửa lại trong form sửa câu hỏi' });
+          }
         }
-        const bad = (ak as string[]).filter((v) => v !== 'T' && v !== 'F');
-        if (bad.length) {
-          issues.push({ message: `Đáp án T/F có giá trị không hợp lệ: ${bad.join(', ')} (chỉ chấp nhận "T" hoặc "F")`, fix: 'Sửa lại trong form sửa câu hỏi' });
-        }
+      } catch {
+        issues.push({ message: 'answer_key không đúng định dạng JSON array', fix: 'Sửa lại câu hỏi — có thể do import lỗi' });
       }
-    } catch {
-      issues.push({ message: 'answer_key không đúng định dạng JSON array', fix: 'Sửa lại câu hỏi — có thể do import lỗi' });
     }
   }
 
@@ -142,33 +151,35 @@ export function validateQuestion(q: ValidatableQuestion): ValidationResult {
     if (opts.length < 2) {
       issues.push({ message: `Chỉ có ${opts.length} cặp (cần ≥ 2)`, fix: 'Thêm cặp nối trong form sửa câu hỏi' });
     }
-    try {
-      const ak = JSON.parse(q.answer_key || '{}') as { right?: unknown; map?: unknown };
-      if (!Array.isArray(ak.right) || (ak.right as string[]).length === 0) {
-        issues.push({ message: 'Thiếu cột phải (right) trong answer_key', fix: 'Nhập nội dung cột phải trong form sửa câu hỏi' });
-      } else if ((ak.right as string[]).length !== opts.length) {
-        issues.push({
-          message: `Số mục cột trái (${opts.length}) ≠ cột phải (${(ak.right as string[]).length})`,
-          fix: 'Sửa để 2 cột có số mục bằng nhau trong form sửa',
-        });
-      }
-      if (!ak.map || typeof ak.map !== 'object' || Array.isArray(ak.map)) {
-        issues.push({ message: 'Thiếu bảng ánh xạ (map) trong answer_key', fix: 'Sửa lại trong form sửa câu hỏi' });
-      } else {
-        const optIds = opts.map((o) => o.id);
-        const badKeys = Object.keys(ak.map as object).filter((k) => !optIds.includes(k));
-        if (badKeys.length) {
-          issues.push({ message: `Map có key không khớp đáp án: ${badKeys.join(', ')}`, fix: 'Sửa lại trong form sửa câu hỏi' });
+    if (!skipAnswerKey) {
+      try {
+        const ak = JSON.parse(q.answer_key || '{}') as { right?: unknown; map?: unknown };
+        if (!Array.isArray(ak.right) || (ak.right as string[]).length === 0) {
+          issues.push({ message: 'Thiếu cột phải (right) trong answer_key', fix: 'Nhập nội dung cột phải trong form sửa câu hỏi' });
+        } else if ((ak.right as string[]).length !== opts.length) {
+          issues.push({
+            message: `Số mục cột trái (${opts.length}) ≠ cột phải (${(ak.right as string[]).length})`,
+            fix: 'Sửa để 2 cột có số mục bằng nhau trong form sửa',
+          });
         }
-        const rightLen = Array.isArray(ak.right) ? (ak.right as string[]).length : 0;
-        const badVals = Object.values(ak.map as Record<string, string>)
-          .filter((v) => isNaN(Number(v)) || Number(v) < 1 || Number(v) > rightLen);
-        if (badVals.length) {
-          issues.push({ message: `Map có giá trị ngoài phạm vi 1–${rightLen}: ${badVals.join(', ')}`, fix: 'Sửa lại mapping trong form sửa câu hỏi' });
+        if (!ak.map || typeof ak.map !== 'object' || Array.isArray(ak.map)) {
+          issues.push({ message: 'Thiếu bảng ánh xạ (map) trong answer_key', fix: 'Sửa lại trong form sửa câu hỏi' });
+        } else {
+          const optIds = opts.map((o) => o.id);
+          const badKeys = Object.keys(ak.map as object).filter((k) => !optIds.includes(k));
+          if (badKeys.length) {
+            issues.push({ message: `Map có key không khớp đáp án: ${badKeys.join(', ')}`, fix: 'Sửa lại trong form sửa câu hỏi' });
+          }
+          const rightLen = Array.isArray(ak.right) ? (ak.right as string[]).length : 0;
+          const badVals = Object.values(ak.map as Record<string, string>)
+            .filter((v) => isNaN(Number(v)) || Number(v) < 1 || Number(v) > rightLen);
+          if (badVals.length) {
+            issues.push({ message: `Map có giá trị ngoài phạm vi 1–${rightLen}: ${badVals.join(', ')}`, fix: 'Sửa lại mapping trong form sửa câu hỏi' });
+          }
         }
+      } catch {
+        issues.push({ message: 'answer_key không đúng định dạng JSON object', fix: 'Sửa lại câu hỏi — có thể do import lỗi' });
       }
-    } catch {
-      issues.push({ message: 'answer_key không đúng định dạng JSON object', fix: 'Sửa lại câu hỏi — có thể do import lỗi' });
     }
   }
 

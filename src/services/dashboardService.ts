@@ -68,7 +68,6 @@ export async function listRecentCompletedAttemptsForDashboard(
       total_max,
       disqualified,
       user_id,
-      student_name,
       exams ( title, pass_threshold, duration_minutes ),
       exam_windows ( id, start_at, end_at, access_code, class_id )
     `,
@@ -90,7 +89,6 @@ export async function listRecentCompletedAttemptsForDashboard(
     total_max: number | null;
     disqualified: boolean | null;
     user_id: string | null;
-    student_name?: string | null;
     exams?: { title?: string | null; pass_threshold?: number | null; duration_minutes?: number | null } | null;
     exam_windows?: {
       id?: string;
@@ -146,10 +144,9 @@ export async function listRecentCompletedAttemptsForDashboard(
           ? `${Math.round(scoreNum * 1000) / 10}%`
           : '—';
 
-    // Tên học viên: ưu tiên tên đóng dấu trong attempt, sau đó profile name/email
+    // Tên học viên: lấy từ profiles (name → email → '—')
     const profile = profileMap.get(r.user_id ?? '');
-    const sealedName = typeof r.student_name === 'string' && r.student_name.trim() ? r.student_name.trim() : null;
-    const studentLabel = sealedName || profile?.name?.trim() || profile?.email?.trim() || '—';
+    const studentLabel = profile?.name?.trim() || profile?.email?.trim() || '—';
 
     // Nhãn kỳ thi: lớp + ngày giờ + mã (nếu có)
     const winStart = win?.start_at != null ? Number(win.start_at) : 0;

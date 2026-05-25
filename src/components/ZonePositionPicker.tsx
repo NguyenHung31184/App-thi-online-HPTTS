@@ -1,6 +1,6 @@
 /**
- * Cho phép GV kéo 4 chấm trên ảnh để đặt vị trí ô thả nhãn; tọa độ % cập nhật theo vị trí kéo.
- * Dùng trong form soạn câu hỏi kéo nhãn lên ảnh (drag_drop + ảnh + 4 mục).
+ * Cho phép GV kéo N chấm trên ảnh để đặt vị trí ô thả nhãn; tọa độ % cập nhật theo vị trí kéo.
+ * Dùng trong form soạn câu hỏi kéo nhãn lên ảnh (drag_drop + ảnh).
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 
@@ -8,9 +8,10 @@ export interface ZonePositionPickerProps {
   imageUrl: string;
   zonePositions: { x: number; y: number }[];
   setZonePositions: React.Dispatch<React.SetStateAction<{ x: number; y: number }[]>>;
+  count?: number;
 }
 
-export function ZonePositionPicker({ imageUrl, zonePositions, setZonePositions }: ZonePositionPickerProps) {
+export function ZonePositionPicker({ imageUrl, zonePositions, setZonePositions, count = 4 }: ZonePositionPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
 
@@ -46,14 +47,14 @@ export function ZonePositionPicker({ imageUrl, zonePositions, setZonePositions }
   return (
     <div className="space-y-2">
       <p className="text-sm text-slate-600">
-        <strong>Cách đặt vị trí:</strong> Kéo 4 chấm tròn vào đúng vị trí trên ảnh (đầu mũi tên hoặc ô cần điền). Số X, Y % bên dưới cập nhật tự động; có thể chỉnh tay nếu cần.
+        <strong>Cách đặt vị trí:</strong> Kéo {count} chấm tròn vào đúng vị trí trên ảnh. Số X, Y % bên dưới cập nhật tự động; có thể chỉnh tay nếu cần.
       </p>
       <div
         ref={containerRef}
         className="relative inline-block max-w-full border border-slate-200 rounded-lg overflow-hidden bg-slate-100"
       >
         <img src={imageUrl} alt="Ảnh để đặt vị trí ô" className="block max-w-full max-h-80 object-contain pointer-events-none" />
-        {[0, 1, 2, 3].map((idx) => (
+        {Array.from({ length: count }, (_, idx) => (
           <div
             key={idx}
             role="button"

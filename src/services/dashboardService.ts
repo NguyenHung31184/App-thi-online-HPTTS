@@ -15,6 +15,8 @@ export interface DashboardRecentAttemptRow {
   raw_display: string;
   passed: boolean;
   disqualified: boolean;
+  /** true nếu thời gian làm vượt quá duration_minutes của đề thi */
+  overtime: boolean;
 }
 
 function formatDurationMs(ms: number): string {
@@ -66,8 +68,9 @@ export async function listRecentCompletedAttemptsForDashboard(
       total_max,
       disqualified,
       user_id,
-      exams ( title, pass_threshold ),
-      exam_windows ( id, start_at, end_at, access_code )
+      student_name,
+      exams ( title, pass_threshold, duration_minutes ),
+      exam_windows ( id, start_at, end_at, access_code, class_id )
     `,
     )
     .eq('status', 'completed')
@@ -87,14 +90,43 @@ export async function listRecentCompletedAttemptsForDashboard(
     total_max: number | null;
     disqualified: boolean | null;
     user_id: string | null;
-    exams?: { title?: string | null; pass_threshold?: number | null } | null;
+    student_name?: string | null;
+    exams?: { title?: string | null; pass_threshold?: number | null; duration_minutes?: number | null } | null;
     exam_windows?: {
       id?: string;
       start_at?: number;
       end_at?: number;
       access_code?: string | null;
+      class_id?: string | null;
     } | null;
   }[];
+
+  // Batch fetch profiles để lấy tên thật (name/email) theo user_id
+  const userIds = [...new Set(rows.map((r) => r.user_id).filter((id): id is string => typeof id === 'string'))];
+  const profileMap = new Map<string, { name?: string | null; email?: string | null }>();
+  if (userIds.length > 0) {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id, name, email')
+      .in('id', userIds);
+    for (const p of (profileData ?? []) as { id: string; name?: string | null; email?: string | null }[]) {
+      profileMap.set(p.id, { name: p.name, email: p.email });
+    }
+  }
+
+  // Batch fetch class names theo class_id của exam_windows
+  const classIds = [
+    ...new Set(
+      rows.map((r) => r.exam_windows?.class_id).filter((id): id is string => typeof id === 'string'),
+    ),
+  ];
+  const classNameMap = new Map<string, string>();
+  if (classIds.length > 0) {
+    const { data: classData } = await supabase.from('classes').select('id, name').in('id', classIds);
+    for (const c of (classData ?? []) as { id: string; name: string }[]) {
+      classNameMap.set(c.id, c.name);
+    }
+  }
 
   return rows.map((r) => {
     const exam = r.exams;
@@ -113,15 +145,23 @@ export async function listRecentCompletedAttemptsForDashboard(
         : scoreNum != null
           ? `${Math.round(scoreNum * 1000) / 10}%`
           : '—';
-    const studentLabel = r.user_id ? 'Tài khoản đăng nhập' : '—';
+
+    // Tên học viên: ưu tiên tên đóng dấu trong attempt, sau đó profile name/email
+    const profile = profileMap.get(r.user_id ?? '');
+    const sealedName = typeof r.student_name === 'string' && r.student_name.trim() ? r.student_name.trim() : null;
+    const studentLabel = sealedName || profile?.name?.trim() || profile?.email?.trim() || '—';
+
+    // Nhãn kỳ thi: lớp + ngày giờ + mã (nếu có)
     const winStart = win?.start_at != null ? Number(win.start_at) : 0;
     const winEnd = win?.end_at != null ? Number(win.end_at) : 0;
-    const windowLabel =
-      winStart > 0 && winEnd > 0
-        ? formatWindowRange(winStart, winEnd)
-        : win?.access_code
-          ? `Mã ${win.access_code}`
-          : '—';
+    const className = win?.class_id ? classNameMap.get(win.class_id) : null;
+    const timeRange = winStart > 0 && winEnd > 0 ? formatWindowRange(winStart, winEnd) : null;
+    const accessCode = win?.access_code ? `Mã ${win.access_code}` : null;
+    const windowLabel = [className, timeRange, accessCode].filter(Boolean).join(' · ') || '—';
+
+    // Kiểm tra vượt giờ
+    const examDurationMs = (exam?.duration_minutes ?? 0) * 60 * 1000;
+    const overtime = examDurationMs > 0 && durationMs > 0 && durationMs > examDurationMs;
 
     return {
       id: r.id,
@@ -137,6 +177,7 @@ export async function listRecentCompletedAttemptsForDashboard(
       raw_display: rawDisplay,
       passed,
       disqualified: Boolean(r.disqualified),
+      overtime,
     };
   });
 }

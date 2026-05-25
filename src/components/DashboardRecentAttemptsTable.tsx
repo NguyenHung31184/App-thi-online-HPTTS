@@ -64,11 +64,16 @@ export default function DashboardRecentAttemptsTable({ rows, showAdminLinks }: P
                   </span>
                 )}
               </td>
-              <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{r.duration_label}</td>
+              <td className={`px-3 py-2 whitespace-nowrap ${r.overtime ? 'text-amber-600 font-medium' : 'text-slate-700'}`}>
+                {r.duration_label}
+                {r.overtime && <span className="ml-1 text-[10px] bg-amber-100 text-amber-700 rounded px-1">vượt giờ</span>}
+              </td>
               <td className="px-3 py-2 text-slate-800 font-medium tabular-nums">{r.raw_display}</td>
               <td className="px-3 py-2">
                 {r.disqualified ? (
                   <span className="text-amber-700 font-medium">Bị loại</span>
+                ) : r.overtime ? (
+                  <span className="text-amber-600 font-medium">Đạt ⚠</span>
                 ) : r.passed ? (
                   <span className="text-emerald-600 font-medium">Đạt</span>
                 ) : (

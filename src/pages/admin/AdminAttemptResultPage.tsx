@@ -233,58 +233,56 @@ export default function AdminAttemptResultPage() {
       if (!eErr && examData) setExam(examData as Exam);
 
       // 3. Lấy tên học viên từ profiles (nếu có user_id)
+      // Lưu vào local var để dùng ngay trong bước 3b (state update không sync)
+      let fetchedProfileName: string | null = null;
+      let fetchedProfileEmail: string | null = null;
+      let fetchedProfileStudentId: string | null = null;
       if (a.user_id) {
         const { data: pData } = await supabase
           .from('profiles')
-          .select('name, email')
+          .select('name, email, student_id')
           .eq('id', a.user_id)
           .single();
         if (pData) {
-          const pName = normalizePrintable((pData as Record<string, unknown>)['name']);
-          const pEmail = normalizePrintable((pData as Record<string, unknown>)['email']);
-          setProfileName(pName ?? null);
-          setProfileEmail(pEmail ?? null);
+          fetchedProfileName = normalizePrintable((pData as Record<string, unknown>)['name']);
+          fetchedProfileEmail = normalizePrintable((pData as Record<string, unknown>)['email']);
+          fetchedProfileStudentId = ((pData as Record<string, unknown>)['student_id'] as string | null) ?? null;
+          setProfileName(fetchedProfileName ?? null);
+          setProfileEmail(fetchedProfileEmail ?? null);
         }
       }
 
-      // 3b. Resolve thông tin học viên để in: ưu tiên "đóng dấu" trong attempts, nếu thiếu thì tra students.
-      const sealedName = normalizePrintable(a.student_name);
-      const sealedDob = normalizePrintable(a.student_dob);
-      const sealedCccd = normalizePrintable(a.id_card_number);
+      // 3b. Resolve tên học viên: tra students bằng exam_account_email hoặc student_id
+      let resolvedName: string | null = null;
+      let resolvedDob: string | null = null;
+      let resolvedCccd: string | null = null;
 
-      let resolvedName = sealedName;
-      let resolvedDob = sealedDob;
-      let resolvedCccd = sealedCccd;
+      const tryLookupByEmail = async (email: string) => {
+        const { data } = await supabase
+          .from('students')
+          .select('*')
+          .eq('exam_account_email', email)
+          .maybeSingle();
+        return (data ?? null) as Record<string, unknown> | null;
+      };
 
-      const needLookup = !resolvedName || !resolvedDob || !resolvedCccd;
-      if (needLookup) {
-        const tryLookupByEmail = async (email: string) => {
-          const { data } = await supabase
-            .from('students')
-            .select('*')
-            .eq('exam_account_email', email)
-            .maybeSingle();
-          return (data ?? null) as Record<string, unknown> | null;
-        };
+      const tryLookupById = async (studentId: string) => {
+        const { data } = await supabase
+          .from('students')
+          .select('*')
+          .eq('id', studentId)
+          .maybeSingle();
+        return (data ?? null) as Record<string, unknown> | null;
+      };
 
-        const tryLookupById = async (studentId: string) => {
-          const { data } = await supabase
-            .from('students')
-            .select('*')
-            .eq('id', studentId)
-            .maybeSingle();
-          return (data ?? null) as Record<string, unknown> | null;
-        };
+      let studentRow: Record<string, unknown> | null = null;
+      if (fetchedProfileEmail) studentRow = await tryLookupByEmail(fetchedProfileEmail);
+      if (!studentRow && fetchedProfileStudentId) studentRow = await tryLookupById(fetchedProfileStudentId);
 
-        let studentRow: Record<string, unknown> | null = null;
-        if (!studentRow && profileEmail) studentRow = await tryLookupByEmail(profileEmail);
-        if (!studentRow && a.student_id) studentRow = await tryLookupById(a.student_id);
-
-        if (studentRow) {
-          resolvedName ||= pickFirstString(studentRow, ['name', 'full_name', 'student_name']);
-          resolvedDob ||= pickFirstString(studentRow, ['student_dob', 'dob', 'date_of_birth']);
-          resolvedCccd ||= pickFirstString(studentRow, ['id_card_number', 'cccd', 'id_number']);
-        }
+      if (studentRow) {
+        resolvedName = pickFirstString(studentRow, ['name', 'full_name', 'student_name']);
+        resolvedDob = pickFirstString(studentRow, ['student_dob', 'dob', 'date_of_birth']);
+        resolvedCccd = pickFirstString(studentRow, ['id_card_number', 'cccd', 'id_number']);
       }
 
       setResolvedStudentName(resolvedName ?? null);
@@ -361,12 +359,11 @@ export default function AdminAttemptResultPage() {
 
   const studentDisplay =
     resolvedStudentName ||
-    attempt.student_name?.trim() ||
     profileName ||
     profileEmail ||
     '—';
-  const studentDob = resolvedStudentDob ?? attempt.student_dob ?? null;
-  const studentCccd = resolvedStudentCccd ?? attempt.id_card_number ?? null;
+  const studentDob = resolvedStudentDob ?? null;
+  const studentCccd = resolvedStudentCccd ?? null;
   const completedAtMs =
     typeof attempt.completed_at === 'number' ? attempt.completed_at : null;
   const completedAtStr = completedAtMs

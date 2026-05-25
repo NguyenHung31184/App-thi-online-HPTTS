@@ -110,6 +110,8 @@ function InlineEditForm({
   onCancel: () => void;
 }) {
   const parsed = parseAnswerKey(question.answer_key || 'A', question.question_type || 'single_choice');
+  const rawOpts = Array.isArray(question.options) ? (question.options as { id: string; text: string }[]) : [];
+  const initialZoneCount = question.question_type === 'drag_drop' ? (Math.max(parsed.order.length, rawOpts.length) || 4) : 4;
 
   const [stem, setStem] = useState(question.stem);
   const [questionType, setQuestionType] = useState<QuestionType>(
@@ -117,9 +119,13 @@ function InlineEditForm({
       ? question.question_type : 'single_choice'
   );
   const [options, setOptions] = useState<{ id: string; text: string }[]>(() => {
-    const loaded = Array.isArray(question.options) ? (question.options as { id: string; text: string }[]) : [];
-    const base = loaded.length ? loaded : emptyOptions();
-    // Pad với slot trống để luôn có A–J trong state (cho UX mở rộng)
+    if (question.question_type === 'drag_drop') {
+      return OPTION_IDS.slice(0, initialZoneCount).map((id) => ({
+        id,
+        text: rawOpts.find((o) => o.id === id)?.text ?? '',
+      }));
+    }
+    const base = rawOpts.length ? rawOpts : emptyOptions();
     const existingIds = new Set(base.map((o) => o.id));
     const padded = [...base];
     for (const id of OPTION_IDS) {
@@ -129,15 +135,24 @@ function InlineEditForm({
   });
   const [answerKey, setAnswerKey] = useState(parsed.single || 'A');
   const [answerMultiple, setAnswerMultiple] = useState<string[]>(parsed.multiple.length ? parsed.multiple : [parsed.single]);
-  const [zoneAnswers, setZoneAnswers] = useState<string[]>(
-    questionType === 'drag_drop' && parsed.order.length === 4 ? parsed.order : ['A', 'B', 'C', 'D']
-  );
+  const [zoneCount, setZoneCount] = useState(initialZoneCount);
+  const [zoneAnswers, setZoneAnswers] = useState<string[]>(() => {
+    if (question.question_type !== 'drag_drop') return OPTION_IDS.slice(0, 4);
+    const order = parsed.order;
+    const count = initialZoneCount;
+    const fullOrder = [...order];
+    const existingOrderSet = new Set(order);
+    for (const opt of rawOpts) {
+      if (!existingOrderSet.has(opt.id) && fullOrder.length < count) fullOrder.push(opt.id);
+    }
+    return fullOrder.length ? fullOrder.slice(0, count) : OPTION_IDS.slice(0, count);
+  });
   const [zonePositions, setZonePositions] = useState<{ x: number; y: number }[]>(() => {
     let r: unknown = question.rubric;
     if (typeof r === 'string' && r.trim()) { try { r = JSON.parse(r); } catch { r = undefined; } }
     if (r && typeof r === 'object' && r !== null && 'zones' in r) {
       const zones = (r as { zones: { x: number; y: number }[] }).zones;
-      if (Array.isArray(zones) && zones.length === 4) return zones.map((z) => ({ x: Number(z.x) || 10, y: Number(z.y) || 10 }));
+      if (Array.isArray(zones) && zones.length > 0) return zones.map((z) => ({ x: Number(z.x) || 10, y: Number(z.y) || 10 }));
     }
     return [...DEFAULT_ZONE_POSITIONS];
   });
@@ -152,13 +167,11 @@ function InlineEditForm({
   const [rubric, setRubric] = useState(
     typeof question.rubric === 'string' ? question.rubric : (question.rubric ? JSON.stringify(question.rubric, null, 2) : '')
   );
-  // true_false_multi: mảng "T"/"F" tương ứng với từng option
   const [tfAnswers, setTfAnswers] = useState<string[]>(() => {
     if (question.question_type !== 'true_false_multi') return [];
     try { const p = JSON.parse(question.answer_key || '[]'); if (Array.isArray(p)) return p as string[]; } catch { /* ignore */ }
     return [];
   });
-  // matching: cột phải (text) + map ghép đôi (auto A→1, B→2,...)
   const [matchingRight, setMatchingRight] = useState<string[]>(() => {
     if (question.question_type !== 'matching') return [];
     try {
@@ -182,11 +195,34 @@ function InlineEditForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (questionType !== 'drag_drop') return;
+    setOptions((prev) =>
+      OPTION_IDS.slice(0, zoneCount).map((id) => ({
+        id,
+        text: prev.find((o) => o.id === id)?.text ?? '',
+      }))
+    );
+    setZonePositions((prev) => {
+      const defaults = [
+        { x: 10, y: 10 }, { x: 70, y: 10 }, { x: 10, y: 70 }, { x: 70, y: 70 },
+        { x: 40, y: 10 }, { x: 40, y: 70 }, { x: 10, y: 40 }, { x: 70, y: 40 },
+      ];
+      const next = [...prev];
+      while (next.length < zoneCount) next.push(defaults[next.length] ?? { x: 50, y: 50 });
+      return next.slice(0, zoneCount);
+    });
+    setZoneAnswers((prev) => {
+      const next = [...prev];
+      while (next.length < zoneCount) next.push(OPTION_IDS[next.length] ?? 'A');
+      return next.slice(0, zoneCount);
+    });
+  }, [zoneCount, questionType]);
+
   const isEssay = questionType === 'video_paragraph' || questionType === 'main_idea';
   const isTrueFalseMulti = questionType === 'true_false_multi';
   const isMatching = questionType === 'matching';
   const displayImage = imagePreview || existingImageUrl;
-  // UX tự động mở rộng: hiện tối thiểu 4 slot, thêm 1 slot trống sau slot cuối có nội dung, tối đa 10
   const filledCount = options.filter((o) => o.text.trim() !== '').length;
   const visibleOptionIds = OPTION_IDS.slice(0, Math.min(OPTION_IDS.length, Math.max(4, filledCount + 1)));
 
@@ -209,9 +245,9 @@ function InlineEditForm({
       if (questionType === 'multiple_choice') {
         finalAnswerKey = JSON.stringify(validIds.filter((id) => answerMultiple.includes(id)).sort());
       } else if (questionType === 'drag_drop') {
-        const za = zoneAnswers.slice(0, 4);
+        const za = zoneAnswers.slice(0, zoneCount);
         const unique = new Set(za);
-        if (opts.length === 4 && (unique.size !== 4 || za.some((id) => !validIds.includes(id)))) {
+        if (unique.size !== zoneCount || za.some((id) => !validIds.includes(id))) {
           setError('Với câu kéo nhãn: mỗi ô phải chọn đúng một nhãn khác nhau.'); setSaving(false); return;
         }
         finalAnswerKey = JSON.stringify(za);
@@ -247,7 +283,7 @@ function InlineEditForm({
       setMediaUrlError('');
 
       let rubricVal: unknown = rubric.trim() ? rubric.trim() : null;
-      if (questionType === 'drag_drop' && opts.length === 4) rubricVal = { zones: zonePositions };
+      if (questionType === 'drag_drop') rubricVal = { zones: zonePositions.slice(0, zoneCount) };
       else if (isEssay) rubricVal = rubric.trim() ? rubric.trim() : null;
 
       const updated = await updateQuestionBankItem(question.id, {
@@ -260,7 +296,7 @@ function InlineEditForm({
         difficulty,
         image_url,
         media_url: isEssay ? (rawMediaUrl || null) : undefined,
-        rubric: isEssay ? rubricVal : (questionType === 'drag_drop' && opts.length === 4 ? rubricVal : undefined),
+        rubric: isEssay ? rubricVal : (questionType === 'drag_drop' ? rubricVal : undefined),
       });
       toast.success('Đã lưu câu hỏi.');
       onSave(updated);
@@ -325,10 +361,23 @@ function InlineEditForm({
       {/* Đáp án — trắc nghiệm, kéo thả */}
       {!isEssay && !isTrueFalseMulti && !isMatching && (
         <div>
+          {questionType === 'drag_drop' && (
+            <div className="flex items-center gap-2 mb-2">
+              <label className="text-xs font-medium text-slate-600">Số nhãn:</label>
+              <select
+                title="Số nhãn"
+                value={zoneCount}
+                onChange={(e) => setZoneCount(Number(e.target.value))}
+                className="border border-slate-300 rounded px-2 py-1 text-sm"
+              >
+                {[2, 3, 4, 5, 6, 7, 8].map((n) => <option key={n} value={n}>{n} nhãn</option>)}
+              </select>
+            </div>
+          )}
           <label className="block text-xs font-medium text-slate-600 mb-1">
-            {questionType === 'drag_drop' ? '4 nhãn' : 'Đáp án'}
+            {questionType === 'drag_drop' ? `${zoneCount} nhãn` : 'Đáp án'}
           </label>
-          {(questionType === 'drag_drop' ? ['A', 'B', 'C', 'D'] : visibleOptionIds).map((optId, idx) => (
+          {(questionType === 'drag_drop' ? OPTION_IDS.slice(0, zoneCount) : visibleOptionIds).map((optId, idx) => (
             <div key={optId} className="flex items-center gap-2 mb-1.5">
               <span className="w-14 text-xs text-slate-500 flex-shrink-0">
                 {questionType === 'drag_drop' ? `Nhãn ${idx + 1}` : `${optId}.`}
@@ -417,16 +466,16 @@ function InlineEditForm({
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Đáp án từng ô trên ảnh</label>
           <div className="grid grid-cols-2 gap-2">
-            {[0, 1, 2, 3].map((idx) => {
+            {Array.from({ length: zoneCount }, (_, idx) => {
               const validOpts = options.filter((o) => o.text.trim() !== '');
               return (
                 <div key={idx} className="flex items-center gap-2">
                   <span className="text-xs text-slate-500 w-10 flex-shrink-0">Ô {idx + 1}</span>
-                  <select value={zoneAnswers[idx] ?? ['A', 'B', 'C', 'D'][idx]}
+                  <select value={zoneAnswers[idx] ?? OPTION_IDS[idx]}
                     title={`Đáp án ô ${idx + 1}`}
-                    onChange={(e) => setZoneAnswers((prev) => { const next = [...prev]; while (next.length <= idx) next.push('A'); next[idx] = e.target.value; return next; })}
+                    onChange={(e) => setZoneAnswers((prev) => { const next = [...prev]; while (next.length <= idx) next.push(OPTION_IDS[next.length] ?? 'A'); next[idx] = e.target.value; return next; })}
                     className="flex-1 border border-slate-300 rounded-lg px-2 py-1 text-sm">
-                    {(validOpts.length >= 4 ? validOpts : options).map((o) => (
+                    {(validOpts.length >= zoneCount ? validOpts : options).map((o) => (
                       <option key={o.id} value={o.id}>{o.text || o.id}</option>
                     ))}
                   </select>
@@ -437,7 +486,7 @@ function InlineEditForm({
           {displayImage && (
             <div className="mt-2">
               <label className="block text-xs font-medium text-slate-600 mb-1">Vị trí ô trên ảnh</label>
-              <ZonePositionPicker imageUrl={displayImage} zonePositions={zonePositions} setZonePositions={setZonePositions} />
+              <ZonePositionPicker imageUrl={displayImage} zonePositions={zonePositions} setZonePositions={setZonePositions} count={zoneCount} />
             </div>
           )}
         </div>

@@ -45,6 +45,7 @@ export interface CreateExamWindowInput {
   start_at: number;
   end_at: number;
   access_code: string;
+  is_trial?: boolean;
 }
 
 export async function createExamWindow(input: CreateExamWindowInput): Promise<ExamWindow> {
@@ -58,6 +59,7 @@ export async function createExamWindow(input: CreateExamWindowInput): Promise<Ex
     start_at: input.start_at,
     end_at: input.end_at,
     access_code: input.access_code,
+    is_trial: input.is_trial ?? false,
   };
   const { data, error } = await supabase.from('exam_windows').insert(row).select().single();
   if (error) throw error;
@@ -73,6 +75,7 @@ export interface UpdateExamWindowInput {
   exam_id?: string;
   /** Cập nhật danh sách đề (quay 1 trong N). Null = giữ nguyên; [] = xóa, quay lại 1 đề (exam_id). */
   exam_ids?: string[] | null;
+  is_trial?: boolean;
 }
 
 export async function updateExamWindow(id: string, input: UpdateExamWindowInput): Promise<ExamWindow> {

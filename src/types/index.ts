@@ -85,6 +85,8 @@ export interface ExamWindow {
   start_at: number; // timestamp
   end_at: number;
   access_code: string;
+  /** Kỳ thi thử: không đồng bộ điểm sang TTDT, không bắt buộc class_id */
+  is_trial?: boolean;
   created_at?: string;
 }
 

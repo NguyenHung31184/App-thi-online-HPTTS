@@ -52,6 +52,7 @@ export default function AdminWindowFormPage() {
   const [start_at, setStartAt] = useState('');
   const [end_at, setEndAt] = useState('');
   const [access_code, setAccessCode] = useState('');
+  const [is_trial, setIsTrial] = useState(false);
   const [exams, setExams] = useState<{ id: string; title: string; description?: string | null; module_id?: string | null }[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -93,6 +94,7 @@ export default function AdminWindowFormPage() {
       setStartAt(toDatetimeLocal(w.start_at));
       setEndAt(toDatetimeLocal(w.end_at));
       setAccessCode(w.access_code);
+      setIsTrial(w.is_trial ?? false);
     }).catch(() => setError('Không tải được kỳ thi.'));
     return () => { cancelled = true; };
   }, [isEdit, id]);
@@ -124,8 +126,8 @@ export default function AdminWindowFormPage() {
     setError('');
     setLoading(true);
     try {
-      if (!class_id || class_id.trim() === '') {
-        setError('Vui lòng chọn Lớp (TTDT) cho kỳ thi để có thể đồng bộ điểm.');
+      if (!is_trial && (!class_id || class_id.trim() === '')) {
+        setError('Vui lòng chọn Lớp (TTDT) cho kỳ thi để có thể đồng bộ điểm. (Hoặc tick "Kỳ thi thử" nếu không cần đồng bộ.)');
         setLoading(false);
         return;
       }
@@ -139,7 +141,7 @@ export default function AdminWindowFormPage() {
         setLoading(false);
         return;
       }
-      if (hasMissingModule) {
+      if (!is_trial && hasMissingModule) {
         setError(
           `Không thể lưu: ${examTitlesWithoutModule.length} đề chưa gắn mô-đun (${examTitlesWithoutModule.join(', ')}). Vui lòng vào Đề thi → Sửa từng đề → chọn Mô-đun rồi lưu, sau đó quay lại tạo/sửa kỳ thi.`
         );
@@ -155,30 +157,33 @@ export default function AdminWindowFormPage() {
       }
       if (isEdit && id) {
         await updateExamWindow(id, {
-          class_id,
+          class_id: class_id || '',
           start_at: startTs,
           end_at: endTs,
           access_code,
           exam_id: useMultiExams ? undefined : exam_id,
           exam_ids: useMultiExams ? selectedExamIds : [],
+          is_trial,
         });
         navigate('/admin/windows');
       } else {
         if (useMultiExams) {
           await createExamWindow({
             exam_ids: selectedExamIds,
-            class_id,
+            class_id: class_id || '',
             start_at: startTs,
             end_at: endTs,
             access_code,
+            is_trial,
           });
         } else {
           await createExamWindow({
             exam_id,
-            class_id,
+            class_id: class_id || '',
             start_at: startTs,
             end_at: endTs,
             access_code,
+            is_trial,
           });
         }
         navigate('/admin/windows');
@@ -206,6 +211,13 @@ export default function AdminWindowFormPage() {
 
         {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
 
+        {is_trial && (
+          <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+            <p className="font-semibold">Chế độ kỳ thi thử đang bật</p>
+            <p className="mt-1">Học viên vào thi và xem điểm bình thường, nhưng điểm sẽ <strong>không</strong> được ghi vào hệ thống quản lý TTDT. Lớp và Mô-đun không bắt buộc.</p>
+          </div>
+        )}
+        {!is_trial && (
         <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-sm">
           <p className="font-semibold">Bắt buộc cấu hình đầy đủ để ghi nhận điểm</p>
           <p className="mt-1">
@@ -230,6 +242,7 @@ export default function AdminWindowFormPage() {
             Nếu thiếu một trong các thông tin trên, học viên nộp bài sẽ <strong>không được ghi nhận điểm trên TTDT</strong>.
           </p>
         </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-5">
         {!isEdit && (
           <>
@@ -449,12 +462,30 @@ export default function AdminWindowFormPage() {
             )}
           </div>
         )}
+        {/* Kỳ thi thử */}
+        <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors">
+          <input
+            type="checkbox"
+            checked={is_trial}
+            onChange={(e) => setIsTrial(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded text-indigo-600 accent-indigo-600"
+          />
+          <div>
+            <span className="text-sm font-medium text-slate-800">Kỳ thi thử / kiểm tra nội dung</span>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Học viên thi bình thường nhưng điểm <strong>không</strong> được ghi vào hệ thống quản lý. Không bắt buộc chọn Lớp và Mô-đun.
+            </p>
+          </div>
+        </label>
+
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Lớp (TTDT) *</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Lớp (TTDT){!is_trial && ' *'}
+          </label>
           <select
             value={class_id}
             onChange={(e) => setClassId(e.target.value)}
-            required
+            required={!is_trial}
             className="w-full border border-slate-300 rounded-lg px-3 py-2"
           >
             <option value="">— Chọn lớp —</option>

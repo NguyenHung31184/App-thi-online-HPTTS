@@ -101,8 +101,10 @@ export default function ExamResultPage() {
     syncMissingModule?: boolean;
     syncMissingStudentId?: boolean;
     syncMissingClassId?: boolean;
+    isTrial?: boolean;
   } | null;
   const search = new URLSearchParams(location.search ?? '');
+  const isTrial = state?.isTrial ?? search.has('isTrial');
   const syncSkipped = state?.syncSkipped ?? search.has('syncSkipped');
   const syncMissingModule = state?.syncMissingModule ?? search.has('syncMissingModule');
   const syncMissingStudentId = state?.syncMissingStudentId ?? search.has('syncMissingStudentId');
@@ -190,10 +192,15 @@ export default function ExamResultPage() {
           Ngưỡng đạt: {typeof passValue === 'number' ? Math.round(passValue * 10) / 10 : '—'} / {denom ?? 'tổng điểm'}.
         </p>
 
-        {attempt.synced_to_ttdt_at && (
+        {isTrial && (
+          <div className="text-sm text-blue-700 mt-2 bg-blue-50 border border-blue-200 rounded px-3 py-2">
+            Đây là <strong>kỳ thi thử</strong> — điểm không được lưu vào hệ thống quản lý TTDT.
+          </div>
+        )}
+        {!isTrial && attempt.synced_to_ttdt_at && (
           <p className="text-sm text-green-600 mt-2">Đã đồng bộ điểm sang hệ thống TTDT.</p>
         )}
-        {syncSkipped &&
+        {!isTrial && syncSkipped &&
           !attempt.synced_to_ttdt_at && (
             <div className="text-sm text-amber-800 mt-2 bg-amber-50 border border-amber-200 rounded px-3 py-2">
               <p className="font-medium">Điểm chưa đồng bộ sang TTDT.</p>

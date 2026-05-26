@@ -442,26 +442,32 @@ export default function ExamTakePage() {
       let syncMissingModule = false;
       let syncMissingStudentId = false;
       let syncMissingClassId = false;
+      let isTrial = false;
       try {
         const updated = await getAttempt(attemptId);
         if (updated && ex && isTtdtSyncConfigured()) {
           const win = await getExamWindow(updated.window_id);
-          const hasModule = ex.module_id != null && String(ex.module_id).trim() !== '';
-          const hasStudentId = Boolean((user?.student_id ?? studentSession?.student_id) && String(user?.student_id ?? studentSession?.student_id).trim() !== '');
-          const hasClassId = Boolean(win?.class_id && String(win?.class_id).trim() !== '');
-          const hasEnrollmentInfo = (hasStudentId && hasClassId) || undefined;
-          if (hasModule && hasEnrollmentInfo) {
-            await syncAttemptToTtdt(updated, ex, {
-              studentId: user?.student_id ?? studentSession?.student_id ?? undefined,
-              classId: win?.class_id ?? undefined,
-              userEmail: user?.email ?? undefined,
-              userName: (studentSession?.student_name ?? (user as { student_name?: string } | null)?.student_name ?? user?.name) ?? undefined,
-            });
+          if (win?.is_trial) {
+            isTrial = true;
+            // kỳ thi thử — không đồng bộ, không báo lỗi
           } else {
-            syncSkipped = true;
-            syncMissingModule = !hasModule;
-            syncMissingStudentId = !hasStudentId;
-            syncMissingClassId = !hasClassId;
+            const hasModule = ex.module_id != null && String(ex.module_id).trim() !== '';
+            const hasStudentId = Boolean((user?.student_id ?? studentSession?.student_id) && String(user?.student_id ?? studentSession?.student_id).trim() !== '');
+            const hasClassId = Boolean(win?.class_id && String(win?.class_id).trim() !== '');
+            const hasEnrollmentInfo = (hasStudentId && hasClassId) || undefined;
+            if (hasModule && hasEnrollmentInfo) {
+              await syncAttemptToTtdt(updated, ex, {
+                studentId: user?.student_id ?? studentSession?.student_id ?? undefined,
+                classId: win?.class_id ?? undefined,
+                userEmail: user?.email ?? undefined,
+                userName: (studentSession?.student_name ?? (user as { student_name?: string } | null)?.student_name ?? user?.name) ?? undefined,
+              });
+            } else {
+              syncSkipped = true;
+              syncMissingModule = !hasModule;
+              syncMissingStudentId = !hasStudentId;
+              syncMissingClassId = !hasClassId;
+            }
           }
         }
       } catch {
@@ -470,7 +476,9 @@ export default function ExamTakePage() {
       const base = (import.meta.env.BASE_URL || '').replace(/\/$/, '');
       const resultPath = `${base}/exam/${attemptId}/result`;
       const url = new URL(resultPath, window.location.origin);
-      if (syncSkipped || syncMissingModule || syncMissingStudentId || syncMissingClassId) {
+      if (isTrial) {
+        url.searchParams.set('isTrial', '1');
+      } else if (syncSkipped || syncMissingModule || syncMissingStudentId || syncMissingClassId) {
         url.searchParams.set('syncSkipped', '1');
         if (syncMissingModule) url.searchParams.set('syncMissingModule', '1');
         if (syncMissingStudentId) url.searchParams.set('syncMissingStudentId', '1');

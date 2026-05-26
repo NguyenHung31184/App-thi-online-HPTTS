@@ -202,9 +202,14 @@ export default function AdminWindowsPage() {
                 {list.map((w) => (
                   <div key={w.id} className="rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
                     {/* Card header strip */}
-                    <div className="h-12 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 relative overflow-hidden flex items-start justify-end p-2">
+                    <div className={`h-12 relative overflow-hidden flex items-start justify-end p-2 ${w.is_trial ? 'bg-gradient-to-r from-slate-400 via-slate-500 to-slate-600' : 'bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500'}`}>
                       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top,_#ffffff_0,_transparent_55%)]" />
-                      <div className="relative z-10">
+                      <div className="relative z-10 flex items-center gap-1.5">
+                        {w.is_trial && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-white/20 text-white border-white/30">
+                            Thử
+                          </span>
+                        )}
                         <StatusBadge startAt={w.start_at} endAt={w.end_at} />
                       </div>
                     </div>

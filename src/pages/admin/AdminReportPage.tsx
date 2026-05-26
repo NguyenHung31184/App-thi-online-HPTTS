@@ -252,7 +252,7 @@ export default function AdminReportPage() {
             <option value="">-- Tất cả kỳ --</option>
             {windows.map((w) => (
               <option key={w.id} value={w.id}>
-                {new Date(w.start_at).toLocaleDateString('vi-VN')} – {w.access_code}
+                {w.is_trial ? '[Thử] ' : ''}{new Date(w.start_at).toLocaleDateString('vi-VN')} – {w.access_code}
                 {w.class_id
                   ? ` • Lớp: ${
                       classNames[w.class_id]?.code ||

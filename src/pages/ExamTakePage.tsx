@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAttempt, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt, logAuditEvent } from '../services/attemptService';
+import { getAttempt, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt, disqualifyAttempt, logAuditEvent } from '../services/attemptService';
 import { getExam } from '../services/examService';
 import { getExamWindow } from '../services/examWindowService';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
@@ -417,7 +417,10 @@ export default function ExamTakePage() {
     const toSave = answersRef.current;
     try {
       await updateAttemptAnswers(attemptId, toSave);
-      const result = await submitAttempt(attemptId);
+      // Khi vi phạm: điểm 0, không tính — gọi disqualify thay vì grade_attempt
+      const result = opts?.dueToViolations
+        ? await disqualifyAttempt(attemptId)
+        : await submitAttempt(attemptId);
       if (!result.ok) {
         if (result.error === 'already_completed') {
           if (opts?.dueToViolations) {
@@ -430,6 +433,9 @@ export default function ExamTakePage() {
         setError(result.error ?? 'Chấm bài thất bại.');
         setSubmitting(false);
         return;
+      }
+      if (opts?.dueToViolations) {
+        submittedDueToViolationRef.current = true;
       }
       // Đã chấm xong — luôn chuyển sang trang kết quả (kể cả khi sync lỗi), dùng full page redirect để ổn định trên mobile
       let syncSkipped = false;
@@ -1171,25 +1177,27 @@ export default function ExamTakePage() {
               ) : isMatchingQ ? (
                 <div className="space-y-2">
                   {opts.map((opt) => (
-                    <div key={opt.id} className="flex items-center gap-3">
-                      <span className="flex-1 text-slate-800 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50">
+                    <div key={opt.id} className="border border-slate-200 rounded-lg bg-slate-50 p-2">
+                      <div className="text-slate-800 text-sm font-medium mb-1.5 px-1">
                         {opt.id}. {opt.text}
-                      </span>
-                      <span className="text-slate-400 flex-shrink-0 text-lg">↔</span>
-                      <select
-                        title={`Chọn cột phải cho ${opt.id}`}
-                        value={currentMatchMap[opt.id] ?? ''}
-                        onChange={(e) => {
-                          const next = { ...currentMatchMap, [opt.id]: e.target.value };
-                          setAnswers((prev) => ({ ...prev, [q.id]: JSON.stringify(next) }));
-                        }}
-                        className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
-                      >
-                        <option value="">-- Chọn --</option>
-                        {matchingRightItems.map((item) => (
-                          <option key={item.idx} value={item.idx}>{item.text}</option>
-                        ))}
-                      </select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400 flex-shrink-0 text-sm">{'↔'}</span>
+                        <select
+                          title={`Chọn cột phải cho ${opt.id}`}
+                          value={currentMatchMap[opt.id] ?? ''}
+                          onChange={(e) => {
+                            const next = { ...currentMatchMap, [opt.id]: e.target.value };
+                            setAnswers((prev) => ({ ...prev, [q.id]: JSON.stringify(next) }));
+                          }}
+                          className="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+                        >
+                          <option value="">-- Chọn --</option>
+                          {matchingRightItems.map((item) => (
+                            <option key={item.idx} value={item.idx}>{item.text}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   ))}
                 </div>

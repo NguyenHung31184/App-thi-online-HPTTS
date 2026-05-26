@@ -82,6 +82,16 @@ export async function submitAttempt(
   return result;
 }
 
+/** Đánh dấu bài thi bị hủy do vi phạm: score=0, disqualified=true, không tính điểm. */
+export async function disqualifyAttempt(
+  attemptId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.rpc('disqualify_attempt', { aid: attemptId });
+  if (error) return { ok: false, error: error.message };
+  const result = data as { ok: boolean; error?: string };
+  return result;
+}
+
 /** Ghi audit log (focus_lost, visibility_hidden, ...) */
 export async function logAuditEvent(
   attemptId: string,

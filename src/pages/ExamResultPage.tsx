@@ -235,38 +235,64 @@ export default function ExamResultPage() {
           Ngưỡng đạt: {typeof passValue === 'number' ? Math.round(passValue * 10) / 10 : '—'} / {denom ?? 'tổng điểm'}.
         </p>
 
+        {/* Trạng thái đồng bộ điểm */}
         {isTrial && (
-          <div className="text-sm text-blue-700 mt-2 bg-blue-50 border border-blue-200 rounded px-3 py-2">
-            Đây là <strong>kỳ thi thử</strong> — điểm không được lưu vào hệ thống quản lý TTDT.
+          <div className="flex items-start gap-2.5 mt-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
+            <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm text-blue-700">
+              Đây là <strong>kỳ thi thử</strong> — điểm không được lưu vào hệ thống quản lý TTDT.
+            </p>
           </div>
         )}
         {!isTrial && (attempt.synced_to_ttdt_at || autoSyncStatus === 'success') && (
-          <p className="text-sm text-green-600 mt-2">Đã đồng bộ điểm sang hệ thống TTDT.</p>
+          <div className="flex items-start gap-2.5 mt-3 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5">
+            <svg className="w-4 h-4 text-green-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-green-700">Điểm đã được ghi vào hệ thống quản lý TTDT.</p>
+              {attempt.synced_to_ttdt_at && (
+                <p className="text-xs text-green-600 mt-0.5">
+                  {new Date(attempt.synced_to_ttdt_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              )}
+            </div>
+          </div>
         )}
         {!isTrial && autoSyncStatus === 'retrying' && (
-          <p className="text-sm text-blue-600 mt-2">Đang thử đồng bộ lại điểm...</p>
+          <div className="flex items-center gap-2.5 mt-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
+            <svg className="w-4 h-4 text-blue-500 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            <p className="text-sm text-blue-700">Đang đồng bộ điểm sang hệ thống TTDT...</p>
+          </div>
         )}
         {!isTrial && syncSkipped && !attempt.synced_to_ttdt_at
           && autoSyncStatus !== 'success' && autoSyncStatus !== 'retrying' && (
-            <div className="text-sm text-amber-800 mt-2 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-              <p className="font-medium">Điểm chưa đồng bộ sang TTDT.</p>
-              {autoSyncStatus === 'failed' ? (
-                <p className="mt-1 text-amber-700">
-                  Tự động đồng bộ thất bại. Admin vào trang <strong>Đồng bộ điểm</strong> để retry thủ công.
-                </p>
-              ) : (
-                <>
-                  <p className="mt-1 text-amber-700">Thiếu cấu hình hoặc thông tin sau:</p>
-                  <ul className="list-disc pl-5 mt-1 text-amber-700">
+            <div className="flex items-start gap-2.5 mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+              <svg className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-amber-800">Điểm chưa đồng bộ sang TTDT.</p>
+                {autoSyncStatus === 'failed' ? (
+                  <p className="text-sm text-amber-700 mt-0.5">
+                    Tự động đồng bộ thất bại. Admin vào trang <strong>Đồng bộ điểm</strong> để retry thủ công.
+                  </p>
+                ) : (
+                  <ul className="list-disc pl-4 mt-1 text-sm text-amber-700 space-y-0.5">
                     {syncMissingModule && <li>Đề thi chưa gắn mô-đun (module_id).</li>}
                     {syncMissingClassId && <li>Kỳ thi chưa gắn lớp (class_id).</li>}
                     {syncMissingStudentId && <li>Tài khoản thi chưa có student_id (chưa xác thực CCCD).</li>}
                     {!syncMissingModule && !syncMissingClassId && !syncMissingStudentId && (
-                      <li>Chưa đủ điều kiện đồng bộ (kiểm tra mô-đun, lớp, CCCD/student_id).</li>
+                      <li>Chưa đủ điều kiện đồng bộ — kiểm tra mô-đun, lớp, CCCD/student_id.</li>
                     )}
                   </ul>
-                </>
-              )}
+                )}
+              </div>
             </div>
           )}
 

@@ -3,6 +3,8 @@ import { useParams, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getAttempt, fetchStartExamPhotoSignedUrl } from '../services/attemptService';
 import { getExam } from '../services/examService';
+import { getExamWindow } from '../services/examWindowService';
+import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
 import { supabase } from '../lib/supabaseClient';
 import type { Attempt, Exam } from '../types';
 
@@ -16,6 +18,7 @@ export default function ExamResultPage() {
   const [startPhotoUrl, setStartPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [autoSyncStatus, setAutoSyncStatus] = useState<'idle' | 'retrying' | 'success' | 'failed'>('idle');
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +90,46 @@ export default function ExamResultPage() {
       cancelled = true;
     };
   }, [attemptId]);
+
+  // Tự động retry sync nếu lần đầu thất bại (vd: mạng ngắt lúc nộp bài)
+  useEffect(() => {
+    const search = new URLSearchParams(location.search ?? '');
+    const locState = location.state as { syncSkipped?: boolean; isTrial?: boolean } | null;
+    if (!(locState?.syncSkipped ?? search.has('syncSkipped'))) return;
+    if (locState?.isTrial ?? search.has('isTrial')) return;
+    if (!attempt || !exam) return;
+    if (attempt.synced_to_ttdt_at) return;
+    if (!isTtdtSyncConfigured()) return;
+
+    let cancelled = false;
+    (async () => {
+      setAutoSyncStatus('retrying');
+      try {
+        const win = await getExamWindow(attempt.window_id);
+        if (cancelled) return;
+        if (!win || win.is_trial) { setAutoSyncStatus('idle'); return; }
+        const hasModule = Boolean(exam.module_id && String(exam.module_id).trim());
+        const studentId = (user as { student_id?: string } | null)?.student_id
+          ?? studentSession?.student_id
+          ?? null;
+        const hasStudentId = Boolean(studentId && String(studentId).trim());
+        const hasClassId = Boolean(win.class_id && String(win.class_id).trim());
+        if (!hasModule || !hasStudentId || !hasClassId) { setAutoSyncStatus('idle'); return; }
+        const result = await syncAttemptToTtdt(attempt, exam, {
+          studentId,
+          classId: win.class_id ?? null,
+          userEmail: user?.email ?? undefined,
+          userName: (studentSession?.student_name
+            ?? (user as { student_name?: string } | null)?.student_name
+            ?? user?.name) ?? undefined,
+        });
+        if (!cancelled) setAutoSyncStatus(result.success ? 'success' : 'failed');
+      } catch {
+        if (!cancelled) setAutoSyncStatus('failed');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [attempt?.id, exam?.id]);
 
   const handlePrint = () => {
     window.print();
@@ -197,22 +240,33 @@ export default function ExamResultPage() {
             Đây là <strong>kỳ thi thử</strong> — điểm không được lưu vào hệ thống quản lý TTDT.
           </div>
         )}
-        {!isTrial && attempt.synced_to_ttdt_at && (
+        {!isTrial && (attempt.synced_to_ttdt_at || autoSyncStatus === 'success') && (
           <p className="text-sm text-green-600 mt-2">Đã đồng bộ điểm sang hệ thống TTDT.</p>
         )}
-        {!isTrial && syncSkipped &&
-          !attempt.synced_to_ttdt_at && (
+        {!isTrial && autoSyncStatus === 'retrying' && (
+          <p className="text-sm text-blue-600 mt-2">Đang thử đồng bộ lại điểm...</p>
+        )}
+        {!isTrial && syncSkipped && !attempt.synced_to_ttdt_at
+          && autoSyncStatus !== 'success' && autoSyncStatus !== 'retrying' && (
             <div className="text-sm text-amber-800 mt-2 bg-amber-50 border border-amber-200 rounded px-3 py-2">
               <p className="font-medium">Điểm chưa đồng bộ sang TTDT.</p>
-              <p className="mt-1 text-amber-700">Thiếu cấu hình hoặc thông tin sau:</p>
-              <ul className="list-disc pl-5 mt-1 text-amber-700">
-                {syncMissingModule && <li>Đề thi chưa gắn mô-đun (module_id).</li>}
-                {syncMissingClassId && <li>Kỳ thi chưa gắn lớp (class_id).</li>}
-                {syncMissingStudentId && <li>Tài khoản thi chưa có student_id (chưa xác thực CCCD).</li>}
-                {!syncMissingModule && !syncMissingClassId && !syncMissingStudentId && (
-                  <li>Chưa đủ điều kiện đồng bộ (kiểm tra mô-đun, lớp, CCCD/student_id).</li>
-                )}
-              </ul>
+              {autoSyncStatus === 'failed' ? (
+                <p className="mt-1 text-amber-700">
+                  Tự động đồng bộ thất bại. Admin vào trang <strong>Đồng bộ điểm</strong> để retry thủ công.
+                </p>
+              ) : (
+                <>
+                  <p className="mt-1 text-amber-700">Thiếu cấu hình hoặc thông tin sau:</p>
+                  <ul className="list-disc pl-5 mt-1 text-amber-700">
+                    {syncMissingModule && <li>Đề thi chưa gắn mô-đun (module_id).</li>}
+                    {syncMissingClassId && <li>Kỳ thi chưa gắn lớp (class_id).</li>}
+                    {syncMissingStudentId && <li>Tài khoản thi chưa có student_id (chưa xác thực CCCD).</li>}
+                    {!syncMissingModule && !syncMissingClassId && !syncMissingStudentId && (
+                      <li>Chưa đủ điều kiện đồng bộ (kiểm tra mô-đun, lớp, CCCD/student_id).</li>
+                    )}
+                  </ul>
+                </>
+              )}
             </div>
           )}
 

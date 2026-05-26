@@ -205,8 +205,6 @@ export default function VerifyCccdPage() {
     setStep('upload');
   };
 
-  const handleSkip = () => navigate('/dashboard', { replace: true });
-
   return (
     <div className="min-h-screen bg-slate-100 p-4 flex items-center justify-center">
       {/* Camera modal — hiện đè lên toàn màn hình */}
@@ -368,15 +366,6 @@ export default function VerifyCccdPage() {
           <div className="mt-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
         )}
 
-        {user && (
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="mt-4 w-full py-2 text-slate-500 text-sm hover:text-slate-700"
-          >
-            Bỏ qua (đã đăng nhập và được phép thi)
-          </button>
-        )}
       </div>
     </div>
   );

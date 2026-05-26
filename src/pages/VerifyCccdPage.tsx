@@ -78,7 +78,7 @@ function ManualCccdFallbackSection({
 
 export default function VerifyCccdPage() {
   const navigate = useNavigate();
-  const { user, setStudentInfo } = useAuth();
+  const { setStudentInfo } = useAuth();
   const [step, setStep] = useState<'upload' | 'ocr' | 'verify' | 'done'>('upload');
   const [verifiedClasses, setVerifiedClasses] = useState<{ id: string; name: string }[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);

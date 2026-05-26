@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { listExamSyncLog, listPracticalSyncLog, cleanupOldSyncLogs } from '../../services/syncLogService';
+import { supabase } from '../../lib/supabaseClient';
 import { getAttempt } from '../../services/attemptService';
 import { getExam } from '../../services/examService';
 import { getExamWindow } from '../../services/examWindowService';
@@ -72,8 +73,21 @@ export default function AdminSyncPage() {
         return;
       }
       const window = await getExamWindow(attempt.window_id);
+      let userEmail: string | undefined;
+      let userName: string | undefined;
+      if (attempt.user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name, email')
+          .eq('id', attempt.user_id)
+          .single();
+        userEmail = profile?.email ?? undefined;
+        userName = profile?.name ?? undefined;
+      }
       const result = await syncAttemptToTtdt(attempt, exam, {
         classId: window?.class_id ?? null,
+        userEmail,
+        userName,
       });
       if (result.success) {
         setMessage('Đồng bộ thành công.');
@@ -299,11 +313,6 @@ export default function AdminSyncPage() {
                     </div>
                     {log.user_email && (
                       <div className="text-[11px] text-slate-500">{log.user_email}</div>
-                    )}
-                    {!log.user_email && log.user_id && (
-                      <div className="font-mono text-[11px] text-slate-500">
-                        {log.user_id.slice(0, 8)}…
-                      </div>
                     )}
                   </td>
                   <td className="px-3 py-2">

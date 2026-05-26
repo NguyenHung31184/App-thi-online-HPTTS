@@ -454,6 +454,8 @@ export default function ExamTakePage() {
             await syncAttemptToTtdt(updated, ex, {
               studentId: user?.student_id ?? studentSession?.student_id ?? undefined,
               classId: win?.class_id ?? undefined,
+              userEmail: user?.email ?? undefined,
+              userName: (studentSession?.student_name ?? (user as { student_name?: string } | null)?.student_name ?? user?.name) ?? undefined,
             });
           } else {
             syncSkipped = true;

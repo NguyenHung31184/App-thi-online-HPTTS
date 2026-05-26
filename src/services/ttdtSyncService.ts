@@ -34,7 +34,13 @@ export interface ReceiveGradesPayload {
 export async function syncAttemptToTtdt(
   attempt: Attempt,
   exam: { module_id?: string | null; title: string; pass_threshold?: number },
-  options?: { enrollmentId?: string | null; studentId?: string | null; classId?: string | null }
+  options?: {
+    enrollmentId?: string | null;
+    studentId?: string | null;
+    classId?: string | null;
+    userEmail?: string;
+    userName?: string;
+  }
 ): Promise<SyncResult> {
   if (!isTtdtSyncConfigured()) {
     return { success: false, message: 'Chưa cấu hình VITE_TTDT_RECEIVE_GRADES_URL hoặc VITE_TTDT_API_KEY.' };
@@ -78,6 +84,11 @@ export async function syncAttemptToTtdt(
         payload,
         status: success ? 'success' : 'failed',
         response: text.slice(0, 2000),
+        exam_title: exam.title ?? null,
+        window_id: attempt.window_id ?? null,
+        class_id: options?.classId ?? null,
+        user_email: options?.userEmail ?? null,
+        user_name: options?.userName ?? null,
       });
     } catch {
       /* Không ném lại — tránh lỗi log làm hỏng luồng đồng bộ chính. */
@@ -104,6 +115,11 @@ export async function syncAttemptToTtdt(
         payload,
         status: 'failed',
         response: message.slice(0, 2000),
+        exam_title: exam.title ?? null,
+        window_id: attempt.window_id ?? null,
+        class_id: options?.classId ?? null,
+        user_email: options?.userEmail ?? null,
+        user_name: options?.userName ?? null,
       });
     } catch {
       /* ghi log thất bại — bỏ qua */

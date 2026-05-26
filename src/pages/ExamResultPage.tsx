@@ -219,7 +219,7 @@ export default function ExamResultPage() {
           <div className="bg-slate-50 rounded-lg p-3">
             <p className="text-sm text-slate-500">Điểm</p>
             <p className="text-2xl font-bold text-slate-800">
-              {Math.round(earned * 10) / 10}/{denom ?? '—'}
+              {Math.round(earned)}/{denom ?? '—'}
             </p>
           </div>
           <div className="bg-slate-50 rounded-lg p-3">
@@ -231,8 +231,8 @@ export default function ExamResultPage() {
         </div>
 
         <p className="text-sm text-slate-500">
-          Điểm chi tiết: {typeof attempt.raw_score === 'number' ? Math.round(attempt.raw_score * 10) / 10 : '—'} / {denom ?? 'tổng điểm'}.
-          Ngưỡng đạt: {typeof passValue === 'number' ? Math.round(passValue * 10) / 10 : '—'} / {denom ?? 'tổng điểm'}.
+          Điểm chi tiết: {typeof attempt.raw_score === 'number' ? Math.round(attempt.raw_score) : '—'} / {denom ?? 'tổng điểm'}.
+          Ngưỡng đạt: {typeof passValue === 'number' ? Math.round(passValue) : '—'} / {denom ?? 'tổng điểm'}.
         </p>
 
         {/* Trạng thái đồng bộ điểm */}

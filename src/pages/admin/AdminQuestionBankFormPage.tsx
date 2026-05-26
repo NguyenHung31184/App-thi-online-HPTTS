@@ -421,8 +421,16 @@ export default function AdminQuestionBankFormPage() {
               {questionType === 'drag_drop' ? '4 nhãn (tên các lựa chọn)' : 'Đáp án'}
             </label>
             {questionType === 'drag_drop' && (
-              <p className="text-xs text-slate-500 mb-2">
-                <strong>Kéo nhãn lên ảnh:</strong> Nếu bạn thêm <strong>ảnh minh họa</strong> và đúng <strong>4 mục</strong>, thí sinh sẽ kéo từng nhãn vào 4 ô trên ảnh (trái-trên, phải-trên, trái-dưới, phải-dưới). Thứ tự mục 1→4 = thứ tự ô. Gõ 4 nhãn, sau đó chọn đáp án từng ô bên dưới. “chỉ đúng bộ phận trên hình” (vd: ảnh xe nâng Forklift, 4 mũi tên, học viên kéo Càng nâng, Cabin… vào đúng ô).
+              <p className=”text-xs mb-2”>
+                {displayImage ? (
+                  <span className=”text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-block”>
+                    <strong>Chế độ: Kéo nhãn lên ảnh</strong> — thí sinh kéo từng nhãn vào 4 ô đã đặt trên hình. Chọn đáp án từng ô bên dưới.
+                  </span>
+                ) : (
+                  <span className=”text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 inline-block”>
+                    <strong>Chế độ: Sắp xếp thứ tự</strong> — thí sinh kéo thả các nhãn để xếp đúng thứ tự. <em>Thêm ảnh minh họa bên dưới để chuyển sang chế độ “Kéo nhãn lên ảnh”.</em>
+                  </span>
+                )}
               </p>
             )}
             {questionType === 'drag_drop' ? (

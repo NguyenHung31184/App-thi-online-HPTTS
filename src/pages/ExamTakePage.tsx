@@ -1079,7 +1079,7 @@ export default function ExamTakePage() {
               <p className="font-medium text-slate-800 mb-2">
                 Câu {idx + 1}. {q.stem}
                 {isMultiple && <span className="text-slate-500 text-sm ml-1">(chọn nhiều đáp án đúng)</span>}
-                {isDragDrop && <span className="text-slate-500 text-sm ml-1">(kéo thả sắp xếp đúng thứ tự)</span>}
+                {isDragDrop && !isLabelOnImage && <span className="text-slate-500 text-sm ml-1">(kéo thả sắp xếp đúng thứ tự)</span>}
                 {isLabelOnImage && <span className="text-slate-500 text-sm ml-1">(kéo nhãn vào đúng ô trên hình)</span>}
                 {isEssay && <span className="text-slate-500 text-sm ml-1">(tự luận)</span>}
                 {isTrueFalseMulti && <span className="text-slate-500 text-sm ml-1">(chọn Đúng hoặc Sai cho từng phát biểu)</span>}

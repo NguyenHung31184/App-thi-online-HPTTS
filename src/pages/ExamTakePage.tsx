@@ -1032,13 +1032,18 @@ export default function ExamTakePage() {
             currentTfAnswers = opts.map((_, i) => currentTfAnswers[i] ?? '');
           }
           if (isMatchingQ) {
-            // Lấy right items từ question.answer_key (dạng {right:[...], map:{...}})
+            // Lấy right items từ q.matching_right (RPC trả sẵn, không có map đáp án)
             try {
-              const ak = JSON.parse((q as unknown as { answer_key?: string }).answer_key ?? '{}') as { right?: string[] };
-              if (Array.isArray(ak?.right)) {
+              const rightArr: string[] | null =
+                Array.isArray(q.matching_right)
+                  ? q.matching_right
+                  : typeof q.matching_right === 'string'
+                  ? (JSON.parse(q.matching_right) as string[])
+                  : null;
+              if (Array.isArray(rightArr) && rightArr.length > 0) {
                 const seed = hashStringToSeed(`${attemptId ?? 'seed'}|${q.id}|right`);
                 matchingRightItems = shuffleWithSeed(
-                  ak.right.map((text, i) => ({ idx: String(i + 1), text })),
+                  rightArr.map((text, i) => ({ idx: String(i + 1), text })),
                   seed
                 );
               }

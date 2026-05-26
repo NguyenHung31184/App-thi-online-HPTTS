@@ -72,6 +72,8 @@ export interface Question {
 /** Câu hỏi trả cho thí sinh (không có answer_key) */
 export interface QuestionForStudent extends Omit<Question, 'answer_key'> {
   answer_key?: never;
+  /** Cột phải cho câu nối đôi — JSON array text ["text1","text2",...], không có map đáp án */
+  matching_right?: string[] | null;
 }
 
 export interface ExamWindow {

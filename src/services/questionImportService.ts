@@ -310,8 +310,9 @@ export function importRowToQuestionPayload(row: ImportRow): {
   }
 
   // matching: options = cột trái (A,B,C...), Keys = cột phải cách nhau bằng ";"
-  // "Đáp án đúng" = "A-1;B-2;C-3;D-4;E-5" (trái-phải)
-  // answer_key = JSON {"right":["text1","text2",...], "map":{"A":"1","B":"2",...}}
+  // "Đáp án đúng" = "A-1;B-3;C-2" (không nhất thiết tuần tự)
+  // answer_key = JSON {"right":["textA","textB","textC"], "map":{"A":"1","B":"2","C":"3"}}
+  // right[i] = text đúng của options[i] → map luôn tuần tự → editor + exam xử lý nhất quán
   if (hintType === 'matching' && options.length >= 2) {
     const rightTexts = (row.keys ?? '')
       .split(';')
@@ -323,20 +324,28 @@ export function importRowToQuestionPayload(row: ImportRow): {
       .map((s) => s.trim())
       .filter((s) => /^[A-Ja-j]-\d+$/.test(s));
 
-    const map: Record<string, string> = {};
+    const rawMap: Record<string, string> = {};
     for (const part of mapParts) {
       const dashIdx = part.indexOf('-');
-      map[part.slice(0, dashIdx).toUpperCase()] = part.slice(dashIdx + 1);
+      rawMap[part.slice(0, dashIdx).toUpperCase()] = part.slice(dashIdx + 1);
     }
-    // Nếu không parse được mapping → mặc định 1-1 theo thứ tự
-    if (Object.keys(map).length === 0) {
-      options.forEach((o, i) => { map[o.id] = String(i + 1); });
-    }
+
+    // Chuẩn hóa: right[i] = text đúng của options[i], map = tuần tự {"A":"1","B":"2",...}
+    // Tránh editor bị hiển thị sai cặp và ghi đè map khi save.
+    const right = options.map((o) => {
+      if (Object.keys(rawMap).length === 0) return rightTexts[options.indexOf(o)] ?? '';
+      const idx = rawMap[o.id];
+      return (idx !== undefined && Number(idx) >= 1 && Number(idx) <= rightTexts.length)
+        ? rightTexts[Number(idx) - 1]
+        : '';
+    });
+    const map: Record<string, string> = {};
+    options.forEach((o, i) => { map[o.id] = String(i + 1); });
 
     return {
       stem: row.stem,
       options,
-      answer_key: JSON.stringify({ right: rightTexts, map }),
+      answer_key: JSON.stringify({ right, map }),
       points: row.points,
       topic: row.topic,
       difficulty: row.difficulty,

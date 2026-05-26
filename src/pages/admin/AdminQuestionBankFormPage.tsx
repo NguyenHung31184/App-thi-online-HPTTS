@@ -152,8 +152,19 @@ export default function AdminQuestionBankFormPage() {
       }
       if (qType === 'matching') {
         try {
-          const p = JSON.parse(q.answer_key || '{}') as { right?: string[] };
-          if (Array.isArray(p?.right)) setMatchingRight(p.right);
+          const p = JSON.parse(q.answer_key || '{}') as { right?: string[]; map?: Record<string, string> };
+          if (Array.isArray(p?.right)) {
+            const rightArr = p.right;
+            const mapObj = p.map ?? {};
+            // Nếu map không tuần tự (import cũ): reorder để right[i] = text đúng của loaded[i]
+            const reordered = loaded.map((opt) => {
+              const idx = mapObj[opt.id];
+              return (idx !== undefined && Number(idx) >= 1 && Number(idx) <= rightArr.length)
+                ? rightArr[Number(idx) - 1]
+                : (rightArr[loaded.indexOf(opt)] ?? '');
+            });
+            setMatchingRight(reordered);
+          }
         } catch { /* ignore */ }
       }
       setPoints(q.points ?? 2);

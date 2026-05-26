@@ -108,7 +108,10 @@ export default function ExamResultPage() {
   const syncMissingStudentId = state?.syncMissingStudentId ?? search.has('syncMissingStudentId');
   const syncMissingClassId = state?.syncMissingClassId ?? search.has('syncMissingClassId');
 
-  const denom = (attempt && typeof attempt.total_max === 'number' ? attempt.total_max : null) ?? totalMax ?? (typeof exam.total_questions === 'number' && exam.total_questions > 0 ? exam.total_questions : null);
+  // Khi bị disqualify, total_max = NULL trong DB → fallback về 100 (không dùng exam.total_questions vì đó là đếm câu, không phải tổng điểm)
+  const denom = attempt?.disqualified
+    ? (typeof attempt.total_max === 'number' ? attempt.total_max : 100)
+    : (attempt && typeof attempt.total_max === 'number' ? attempt.total_max : null) ?? totalMax ?? (typeof exam.total_questions === 'number' && exam.total_questions > 0 ? exam.total_questions : null);
   const earned = typeof attempt.raw_score === 'number'
     ? attempt.raw_score
     : (typeof attempt.score === 'number' && typeof denom === 'number' ? attempt.score * denom : 0);
@@ -119,7 +122,12 @@ export default function ExamResultPage() {
     [studentSession?.student_name, user?.student_name, user?.name].find(
       (s) => typeof s === 'string' && s.trim() !== '',
     )?.trim() ?? '—';
-  const displayDob = studentSession?.student_dob?.trim() || '—';
+  const rawDob = studentSession?.student_dob?.trim() || '';
+  const displayDob = (() => {
+    if (!rawDob) return '—';
+    const m = rawDob.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : rawDob;
+  })();
   const displayCccd = studentSession?.id_card_number?.trim() || '—';
 
   return (

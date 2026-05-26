@@ -25,6 +25,8 @@ export default function AdminSyncPage() {
   const [message, setMessage] = useState('');
   const [responseModal, setResponseModal] = useState<{ title: string; content: string } | null>(null);
   const [cleaning, setCleaning] = useState(false);
+  const [manualAttemptId, setManualAttemptId] = useState('');
+  const [manualRetrying, setManualRetrying] = useState(false);
 
   const counts = useMemo(() => {
     const tFailed = theoryLogs.filter((x) => x.status === 'failed').length;
@@ -75,17 +77,20 @@ export default function AdminSyncPage() {
       const window = await getExamWindow(attempt.window_id);
       let userEmail: string | undefined;
       let userName: string | undefined;
+      let studentId: string | null = null;
       if (attempt.user_id) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('name, email')
+          .select('name, email, student_id')
           .eq('id', attempt.user_id)
           .single();
         userEmail = profile?.email ?? undefined;
         userName = profile?.name ?? undefined;
+        studentId = profile?.student_id ?? null;
       }
       const result = await syncAttemptToTtdt(attempt, exam, {
         classId: window?.class_id ?? null,
+        studentId,
         userEmail,
         userName,
       });
@@ -187,6 +192,19 @@ export default function AdminSyncPage() {
     });
   };
 
+  const handleManualRetry = async () => {
+    const id = manualAttemptId.trim();
+    if (!id) return;
+    setMessage('');
+    setManualRetrying(true);
+    try {
+      await handleRetryTheory(id);
+      setManualAttemptId('');
+    } finally {
+      setManualRetrying(false);
+    }
+  };
+
   const handleCleanup = async () => {
     if (!window.confirm('Xóa các log Lỗi đã cũ hơn 30 ngày? Thao tác này không thể hoàn tác.')) {
       return;
@@ -279,6 +297,26 @@ export default function AdminSyncPage() {
             </span>
           </button>
         </div>
+      </div>
+
+      {/* Retry thủ công khi không có log (vd: mạng ngắt lúc nộp bài) */}
+      <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap items-center gap-2">
+        <span className="text-xs text-slate-500 shrink-0">Retry bằng Attempt ID:</span>
+        <input
+          type="text"
+          value={manualAttemptId}
+          onChange={(e) => setManualAttemptId(e.target.value)}
+          placeholder="UUID của attempt (bài làm không có trong log)"
+          className="flex-1 min-w-[18rem] border border-slate-300 rounded px-2 py-1 text-xs font-mono"
+        />
+        <button
+          type="button"
+          onClick={handleManualRetry}
+          disabled={!manualAttemptId.trim() || manualRetrying}
+          className="px-3 py-1.5 bg-amber-500 text-white text-xs rounded hover:bg-amber-600 disabled:opacity-50"
+        >
+          {manualRetrying ? 'Đang thử…' : 'Retry'}
+        </button>
       </div>
 
       {message && (

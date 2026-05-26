@@ -424,11 +424,11 @@ export default function AdminQuestionBankFormPage() {
               <p className=”text-xs mb-2”>
                 {displayImage ? (
                   <span className=”text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-block”>
-                    <strong>Chế độ: Kéo nhãn lên ảnh</strong> — thí sinh kéo từng nhãn vào 4 ô đã đặt trên hình. Chọn đáp án từng ô bên dưới.
+                    {'[Kéo nhãn lên ảnh] Thí sinh kéo từng nhãn vào 4 ô đã đặt trên hình. Chọn đáp án từng ô bên dưới.'}
                   </span>
                 ) : (
                   <span className=”text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 inline-block”>
-                    <strong>Chế độ: Sắp xếp thứ tự</strong> — thí sinh kéo thả các nhãn để xếp đúng thứ tự. <em>Thêm ảnh minh họa bên dưới để chuyển sang chế độ “Kéo nhãn lên ảnh”.</em>
+                    {'[Sắp xếp thứ tự] Thí sinh kéo thả các nhãn để xếp đúng thứ tự. Thêm ảnh minh họa bên dưới để chuyển sang chế độ kéo nhãn lên ảnh.'}
                   </span>
                 )}
               </p>

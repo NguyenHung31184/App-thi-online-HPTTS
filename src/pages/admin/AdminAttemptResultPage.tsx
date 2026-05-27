@@ -16,6 +16,7 @@ interface QuestionReviewItem {
   points: number;
   topic: string;
   image_url: string | null;
+  question_type: string;
   chosen: string | null;
   correct: boolean;
 }
@@ -36,6 +37,35 @@ function optionLabel(options: { id: string; text: string }[], key: string | null
   if (!key) return '— (chưa chọn)';
   const found = options.find((o) => o.id === key);
   return found ? found.text : key;
+}
+
+/** Hiển thị câu trả lời phù hợp với từng loại câu hỏi */
+function answerLabel(options: { id: string; text: string }[], key: string | null, questionType: string): string {
+  if (!key) return '— (chưa chọn)';
+  const isComplex = questionType === 'true_false_multi' || questionType === 'matching'
+    || questionType === 'drag_drop' || questionType === 'ordering';
+  if (!isComplex) return optionLabel(options, key);
+  // Câu phức tạp: hiển thị dạng "[Đã trả lời - loại: X]" vì cấu trúc không phải đơn lựa chọn
+  try {
+    const parsed = JSON.parse(key);
+    if (Array.isArray(parsed)) {
+      // drag_drop / ordering: array các option ID theo thứ tự
+      // true_false_multi: array ["T","F","T"]
+      if (typeof parsed[0] === 'string' && (parsed[0] === 'T' || parsed[0] === 'F')) {
+        return parsed.map((v: string) => v === 'T' ? 'Đúng' : 'Sai').join(' / ');
+      }
+      return parsed.map((id: string) => optionLabel(options, id)).join(' → ');
+    }
+    if (typeof parsed === 'object' && parsed !== null) {
+      // matching: { leftId: rightId, ... }
+      return Object.entries(parsed as Record<string, string>)
+        .map(([l, r]) => `${optionLabel(options, l)} ↔ ${r}`)
+        .join(', ');
+    }
+    return String(parsed);
+  } catch {
+    return key;
+  }
 }
 
 function formatDuration(startedAt: number, completedAt: number | null | undefined): string {
@@ -289,12 +319,30 @@ export default function AdminAttemptResultPage() {
       setResolvedStudentDob(resolvedDob ?? null);
       setResolvedStudentCccd(resolvedCccd ?? null);
 
-      // 4. Lấy câu hỏi với answer_key (admin có thể đọc thẳng bảng questions)
-      const { data: qData } = await supabase
-        .from('questions')
-        .select('id, stem, options, answer_key, points, topic, image_url')
-        .eq('exam_id', a.exam_id)
-        .order('created_at', { ascending: true });
+      // 4. Lấy câu hỏi với answer_key
+      // Attempt mới có question_ids → bốc từ question_bank (IDs khác với bảng questions).
+      // Attempt cũ (question_ids NULL) → đọc từ bảng questions theo exam_id.
+      let qData: {
+        id: string; stem: string; options: unknown;
+        answer_key: string; points: number; topic: string; image_url?: string | null;
+      }[] | null = null;
+
+      if (a.question_ids?.length) {
+        const { data } = await supabase
+          .from('question_bank')
+          .select('id, stem, options, answer_key, points, topic, image_url, question_type')
+          .in('id', a.question_ids);
+        // Giữ đúng thứ tự theo question_ids của attempt
+        const byId = Object.fromEntries((data ?? []).map((q) => [q.id, q]));
+        qData = a.question_ids.map((id) => byId[id]).filter(Boolean) as typeof qData;
+      } else {
+        const { data } = await supabase
+          .from('questions')
+          .select('id, stem, options, answer_key, points, topic, image_url, question_type')
+          .eq('exam_id', a.exam_id)
+          .order('created_at', { ascending: true });
+        qData = data ?? null;
+      }
 
       if (qData && a.answers) {
         const items: QuestionReviewItem[] = (qData as {
@@ -305,10 +353,25 @@ export default function AdminAttemptResultPage() {
           points: number;
           topic: string;
           image_url?: string | null;
+          question_type?: string;
         }[]).map((q) => {
           const opts = parseOptions(q.options);
           const chosen = (a.answers as Record<string, string>)[q.id] ?? null;
-          const correct = chosen !== null && chosen === q.answer_key;
+          const qt = q.question_type ?? 'multiple_choice';
+          // Với câu phức tạp (true_false_multi, matching, drag_drop) dùng JSON compare
+          let correct = false;
+          if (chosen !== null) {
+            if (qt === 'multiple_choice' || qt === 'true_false') {
+              correct = chosen === q.answer_key;
+            } else {
+              // JSON answer — so sánh normalized string
+              try {
+                correct = JSON.stringify(JSON.parse(chosen)) === JSON.stringify(JSON.parse(q.answer_key));
+              } catch {
+                correct = chosen === q.answer_key;
+              }
+            }
+          }
           return {
             id: q.id,
             stem: q.stem,
@@ -317,6 +380,7 @@ export default function AdminAttemptResultPage() {
             points: typeof q.points === 'number' ? q.points : Number(q.points) || 0,
             topic: q.topic ?? '',
             image_url: q.image_url ?? null,
+            question_type: qt,
             chosen,
             correct,
           };
@@ -519,13 +583,13 @@ export default function AdminAttemptResultPage() {
                   <div>
                     <p className="text-xs uppercase text-slate-500 mb-0.5">Học viên đã chọn</p>
                     <p className={it.correct ? 'text-emerald-700 font-medium' : it.chosen ? 'text-red-700 font-medium' : 'text-slate-400 italic'}>
-                      {optionLabel(it.options, it.chosen)}
+                      {answerLabel(it.options, it.chosen, it.question_type)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs uppercase text-slate-500 mb-0.5">Đáp án đúng</p>
                     <p className="text-emerald-700 font-medium">
-                      {optionLabel(it.options, it.answer_key)}
+                      {answerLabel(it.options, it.answer_key, it.question_type)}
                     </p>
                   </div>
                 </div>

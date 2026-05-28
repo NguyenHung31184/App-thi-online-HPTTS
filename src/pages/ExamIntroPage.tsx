@@ -154,10 +154,15 @@ export default function ExamIntroPage() {
                 ghi nhận log giám sát trong suốt quá trình làm bài.
               </span>
             </label>
+            {IS_IOS_INTRO && !IS_IOS_STANDALONE_INTRO && (
+              <p className="mt-3 text-sm text-red-600 font-medium">
+                ⛔ Bạn phải mở app từ màn hình chính (Add to Home Screen) mới có thể bắt đầu thi.
+              </p>
+            )}
             <div className="mt-4 flex justify-end">
               <button
                 type="button"
-                disabled={!confirmed}
+                disabled={!confirmed || (IS_IOS_INTRO && !IS_IOS_STANDALONE_INTRO)}
                 onClick={handleStart}
                 className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700"
               >

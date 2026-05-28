@@ -629,7 +629,8 @@ export default function ExamTakePage() {
       !attempt ||
       attempt.status !== 'in_progress' ||
       !exam ||
-      questions.length === 0
+      questions.length === 0 ||
+      (IS_IOS && !isIOSStandalone)   // Không đếm vi phạm khi overlay "mở từ màn hình chính" đang hiện
     ) {
       return;
     }
@@ -694,6 +695,7 @@ export default function ExamTakePage() {
     attemptId,
     captureViolationEvidence,
     exam,
+    isIOSStandalone,
     navigate,
     photoVerified,
     questions.length,

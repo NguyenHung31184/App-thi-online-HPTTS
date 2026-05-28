@@ -629,8 +629,7 @@ export default function ExamTakePage() {
       !attempt ||
       attempt.status !== 'in_progress' ||
       !exam ||
-      questions.length === 0 ||
-      (IS_IOS && !isIOSStandalone)   // Không đếm vi phạm khi overlay "mở từ màn hình chính" đang hiện
+      questions.length === 0
     ) {
       return;
     }
@@ -695,7 +694,6 @@ export default function ExamTakePage() {
     attemptId,
     captureViolationEvidence,
     exam,
-    isIOSStandalone,
     navigate,
     photoVerified,
     questions.length,
@@ -918,52 +916,7 @@ export default function ExamTakePage() {
         </div>
       )}
 
-      {/* iOS: Safari không hỗ trợ Fullscreen API — yêu cầu mở từ màn hình chính (standalone) thay thế */}
-      {photoVerified && IS_IOS && !isIOSStandalone && (
-        <div className="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-6">
-          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6">
-            <div className="text-center text-5xl mb-4">📱</div>
-            <h2 className="font-bold text-slate-900 text-lg mb-2 text-center">
-              Yêu cầu mở từ màn hình chính
-            </h2>
-            <p className="text-slate-600 text-sm mb-4">
-              Safari trên iPhone không hỗ trợ toàn màn hình. Để bảo mật bài thi, bạn phải mở ứng dụng từ{' '}
-              <strong>màn hình chính</strong> (Add to Home Screen).
-            </p>
-            <ol className="text-sm text-slate-700 space-y-2 mb-5">
-              <li className="flex gap-2">
-                <span className="font-bold text-indigo-600 shrink-0">1.</span>
-                <span>Nhấn nút <strong>Chia sẻ</strong> (biểu tượng hình vuông có mũi tên lên) ở thanh Safari</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="font-bold text-indigo-600 shrink-0">2.</span>
-                <span>Chọn <strong>"Thêm vào màn hình chính"</strong></span>
-              </li>
-              <li className="flex gap-2">
-                <span className="font-bold text-indigo-600 shrink-0">3.</span>
-                <span>Nhấn <strong>Thêm</strong>, sau đó mở app từ biểu tượng trên màn hình chính</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="font-bold text-indigo-600 shrink-0">4.</span>
-                <span>Đăng nhập lại và vào tiếp bài thi của bạn</span>
-              </li>
-            </ol>
-            <button
-              type="button"
-              onClick={() => {
-                if (getIOSStandalone()) {
-                  setIsIOSStandalone(true);
-                } else {
-                  alert('Bạn chưa mở từ màn hình chính. Hãy làm theo hướng dẫn trên rồi thử lại.');
-                }
-              }}
-              className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700"
-            >
-              Tôi đã mở từ màn hình chính ✓
-            </button>
-          </div>
-        </div>
-      )}
+      {/* iOS standalone overlay đã tắt tạm — không bắt buộc Add to Home Screen */}
       <div className="flex items-center justify-between mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
         <span className="font-medium text-slate-800">{exam.title}</span>
         <div className="flex items-center gap-3">

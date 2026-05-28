@@ -74,6 +74,8 @@ export default function ExamTakePage() {
   const [questions, setQuestions] = useState<QuestionForStudent[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  // Thời điểm kết thúc thực tế = min(started_at + duration, window.end_at) — tránh thi quá giờ cửa sổ
+  const [effectiveEndTime, setEffectiveEndTime] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
@@ -363,8 +365,14 @@ export default function ExamTakePage() {
     lastSavedRef.current = (a.answers as Record<string, string>) ?? {};
     const questionsList = await getQuestionsForAttempt(a.id, a.exam_id);
     setQuestions(questionsList);
-    const endTime = a.started_at + e.duration_minutes * 60 * 1000;
-    setRemainingMs(Math.max(0, endTime - Date.now()));
+    const personalEnd = a.started_at + e.duration_minutes * 60 * 1000;
+    let effEnd = personalEnd;
+    if (a.window_id) {
+      const win = await getExamWindow(a.window_id);
+      if (win?.end_at && win.end_at < personalEnd) effEnd = win.end_at;
+    }
+    setEffectiveEndTime(effEnd);
+    setRemainingMs(Math.max(0, effEnd - Date.now()));
   }, [attemptId, user?.id, navigate]);
 
   useEffect(() => {
@@ -372,22 +380,17 @@ export default function ExamTakePage() {
   }, [load]);
 
   useEffect(() => {
-    if (!attempt || !exam) return;
-    // endTime tính một lần khi attempt/exam load — stable, không cần tính lại mỗi giây
-    const endTime = attempt.started_at + exam.duration_minutes * 60 * 1000;
+    if (effectiveEndTime === null) return;
     const t = setInterval(() => {
-      const r = Math.max(0, endTime - Date.now());
+      const r = Math.max(0, effectiveEndTime - Date.now());
       setRemainingMs(r);
       if (r <= 0 && !timeUpSubmittedRef.current) {
         timeUpSubmittedRef.current = true;
-        // Dùng ref thay vì gọi handleSubmit() trực tiếp để tránh stale closure:
-        // handleSubmitRef.current luôn trỏ đến phiên bản mới nhất của hàm
         handleSubmitRef.current?.();
       }
     }, 1000);
     return () => clearInterval(t);
-    // attempt và exam stable sau khi load (không bao giờ bị ghi đè), dùng làm deps thay vì chỉ .id
-  }, [attempt, exam]);
+  }, [effectiveEndTime]);
 
   const handleSubmit = async (opts?: { dueToViolations?: boolean }) => {
     const att = attemptRef.current;

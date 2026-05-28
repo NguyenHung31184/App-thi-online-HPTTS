@@ -161,7 +161,13 @@ export default function ExamResultPage() {
     ? attempt.raw_score
     : (typeof attempt.score === 'number' && typeof denom === 'number' ? attempt.score * denom : 0);
   const passValue = typeof denom === 'number' ? (exam.pass_threshold ?? 0.7) * denom : null;
-  const passed = (exam.pass_threshold ?? 0.7) <= (attempt.score ?? 0);
+  // So sánh điểm sau khi làm tròn (nhất quán với hiển thị) để tránh tình huống
+  // hiển thị "70/100" nhưng kết quả vẫn "Chưa đạt" do điểm lẻ (true_false_multi/matching).
+  const passed = attempt.disqualified
+    ? false
+    : passValue !== null
+      ? Math.round(earned) >= Math.round(passValue)
+      : (exam.pass_threshold ?? 0.7) <= (attempt.score ?? 0);
 
   const displayFullName =
     [studentSession?.student_name, user?.student_name, user?.name].find(

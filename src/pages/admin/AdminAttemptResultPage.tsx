@@ -407,7 +407,6 @@ export default function AdminAttemptResultPage() {
 
   const threshold = exam.pass_threshold ?? 0.7;
   const scoreNum = attempt.score ?? 0;
-  const passed = !attempt.disqualified && scoreNum >= threshold;
   const denom =
     (typeof attempt.total_max === 'number' ? attempt.total_max : null) ??
     (typeof exam.total_questions === 'number' && exam.total_questions > 0
@@ -420,6 +419,13 @@ export default function AdminAttemptResultPage() {
         ? scoreNum * denom
         : 0;
   const passValue = typeof denom === 'number' ? threshold * denom : null;
+  // So sánh điểm sau khi làm tròn (nhất quán với hiển thị) để tránh tình huống
+  // hiển thị "70/100" nhưng kết quả vẫn "Chưa đạt" do điểm lẻ (true_false_multi/matching).
+  const passed = !attempt.disqualified && (
+    passValue !== null
+      ? Math.round(earned) >= Math.round(passValue)
+      : scoreNum >= threshold
+  );
 
   const studentDisplay =
     resolvedStudentName ||

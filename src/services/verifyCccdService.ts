@@ -19,6 +19,8 @@ export interface VerifyCccdParams {
   dob?: string;
   class_id?: string;
   window_id?: string;
+  /** Email tài khoản thi của học viên đang đăng nhập — dùng để phân biệt khi nhiều học viên có cùng CCCD (vừa học QC vừa học RTG). */
+  exam_account_email?: string;
 }
 
 /**
@@ -53,6 +55,7 @@ export async function verifyCccdForExam(
         dob: params.dob,
         class_id: params.class_id,
         window_id: params.window_id,
+        exam_account_email: params.exam_account_email,
       }),
     });
 

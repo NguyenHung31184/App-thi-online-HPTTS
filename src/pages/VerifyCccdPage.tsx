@@ -78,7 +78,7 @@ function ManualCccdFallbackSection({
 
 export default function VerifyCccdPage() {
   const navigate = useNavigate();
-  const { setStudentInfo } = useAuth();
+  const { setStudentInfo, user } = useAuth();
   const [step, setStep] = useState<'upload' | 'ocr' | 'verify' | 'done'>('upload');
   const [verifiedClasses, setVerifiedClasses] = useState<{ id: string; name: string }[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -166,6 +166,7 @@ export default function VerifyCccdPage() {
         id_card_number: ocrData.id_card_number,
         name: ocrData.full_name ?? ocrData.name,
         dob: ocrData.dob ?? ocrData.date_of_birth,
+        exam_account_email: user?.email ?? undefined,
       });
 
       if (!result.success) {

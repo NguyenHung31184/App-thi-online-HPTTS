@@ -334,7 +334,7 @@ export default function AdminAttemptResultPage() {
           .in('id', a.question_ids);
         // Giữ đúng thứ tự theo question_ids của attempt
         const byId = Object.fromEntries((data ?? []).map((q) => [q.id, q]));
-        qData = a.question_ids.map((id) => byId[id]).filter(Boolean) as typeof qData;
+        qData = a.question_ids.map((id) => byId[id]).filter(Boolean) as NonNullable<typeof qData>;
       } else {
         const { data } = await supabase
           .from('questions')

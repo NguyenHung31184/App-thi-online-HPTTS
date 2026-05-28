@@ -64,12 +64,6 @@ function getPostFullscreenLeaveIgnoreMs(): number {
   return /Android/i.test(navigator.userAgent || '') ? 5_000 : 2_800;
 }
 
-/** iOS Safari không hỗ trợ Fullscreen API — dùng Standalone (Add to Home Screen) làm tương đương. */
-const IS_IOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-function getIOSStandalone(): boolean {
-  if (!IS_IOS) return true; // non-iOS: không cần standalone
-  return (window.navigator as { standalone?: boolean }).standalone === true;
-}
 
 export default function ExamTakePage() {
   const { attemptId } = useParams<{ attemptId: string }>();
@@ -89,10 +83,6 @@ export default function ExamTakePage() {
     const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
     const hasStandard = typeof el.requestFullscreen === 'function';
     const hasWebkit = typeof el.webkitRequestFullscreen === 'function';
-    // iOS Safari thường chỉ có webkit* và vẫn không hoạt động ổn định cho exam; tắt bắt buộc fullscreen trên iOS.
-    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
-    const isIOS = /iPhone|iPad|iPod/i.test(ua);
-    if (isIOS) return false;
     return hasStandard || hasWebkit;
   });
   const [fullscreenError, setFullscreenError] = useState<string>('');
@@ -914,7 +904,6 @@ export default function ExamTakePage() {
         </div>
       )}
 
-      {/* iOS standalone overlay đã tắt tạm — không bắt buộc Add to Home Screen */}
       <div className="flex items-center justify-between mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
         <span className="font-medium text-slate-800">{exam.title}</span>
         <div className="flex items-center gap-3">
@@ -954,10 +943,7 @@ export default function ExamTakePage() {
       )}
 
       <p className="text-slate-500 text-sm mb-4">
-        {IS_IOS
-          ? <>Hệ thống ghi nhận khi bạn rời ứng dụng hoặc chuyển sang app khác. Nếu vi phạm đủ{' '}<strong>{MAX_VIOLATIONS} lần</strong>, bài sẽ được <strong>tự động nộp</strong>.</>
-          : <>Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu vi phạm (ẩn tab / mất focus / thoát fullscreen) đủ{' '}<strong>{MAX_VIOLATIONS} lần</strong>, bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.</>
-        }
+        Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu vi phạm (ẩn tab / mất focus / thoát fullscreen) đủ{' '}<strong>{MAX_VIOLATIONS} lần</strong>, bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.
       </p>
 
       <div className="space-y-6">

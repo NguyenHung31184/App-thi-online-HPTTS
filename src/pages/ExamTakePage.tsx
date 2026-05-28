@@ -96,8 +96,6 @@ export default function ExamTakePage() {
     return hasStandard || hasWebkit;
   });
   const [fullscreenError, setFullscreenError] = useState<string>('');
-  /** iOS: true khi đang chạy standalone (Add to Home Screen) hoặc thiết bị không phải iOS. */
-  const [isIOSStandalone, setIsIOSStandalone] = useState<boolean>(getIOSStandalone);
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<Record<string, string>>({});
   const timeUpSubmittedRef = useRef(false);

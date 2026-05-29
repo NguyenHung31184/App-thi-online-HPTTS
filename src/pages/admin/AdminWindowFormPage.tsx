@@ -53,6 +53,7 @@ export default function AdminWindowFormPage() {
   const [end_at, setEndAt] = useState('');
   const [access_code, setAccessCode] = useState('');
   const [is_trial, setIsTrial] = useState(false);
+  const [max_attempts, setMaxAttempts] = useState(2);
   const [exams, setExams] = useState<{ id: string; title: string; description?: string | null; module_id?: string | null }[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,6 +96,7 @@ export default function AdminWindowFormPage() {
       setEndAt(toDatetimeLocal(w.end_at));
       setAccessCode(w.access_code);
       setIsTrial(w.is_trial ?? false);
+      setMaxAttempts(w.max_attempts ?? 2);
     }).catch(() => setError('Không tải được kỳ thi.'));
     return () => { cancelled = true; };
   }, [isEdit, id]);
@@ -164,6 +166,7 @@ export default function AdminWindowFormPage() {
           exam_id: useMultiExams ? undefined : exam_id,
           exam_ids: useMultiExams ? selectedExamIds : [],
           is_trial,
+          max_attempts,
         });
         navigate('/admin/windows');
       } else {
@@ -175,6 +178,7 @@ export default function AdminWindowFormPage() {
             end_at: endTs,
             access_code,
             is_trial,
+            max_attempts,
           });
         } else {
           await createExamWindow({
@@ -184,6 +188,7 @@ export default function AdminWindowFormPage() {
             end_at: endTs,
             access_code,
             is_trial,
+            max_attempts,
           });
         }
         navigate('/admin/windows');
@@ -477,6 +482,36 @@ export default function AdminWindowFormPage() {
             </p>
           </div>
         </label>
+
+        {/* Số lần thi tối đa — chỉ hiển thị cho kỳ thi thật */}
+        {!is_trial && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Số lần thi tối đa mỗi học viên
+            </label>
+            <div className="flex gap-2">
+              {[2, 3, 4].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setMaxAttempts(n)}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    max_attempts === n
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-slate-700 border-slate-300 hover:border-indigo-400'
+                  }`}
+                >
+                  {n} lần
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500 mt-1.5">
+              {max_attempts === 2 && '1 lần thi + 1 lần thi lại (mặc định theo quy định)'}
+              {max_attempts === 3 && '1 lần thi + 2 lần thi lại'}
+              {max_attempts === 4 && '1 lần thi + 3 lần thi lại (tối đa)'}
+            </p>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">

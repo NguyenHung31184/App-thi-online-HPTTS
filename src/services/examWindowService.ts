@@ -46,6 +46,8 @@ export interface CreateExamWindowInput {
   end_at: number;
   access_code: string;
   is_trial?: boolean;
+  /** Số lần thi tối đa mỗi học viên (mặc định 2 = 1 thật + 1 lại). Không áp dụng cho is_trial. */
+  max_attempts?: number;
 }
 
 export async function createExamWindow(input: CreateExamWindowInput): Promise<ExamWindow> {
@@ -60,6 +62,7 @@ export async function createExamWindow(input: CreateExamWindowInput): Promise<Ex
     end_at: input.end_at,
     access_code: input.access_code,
     is_trial: input.is_trial ?? false,
+    max_attempts: input.max_attempts ?? 2,
   };
   const { data, error } = await supabase.from('exam_windows').insert(row).select().single();
   if (error) throw error;
@@ -76,6 +79,7 @@ export interface UpdateExamWindowInput {
   /** Cập nhật danh sách đề (quay 1 trong N). Null = giữ nguyên; [] = xóa, quay lại 1 đề (exam_id). */
   exam_ids?: string[] | null;
   is_trial?: boolean;
+  max_attempts?: number;
 }
 
 export async function updateExamWindow(id: string, input: UpdateExamWindowInput): Promise<ExamWindow> {
@@ -97,6 +101,28 @@ export async function updateExamWindow(id: string, input: UpdateExamWindowInput)
 export async function deleteExamWindow(id: string): Promise<void> {
   const { error } = await supabase.from('exam_windows').delete().eq('id', id);
   if (error) throw error;
+}
+
+/** Xóa toàn bộ attempts (kết quả thi) của tất cả cửa sổ thi thử (is_trial = true).
+ *  Trả về số lượng đã xóa. */
+export async function deleteAllTrialAttempts(): Promise<number> {
+  // Lấy danh sách id của các cửa sổ thi thử
+  const { data: trialWindows, error: winErr } = await supabase
+    .from('exam_windows')
+    .select('id')
+    .eq('is_trial', true);
+  if (winErr) throw winErr;
+  const windowIds = (trialWindows ?? []).map((w: { id: string }) => w.id);
+  if (windowIds.length === 0) return 0;
+
+  // Xóa attempts + audit logs theo window_id
+  const { data: deleted, error: delErr } = await supabase
+    .from('attempts')
+    .delete()
+    .in('window_id', windowIds)
+    .select('id');
+  if (delErr) throw delErr;
+  return (deleted ?? []).length;
 }
 
 const now = () => Date.now();

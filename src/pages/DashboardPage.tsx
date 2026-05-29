@@ -7,7 +7,7 @@ import {
   getExamIdForNewAttempt,
   type ExamWindowWithExam,
 } from '../services/examWindowService';
-import { createAttempt } from '../services/attemptService';
+import { createAttempt, countUserAttemptsForWindow } from '../services/attemptService';
 import {
   getAllowedPracticalSessions,
   getPracticalSession,
@@ -221,6 +221,16 @@ function StudentDashboard() {
         setEnterError('Vui lòng xác thực CCCD trước khi vào phòng thi (bấm "Xác thực CCCD" bên trên).');
         setEnteringWindowId(null);
         return;
+      }
+      // Kiểm tra giới hạn số lần thi (bỏ qua cho kỳ thi thử và admin)
+      if (!win.is_trial && user.role !== 'admin') {
+        const maxAllowed = win.max_attempts ?? 2;
+        const used = await countUserAttemptsForWindow(user.id, windowId);
+        if (used >= maxAllowed) {
+          setEnterError(`Bạn đã thi ${used}/${maxAllowed} lần cho kỳ thi này và không thể thi thêm.`);
+          setEnteringWindowId(null);
+          return;
+        }
       }
       const attempt = await createAttempt(user.id, windowId, getExamIdForNewAttempt(win));
       navigate(`/exam/${attempt.id}`);

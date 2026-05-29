@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { listExamWindows, deleteExamWindow } from '../../services/examWindowService';
+import { listExamWindows, deleteExamWindow, deleteAllTrialAttempts } from '../../services/examWindowService';
 import { listExams } from '../../services/examService';
 import { listClasses } from '../../services/ttdtDataService';
 import type { ExamWindow } from '../../types';
@@ -74,6 +74,9 @@ export default function AdminWindowsPage() {
   const [error, setError] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteTrialReports, setConfirmDeleteTrialReports] = useState(false);
+  const [deletingTrialReports, setDeletingTrialReports] = useState(false);
+  const [trialDeleteResult, setTrialDeleteResult] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -95,6 +98,19 @@ export default function AdminWindowsPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const doDeleteTrialReports = async () => {
+    setDeletingTrialReports(true);
+    try {
+      const count = await deleteAllTrialAttempts();
+      setTrialDeleteResult(`Đã xóa ${count} báo cáo thi thử.`);
+      setConfirmDeleteTrialReports(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Lỗi xóa báo cáo thi thử.');
+    } finally {
+      setDeletingTrialReports(false);
+    }
+  };
 
   const doDelete = async () => {
     if (!confirmDeleteId) return;
@@ -147,15 +163,28 @@ export default function AdminWindowsPage() {
             Các kỳ thi được nhóm theo lớp học.
           </p>
         </div>
-        <Link
-          to="/admin/windows/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Thêm kỳ thi
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { setTrialDeleteResult(null); setConfirmDeleteTrialReports(true); }}
+            className="flex items-center gap-1.5 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium"
+            title="Xóa toàn bộ kết quả thi thử để giải phóng dung lượng DB"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Xóa báo cáo thi thử
+          </button>
+          <Link
+            to="/admin/windows/new"
+            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm kỳ thi
+          </Link>
+        </div>
       </div>
 
       {loading && <p className="text-slate-500 text-sm">Đang tải...</p>}
@@ -275,6 +304,28 @@ export default function AdminWindowsPage() {
       >
         Xóa kỳ thi này? Thí sinh sẽ không thể vào thi bằng mã này.
       </ConfirmationModal>
+
+      <ConfirmationModal
+        isOpen={confirmDeleteTrialReports}
+        onClose={() => setConfirmDeleteTrialReports(false)}
+        onConfirm={doDeleteTrialReports}
+        title="Xóa báo cáo thi thử"
+        isLoading={deletingTrialReports}
+        confirmText="Xóa tất cả"
+      >
+        <p>Xóa toàn bộ kết quả thi (attempts) của <strong>tất cả kỳ thi thử</strong>?</p>
+        <p className="mt-2 text-slate-500 text-sm">Các cửa sổ thi thử vẫn được giữ lại. Chỉ xóa dữ liệu kết quả/báo cáo để giải phóng dung lượng DB. Không thể hoàn tác.</p>
+      </ConfirmationModal>
+
+      {trialDeleteResult && (
+        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm flex items-center gap-2 z-50">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {trialDeleteResult}
+          <button type="button" onClick={() => setTrialDeleteResult(null)} className="ml-2 opacity-70 hover:opacity-100">✕</button>
+        </div>
+      )}
     </div>
   );
 }

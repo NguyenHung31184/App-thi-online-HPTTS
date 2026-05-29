@@ -87,6 +87,8 @@ export interface ExamWindow {
   access_code: string;
   /** Kỳ thi thử: không đồng bộ điểm sang TTDT, không bắt buộc class_id */
   is_trial?: boolean;
+  /** Số lần thi tối đa mỗi học viên (mặc định 2 = 1 thật + 1 lại). Không áp dụng cho is_trial. */
+  max_attempts?: number;
   created_at?: string;
 }
 

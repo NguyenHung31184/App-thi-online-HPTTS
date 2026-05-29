@@ -49,6 +49,17 @@ export async function fetchStartExamPhotoSignedUrl(attemptId: string): Promise<s
   return signed.signedUrl;
 }
 
+/** Đếm số lần học viên đã thi trong một cửa sổ thi — dùng để kiểm tra giới hạn max_attempts. */
+export async function countUserAttemptsForWindow(userId: string, windowId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('window_id', windowId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** Danh sách bài làm đã nộp (completed) theo đề thi — dùng cho màn chấm tự luận */
 export async function listCompletedAttemptsByExam(examId: string): Promise<Attempt[]> {
   const { data, error } = await supabase

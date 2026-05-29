@@ -115,6 +115,9 @@ export default function ExamTakePage() {
   /** Đủ MAX_VIOLATIONS: khóa làm bài + ép hiển thị trạng thái tự nộp (đồng bộ UI với ref). */
   const [violationsCapActive, setViolationsCapActive] = useState(false);
 
+  /** Bước 0: Chụp ảnh bàn làm việc — xác nhận môi trường thi trước khi chụp mặt. */
+  const [workspacePhotoTaken, setWorkspacePhotoTaken] = useState(false);
+  const [capturingWorkspace, setCapturingWorkspace] = useState(false);
   /** Bước 1: Chụp ảnh khuôn mặt bắt buộc trước khi làm bài. Chỉ sau khi chụp xong mới cho vào fullscreen + đề. */
   const [photoVerified, setPhotoVerified] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
@@ -206,11 +209,12 @@ export default function ExamTakePage() {
     }
   }, [fullscreenSupported]);
 
+  const showWorkspaceStep = Boolean(attempt && exam && questions.length > 0 && !workspacePhotoTaken);
   /** Yêu cầu học viên chụp ảnh khuôn mặt trước khi làm bài. Bật camera khi vào bước này; chỉ cho vào đề sau khi chụp thành công. */
-  const showCameraStep = Boolean(attempt && exam && questions.length > 0 && !photoVerified);
+  const showCameraStep = Boolean(attempt && exam && questions.length > 0 && workspacePhotoTaken && !photoVerified);
 
   useEffect(() => {
-    if (!showCameraStep || !attemptId) return;
+    if ((!showCameraStep && !showWorkspaceStep) || !attemptId) return;
     setCameraError('');
     let stream: MediaStream | null = null;
     navigator.mediaDevices
@@ -336,7 +340,35 @@ export default function ExamTakePage() {
     };
   }, [cameraStream]);
 
-  /** Tải BlazeFace sớm khi hiện bước chụp — lần bấm Chụp sẽ nhanh hơn. */
+  /** Chụp ảnh bàn làm việc: không cần BlazeFace, chỉ capture frame hiện tại và upload. */
+  const handleCaptureWorkspace = useCallback(async () => {
+    if (!attemptId || !videoRef.current || !cameraStream || capturingWorkspace) return;
+    const video = videoRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+    setCapturingWorkspace(true);
+    setCameraError('');
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Không tạo được canvas.');
+      ctx.drawImage(video, 0, 0);
+      const blob = await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob thất bại.'))), 'image/jpeg', 0.82)
+      );
+      const up = await uploadExamFileViaEdge({ category: 'proctoring', attemptId, kind: 'start_photo', file: blob });
+      if (!up.ok) throw new Error(up.error || 'Upload ảnh bàn làm việc thất bại.');
+      await logAuditEvent(attemptId, 'workspace_photo', { url: up.signedUrl, path: up.path });
+      setWorkspacePhotoTaken(true);
+    } catch (e) {
+      setCameraError(e instanceof Error ? e.message : 'Chụp ảnh thất bại. Vui lòng thử lại.');
+    } finally {
+      setCapturingWorkspace(false);
+    }
+  }, [attemptId, cameraStream, capturingWorkspace]);
+
+  /** Tải BlazeFace sớm khi hiện bước chụp mặt — lần bấm Chụp sẽ nhanh hơn. */
   useEffect(() => {
     if (!showCameraStep) return;
     loadBlazeFaceModel().catch(() => {});
@@ -812,6 +844,50 @@ export default function ExamTakePage() {
             {error ? (
               <p className="text-red-700 text-sm mt-3 border-t border-slate-200 pt-3">{error}</p>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Bước 0: Chụp ảnh bàn làm việc — xác nhận môi trường thi */}
+      {showWorkspaceStep && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/90 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl p-5">
+            <div className="font-semibold text-slate-900 text-lg mb-1">Chụp ảnh bàn làm việc</div>
+            <p className="text-slate-600 text-sm mb-4">
+              Xoay camera để <strong>cho thấy toàn bộ bàn làm việc</strong> xung quanh bạn — không có tài liệu, điện thoại hoặc thiết bị hỗ trợ khác. Ảnh này được lưu để xác nhận môi trường thi.
+            </p>
+            {cameraError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+                {cameraError}
+              </div>
+            )}
+            {cameraStream ? (
+              <>
+                <div className="relative rounded-lg overflow-hidden bg-slate-800 mb-4 aspect-video">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                    onLoadedData={() => { const v = videoRef.current; if (v && v.videoWidth > 0) setStartPhotoVideoReady(true); }}
+                    onPlaying={() => { const v = videoRef.current; if (v && v.videoWidth > 0) setStartPhotoVideoReady(true); }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCaptureWorkspace}
+                  disabled={capturingWorkspace || !startPhotoVideoReady}
+                  className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  {capturingWorkspace ? 'Đang lưu...' : !startPhotoVideoReady ? 'Đang khởi động camera...' : 'Chụp ảnh bàn làm việc'}
+                </button>
+              </>
+            ) : (
+              <div className="py-8 text-center text-slate-500 text-sm">
+                {cameraError ? null : 'Đang kết nối camera...'}
+              </div>
+            )}
           </div>
         </div>
       )}

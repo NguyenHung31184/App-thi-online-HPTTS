@@ -9,6 +9,7 @@ const viewTitles: Record<string, string> = {
   '/': 'Trang chủ',
   '/verify-cccd': 'Xác thực CCCD',
   '/admin': 'Quản trị',
+  '/student/learn': 'Học trực tuyến',
 };
 
 export default function Layout() {
@@ -18,13 +19,18 @@ export default function Layout() {
   const isAdmin = user?.role === 'admin';
 
   const navSections: NavSection[] = useMemo(() => {
-    // Nếu là Admin, ẩn hoàn toàn các mục HOME/STUDENT và để họ dùng khu Quản trị riêng.
+    // Nếu là Admin, ẩn các mục STUDENT (trừ Học trực tuyến — chế độ xem trước) và để họ dùng khu Quản trị riêng.
     if (isAdmin) {
       return [
         {
           id: 'home',
           title: 'HOME',
           items: [{ to: '/dashboard', label: 'Dashboard', icon: DashboardIcon }],
+        },
+        {
+          id: 'preview',
+          title: 'XEM TRƯỚC',
+          items: [{ to: '/student/learn', label: 'Học trực tuyến', icon: ExamIcon }],
         },
       ];
     }
@@ -39,6 +45,7 @@ export default function Layout() {
         id: 'student',
         title: 'STUDENT',
         items: [
+          { to: '/student/learn', label: 'Học trực tuyến', icon: DashboardIcon },
           { to: '/student/exams', label: 'Exams', icon: ExamIcon },
           { to: '/student/results', label: 'Result', icon: GradingIcon },
           { to: '/verify-cccd', label: 'Xác thực CCCD', icon: IdCardIcon },

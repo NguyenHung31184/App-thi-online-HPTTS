@@ -4,6 +4,28 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-06-11 — Tính năng Học trực tuyến (E-Learning lát 1)
+
+**Commit:** _(sau khi push)_
+**Branch:** main
+
+### Những gì đã thay đổi
+- **DB:** bảng `elearning_*` do migration `20260611000000_elearning_module.sql` đặt tại **repo app chính** (QuanlyTTDT-HPTTS) — repo này KHÔNG có migration elearning riêng
+- **Mới:** `src/services/elearningStudyService.ts` — đọc bài học/khối theo mô-đun lớp (enrollments → classes → course_modules), ghi `elearning_progress`
+- **Mới:** `src/pages/StudentLearnPage.tsx` (danh sách bài, học tuần tự) + `src/pages/LessonPlayerPage.tsx` (player video/pdf/article)
+- **Sửa:** `src/App.tsx` (route `/student/learn`, `/student/learn/:lessonId`), `src/pages/Layout.tsx` (nav "Học trực tuyến"), `src/types/index.ts` (types Elearning*)
+
+### Cách rollback
+```bash
+git revert HEAD   # code app thi
+```
+```sql
+-- DB (chạy ở repo app chính nếu cần gỡ hoàn toàn — mất dữ liệu e-learning):
+DROP TABLE elearning_progress, elearning_quiz_items, elearning_lesson_blocks, elearning_lessons;
+```
+
+---
+
 ## 2026-05-24 — Fix get_my_role() nhận satellite_role, thêm module_id vào đề TH
 
 **Commit:** _(sau khi push)_

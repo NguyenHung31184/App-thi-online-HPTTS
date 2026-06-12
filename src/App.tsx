@@ -37,6 +37,8 @@ import ExamResultPage from './pages/ExamResultPage';
 import PracticalTakePage from './pages/PracticalTakePage';
 import StudentExamsPage from './pages/StudentExamsPage';
 import StudentResultsPage from './pages/StudentResultsPage';
+import StudentLearnPage from './pages/StudentLearnPage';
+import LessonPlayerPage from './pages/LessonPlayerPage';
 
 function App() {
   return (
@@ -86,6 +88,8 @@ function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="student/exams" element={<StudentExamsPage />} />
             <Route path="student/results" element={<StudentResultsPage />} />
+            <Route path="student/learn" element={<StudentLearnPage />} />
+            <Route path="student/learn/:lessonId" element={<LessonPlayerPage />} />
             <Route path="exam/:attemptId/intro" element={<ExamIntroPage />} />
             <Route path="exam/:attemptId" element={<ExamTakePage />} />
             <Route path="exam/:attemptId/result" element={<ExamResultPage />} />

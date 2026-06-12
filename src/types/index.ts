@@ -288,3 +288,43 @@ export interface PracticalAttemptScore {
   graded_by?: string | null;
   graded_at?: string | null;
 }
+
+// ===== E-LEARNING (bảng elearning_* — migration đặt tại repo app chính QuanlyTTDT-HPTTS) =====
+
+export type ElearningBlockType = 'video' | 'pdf' | 'article' | 'quiz';
+export type ElearningStorageProvider = 'youtube' | 'cloudinary' | 'drive' | 'supabase' | 'vps' | 'external';
+
+export interface ElearningLesson {
+  id: string;
+  module_id: string;
+  title: string;
+  description?: string | null;
+  order_index: number;
+  is_published: boolean;
+}
+
+export interface ElearningLessonBlock {
+  id: string;
+  lesson_id: string;
+  block_type: ElearningBlockType;
+  title?: string | null;
+  content_url?: string | null;
+  storage_provider?: ElearningStorageProvider | null;
+  body_richtext?: string | null;
+  duration_seconds?: number | null;
+  quiz_pass_percent?: number | null;
+  order_index: number;
+}
+
+export interface ElearningProgress {
+  id: string;
+  user_id: string;
+  student_id?: string | null;
+  lesson_id: string;
+  block_id: string;
+  status: 'in_progress' | 'completed';
+  watched_seconds: number;
+  quiz_score?: number | null;
+  quiz_attempts: number;
+  completed_at?: string | null;
+}

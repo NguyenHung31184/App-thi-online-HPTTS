@@ -14,7 +14,7 @@ export function PortraitCameraGuide() {
   const rid = useId().replace(/:/g, '');
   const maskId = `portrait-guide-mask-${rid}`;
   return (
-    <div className="pointer-events-none absolute inset-0">
+    <div className="pointer-events-none absolute inset-0 z-10">
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox={`0 0 ${VB_W} ${VB_H}`}

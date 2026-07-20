@@ -240,7 +240,7 @@ export default function ExamTakePage() {
       if (stream) stream.getTracks().forEach((t) => t.stop());
       setCameraStream(null);
     };
-  }, [showCameraStep, attemptId]);
+  }, [showCameraStep, showWorkspaceStep, attemptId]);
 
   useEffect(() => {
     setStartPhotoVideoReady(false);
@@ -910,13 +910,13 @@ export default function ExamTakePage() {
             )}
             {cameraStream && (
               <>
-                <div className="relative rounded-lg overflow-hidden bg-slate-800 mb-4 aspect-video">
+                <div className="relative isolate rounded-lg overflow-hidden bg-slate-800 mb-4 aspect-video">
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
-                    className="w-full h-full object-cover"
+                    className="relative z-0 w-full h-full object-cover"
                     style={{ transform: 'scaleX(-1)' }}
                     onLoadedData={() => {
                       const v = videoRef.current;

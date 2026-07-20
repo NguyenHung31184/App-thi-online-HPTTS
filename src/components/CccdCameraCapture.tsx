@@ -195,17 +195,19 @@ const CccdCameraCapture: React.FC<CccdCameraCaptureProps> = ({ isOpen, onCancel,
           {/* Khung camera */}
           <div
             ref={containerRef}
-            className="relative h-[380px] w-full overflow-hidden rounded-xl bg-black"
+            className="relative isolate h-[380px] w-full overflow-hidden rounded-xl bg-black"
           >
             <video
               ref={videoRef}
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 z-0 h-full w-full object-cover"
               playsInline
               muted
             />
 
             {/* Overlay khung hướng dẫn — bóng đen xung quanh, viền trắng chính xác */}
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            {/* z-10: trên iOS Safari, <video> dùng layer compositing riêng (AVPlayerLayer) và
+                thường đè lên sibling không có z-index tường minh, dù đứng sau trong DOM. */}
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
               <div
                 className="rounded-lg border-2 border-white shadow-[0_0_0_2000px_rgba(0,0,0,0.5)]"
                 style={{
@@ -217,7 +219,7 @@ const CccdCameraCapture: React.FC<CccdCameraCaptureProps> = ({ isOpen, onCancel,
             </div>
 
             {/* Góc bo trang trí */}
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
               <div
                 style={{
                   width: '82%',
@@ -249,12 +251,12 @@ const CccdCameraCapture: React.FC<CccdCameraCaptureProps> = ({ isOpen, onCancel,
             </div>
 
             {/* Hướng dẫn dưới khung */}
-            <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/60 px-3 py-1 text-xs text-white">
+            <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/60 px-3 py-1 text-xs text-white">
               Canh thẻ CCCD đúng vào trong khung, đủ sáng
             </div>
 
             {isStarting && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
                 <span className="text-white text-sm">Đang mở camera...</span>
               </div>
             )}

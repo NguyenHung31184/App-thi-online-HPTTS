@@ -157,6 +157,12 @@ async function generatePdf(opts: {
     ? `<img src="${startPhotoUrl}" style="width:100px;height:128px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;" />`
     : '';
 
+  const signatureHtml = `
+    <div style="text-align:center;flex-shrink:0;">
+      <p style="font-size:10px;color:#94a3b8;margin:0 0 4px 0;">Chữ ký học viên</p>
+      <div style="width:110px;height:128px;border:1px dashed #cbd5e1;border-radius:8px;"></div>
+    </div>`;
+
   const html = `
     <div style="font-family:Arial,sans-serif;color:#1e293b;padding:0 8px;">
       <img src="/print-header.png" style="width:100%;display:block;margin-bottom:20px;" />
@@ -174,7 +180,10 @@ async function generatePdf(opts: {
             <p style="font-size:13px;margin:0;"><strong style="display:inline-block;width:110px;color:#475569;">Thời gian làm:</strong> ${durationStr}</p>
             ${disqualified ? '<p style="color:#b45309;font-weight:700;margin:8px 0 0 0;">⚠ Bài bị loại (disqualified)</p>' : ''}
           </div>
-          ${photoHtml ? `<div style="text-align:center;flex-shrink:0;"><p style="font-size:10px;color:#94a3b8;margin:0 0 4px 0;">Ảnh lúc vào thi</p>${photoHtml}</div>` : ''}
+          <div style="display:flex;gap:12px;flex-shrink:0;">
+            ${photoHtml ? `<div style="text-align:center;"><p style="font-size:10px;color:#94a3b8;margin:0 0 4px 0;">Ảnh lúc vào thi</p>${photoHtml}</div>` : ''}
+            ${signatureHtml}
+          </div>
         </div>
       </div>
 

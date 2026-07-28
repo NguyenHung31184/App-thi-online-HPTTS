@@ -217,10 +217,13 @@ export default function ExamTakePage() {
     if ((!showCameraStep && !showWorkspaceStep) || !attemptId) return;
     setCameraError('');
     let stream: MediaStream | null = null;
+    // Bước chụp bàn làm việc dùng camera sau (environment) để quét không gian xung quanh;
+    // bước chụp khuôn mặt dùng camera trước (user) để xác thực danh tính.
+    const facingMode: VideoFacingModeEnum = showWorkspaceStep ? 'environment' : 'user';
     navigator.mediaDevices
       .getUserMedia({
         video: {
-          facingMode: 'user',
+          facingMode: { ideal: facingMode },
           width: { ideal: 640, max: 1280 },
           height: { ideal: 480, max: 720 },
         },

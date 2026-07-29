@@ -60,6 +60,22 @@ export async function countUserAttemptsForWindow(userId: string, windowId: strin
   return count ?? 0;
 }
 
+/**
+ * Đếm tổng số attempt (mọi học viên) đã tạo trong một cửa sổ thi — dùng ở Admin để
+ * cảnh báo/khoá việc đổi is_trial trên cửa sổ đã có người thi. Vì attempts không lưu
+ * cờ trial riêng (chỉ suy ra từ exam_windows.is_trial hiện hành), nếu đổi is_trial
+ * true → false trên cửa sổ đã có attempt, các attempt "thi thử" cũ sẽ bị tính vào
+ * giới hạn max_attempts của "thi thật", có thể khoá học viên ngay từ lần đầu.
+ */
+export async function countAttemptsForWindow(windowId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq('window_id', windowId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** Danh sách bài làm đã nộp (completed) theo đề thi — dùng cho màn chấm tự luận */
 export async function listCompletedAttemptsByExam(examId: string): Promise<Attempt[]> {
   const { data, error } = await supabase

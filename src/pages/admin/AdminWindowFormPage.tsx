@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import {
@@ -8,6 +8,7 @@ import {
 } from '../../services/examWindowService';
 import { listExams } from '../../services/examService';
 import { listClasses } from '../../services/ttdtDataService';
+import { countAttemptsForWindow } from '../../services/attemptService';
 
 function toDatetimeLocal(ts: number): string {
   const d = new Date(ts);
@@ -59,6 +60,9 @@ export default function AdminWindowFormPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [addExamSelect, setAddExamSelect] = useState('');
+  /** Số attempt đã tạo trong cửa sổ này (mọi học viên) — khoá đổi is_trial nếu > 0. */
+  const [usedAttemptsCount, setUsedAttemptsCount] = useState(0);
+  const originalIsTrialRef = useRef(false);
 
   useEffect(() => {
     listExams()
@@ -96,8 +100,12 @@ export default function AdminWindowFormPage() {
       setEndAt(toDatetimeLocal(w.end_at));
       setAccessCode(w.access_code);
       setIsTrial(w.is_trial ?? false);
+      originalIsTrialRef.current = w.is_trial ?? false;
       setMaxAttempts(w.max_attempts ?? 2);
     }).catch(() => setError('Không tải được kỳ thi.'));
+    countAttemptsForWindow(id).then((n) => {
+      if (!cancelled) setUsedAttemptsCount(n);
+    }).catch(() => {});
     return () => { cancelled = true; };
   }, [isEdit, id]);
 
@@ -468,20 +476,36 @@ export default function AdminWindowFormPage() {
           </div>
         )}
         {/* Kỳ thi thử */}
-        <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors">
-          <input
-            type="checkbox"
-            checked={is_trial}
-            onChange={(e) => setIsTrial(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded text-indigo-600 accent-indigo-600"
-          />
-          <div>
-            <span className="text-sm font-medium text-slate-800">Kỳ thi thử / kiểm tra nội dung</span>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Học viên thi bình thường nhưng điểm <strong>không</strong> được ghi vào hệ thống quản lý. Không bắt buộc chọn Lớp và Mô-đun.
-            </p>
-          </div>
-        </label>
+        {(() => {
+          const lockTrialToggle = isEdit && originalIsTrialRef.current && usedAttemptsCount > 0;
+          return (
+            <label
+              className={`flex items-start gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50 transition-colors ${
+                lockTrialToggle ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-100'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={is_trial}
+                disabled={lockTrialToggle}
+                onChange={(e) => setIsTrial(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded text-indigo-600 accent-indigo-600"
+              />
+              <div>
+                <span className="text-sm font-medium text-slate-800">Kỳ thi thử / kiểm tra nội dung</span>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Học viên thi bình thường nhưng điểm <strong>không</strong> được ghi vào hệ thống quản lý. Không bắt buộc chọn Lớp và Mô-đun.
+                </p>
+                {lockTrialToggle && (
+                  <p className="text-xs text-amber-700 mt-1 font-medium">
+                    Đã có {usedAttemptsCount} lượt thi trong cửa sổ này khi còn là thi thử — không thể chuyển sang thi thật trên cùng cửa sổ
+                    (các lượt thi thử cũ sẽ bị tính vào giới hạn số lần thi, có thể khoá học viên ngay lần đầu). Hãy tạo cửa sổ thi mới cho kỳ thi thật.
+                  </p>
+                )}
+              </div>
+            </label>
+          );
+        })()}
 
         {/* Số lần thi tối đa — chỉ hiển thị cho kỳ thi thật */}
         {!is_trial && (
@@ -504,11 +528,24 @@ export default function AdminWindowFormPage() {
                   {n} lần
                 </button>
               ))}
+              {/* 0 = sentinel "không giới hạn" — DashboardPage bỏ qua kiểm tra khi max_attempts <= 0 */}
+              <button
+                type="button"
+                onClick={() => setMaxAttempts(0)}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  max_attempts === 0
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-700 border-slate-300 hover:border-indigo-400'
+                }`}
+              >
+                Không giới hạn
+              </button>
             </div>
             <p className="text-xs text-slate-500 mt-1.5">
               {max_attempts === 2 && '1 lần thi + 1 lần thi lại (mặc định theo quy định)'}
               {max_attempts === 3 && '1 lần thi + 2 lần thi lại'}
               {max_attempts === 4 && '1 lần thi + 3 lần thi lại (tối đa)'}
+              {max_attempts === 0 && 'Học viên được thi lại không giới hạn số lần trong cửa sổ này'}
             </p>
           </div>
         )}

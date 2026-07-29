@@ -222,9 +222,9 @@ function StudentDashboard() {
         setEnteringWindowId(null);
         return;
       }
-      // Kiểm tra giới hạn số lần thi (bỏ qua cho kỳ thi thử và admin)
-      if (!win.is_trial && user.role !== 'admin') {
-        const maxAllowed = win.max_attempts ?? 2;
+      // Kiểm tra giới hạn số lần thi (bỏ qua cho kỳ thi thử, admin, và max_attempts <= 0 = không giới hạn)
+      const maxAllowed = win.max_attempts ?? 2;
+      if (!win.is_trial && user.role !== 'admin' && maxAllowed > 0) {
         const used = await countUserAttemptsForWindow(user.id, windowId);
         if (used >= maxAllowed) {
           setEnterError(`Bạn đã thi ${used}/${maxAllowed} lần cho kỳ thi này và không thể thi thêm.`);

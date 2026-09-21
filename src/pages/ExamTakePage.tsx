@@ -1,9 +1,8 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAttempt, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt, disqualifyAttempt, logAuditEvent } from '../services/attemptService';
+import { getAttempt, getAttemptWindowContext, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt, disqualifyAttempt, logAuditEvent } from '../services/attemptService';
 import { getExam } from '../services/examService';
-import { getExamWindow } from '../services/examWindowService';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
 import { uploadExamFileViaEdge } from '../services/examUploadService';
 import { SortableOptionList } from '../components/SortableOptionList';
@@ -74,6 +73,7 @@ export default function ExamTakePage() {
   const [questions, setQuestions] = useState<QuestionForStudent[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   // Thời điểm kết thúc thực tế = min(started_at + duration, window.end_at) — tránh thi quá giờ cửa sổ
   const [effectiveEndTime, setEffectiveEndTime] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -89,6 +89,7 @@ export default function ExamTakePage() {
   });
   const [fullscreenError, setFullscreenError] = useState<string>('');
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autosaveInFlightRef = useRef(false);
   const lastSavedRef = useRef<Record<string, string>>({});
   const timeUpSubmittedRef = useRef(false);
   const answersRef = useRef<Record<string, string>>({});
@@ -402,10 +403,8 @@ export default function ExamTakePage() {
     setQuestions(questionsList);
     const personalEnd = a.started_at + e.duration_minutes * 60 * 1000;
     let effEnd = personalEnd;
-    if (a.window_id) {
-      const win = await getExamWindow(a.window_id);
-      if (win?.end_at && win.end_at < personalEnd) effEnd = win.end_at;
-    }
+    const windowContext = await getAttemptWindowContext(a.id);
+    if (windowContext?.end_at && windowContext.end_at < personalEnd) effEnd = windowContext.end_at;
     setEffectiveEndTime(effEnd);
     setRemainingMs(Math.max(0, effEnd - Date.now()));
   }, [attemptId, user?.id, navigate]);
@@ -472,19 +471,19 @@ export default function ExamTakePage() {
       try {
         const updated = await getAttempt(attemptId);
         if (updated && ex && isTtdtSyncConfigured()) {
-          const win = await getExamWindow(updated.window_id);
-          if (win?.is_trial) {
+          const windowContext = await getAttemptWindowContext(updated.id);
+          if (windowContext?.is_trial) {
             isTrial = true;
             // kỳ thi thử — không đồng bộ, không báo lỗi
           } else {
             const hasModule = ex.module_id != null && String(ex.module_id).trim() !== '';
             const hasStudentId = Boolean((user?.student_id ?? studentSession?.student_id) && String(user?.student_id ?? studentSession?.student_id).trim() !== '');
-            const hasClassId = Boolean(win?.class_id && String(win?.class_id).trim() !== '');
+            const hasClassId = Boolean(windowContext?.class_id && String(windowContext.class_id).trim() !== '');
             const hasEnrollmentInfo = (hasStudentId && hasClassId) || undefined;
             if (hasModule && hasEnrollmentInfo) {
               await syncAttemptToTtdt(updated, ex, {
                 studentId: user?.student_id ?? studentSession?.student_id ?? undefined,
-                classId: win?.class_id ?? undefined,
+                classId: windowContext?.class_id ?? undefined,
                 userEmail: user?.email ?? undefined,
                 userName: (studentSession?.student_name ?? (user as { student_name?: string } | null)?.student_name ?? user?.name) ?? undefined,
               });
@@ -624,29 +623,41 @@ export default function ExamTakePage() {
     return () => window.clearInterval(id);
   }, [violationsCapActive, photoVerified, scheduleViolationAutoSubmit]);
 
-  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+  const persistAnswers = useCallback(async () => {
+    if (!attemptId || autosaveInFlightRef.current) return;
+    if (JSON.stringify(answersRef.current) === JSON.stringify(lastSavedRef.current)) return;
+
+    autosaveInFlightRef.current = true;
+    setAutosaveStatus('saving');
+    try {
+      do {
+        const snapshot = { ...answersRef.current };
+        if (JSON.stringify(snapshot) === JSON.stringify(lastSavedRef.current)) break;
+        await updateAttemptAnswers(attemptId, snapshot);
+        lastSavedRef.current = snapshot;
+      } while (JSON.stringify(answersRef.current) !== JSON.stringify(lastSavedRef.current));
+      setAutosaveStatus('idle');
+    } catch (err) {
+      console.error('[Autosave] Lưu bài thất bại:', err);
+      setAutosaveStatus('error');
+    } finally {
+      autosaveInFlightRef.current = false;
+    }
+  }, [attemptId]);
 
   useEffect(() => {
-    if (!attemptId || Object.keys(answers).length === 0) return;
-    autosaveRef.current = setInterval(async () => {
-      if (JSON.stringify(answersRef.current) === JSON.stringify(lastSavedRef.current)) return;
-      setAutosaveStatus('saving');
-      try {
-        await updateAttemptAnswers(attemptId, answersRef.current);
-        lastSavedRef.current = { ...answersRef.current };
-        setAutosaveStatus('idle');
-      } catch (err) {
-        // Ghi log để debug — không throw để không làm hỏng luồng thi
-        console.error('[Autosave] Lưu bài thất bại:', err);
-        setAutosaveStatus('error');
-      }
-    }, 10000);
+    if (!attemptId) return;
+    autosaveRef.current = setInterval(() => { void persistAnswers(); }, 10000);
+    const saveWhenHidden = () => {
+      if (document.visibilityState === 'hidden') void persistAnswers();
+    };
+    document.addEventListener('visibilitychange', saveWhenHidden);
     return () => {
       if (autosaveRef.current) clearInterval(autosaveRef.current);
+      document.removeEventListener('visibilitychange', saveWhenHidden);
+      void persistAnswers();
     };
-  // Dùng answersRef thay vì answers trong callback để tránh stale closure
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attemptId]);
+  }, [attemptId, persistAnswers]);
 
   useEffect(() => {
     if (

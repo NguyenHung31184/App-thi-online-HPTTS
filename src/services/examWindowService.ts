@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import type { ExamWindow } from '../types';
-import { getClassIdsByStudentId } from './ttdtDataService';
+import { listAvailableTheoryWindows } from '../modules/exam-taking/public';
 
 export interface ExamWindowWithExam extends ExamWindow {
   exam_title?: string;
@@ -28,14 +28,6 @@ export async function getExamWindow(id: string): Promise<ExamWindow | null> {
 }
 
 /** Trả về exam_id dùng khi tạo attempt: nếu kỳ thi có exam_ids thì quay ngẫu nhiên 1, không thì dùng exam_id. */
-export function getExamIdForNewAttempt(window: ExamWindow): string {
-  const ids = window.exam_ids?.filter(Boolean);
-  if (ids && ids.length > 0) {
-    return ids[Math.floor(Math.random() * ids.length)]!;
-  }
-  return window.exam_id;
-}
-
 export interface CreateExamWindowInput {
   /** Đề thi (bắt buộc nếu không dùng exam_ids). Khi dùng exam_ids thì lấy exam_id = exam_ids[0] để hiển thị. */
   exam_id?: string;
@@ -125,49 +117,7 @@ export async function deleteAllTrialAttempts(): Promise<number> {
   return (deleted ?? []).length;
 }
 
-const now = () => Date.now();
-
-/** Cửa sổ thi được phép làm (trong khoảng thời gian; nếu có studentId thì lọc theo lớp từ enrollments). */
-export async function getAllowedWindows(
-  studentId?: string | null
-): Promise<ExamWindowWithExam[]> {
-  const nowTs = now();
-  let classIds: string[] = [];
-  if (studentId) {
-    classIds = await getClassIdsByStudentId(studentId);
-    if (classIds.length === 0) return [];
-  }
-
-  let q = supabase
-    .from('exam_windows')
-    .select(`
-      *,
-      exams (title)
-    `)
-    .lte('start_at', nowTs)
-    .gte('end_at', nowTs)
-    .order('start_at', { ascending: false });
-
-  if (classIds.length > 0) q = q.in('class_id', classIds);
-
-  const { data, error } = await q;
-  if (error) throw error;
-
-  const rows = (data ?? []) as (ExamWindow & { exams: { title: string } | null })[];
-  const needClassIds = [...new Set(rows.map((r) => r.class_id))];
-
-  let classNames: Record<string, string> = {};
-  if (needClassIds.length > 0) {
-    const { data: classes } = await supabase
-      .from('classes')
-      .select('id, name')
-      .in('id', needClassIds);
-    if (classes) classNames = Object.fromEntries(classes.map((c: { id: string; name: string }) => [c.id, c.name]));
-  }
-
-  return rows.map((r) => ({
-    ...r,
-    exam_title: r.exams?.title,
-    class_name: classNames[r.class_id],
-  })) as ExamWindowWithExam[];
+/** Cửa sổ thi đang mở mà học viên hiện tại được phép xem. */
+export async function getAllowedWindows(): Promise<ExamWindowWithExam[]> {
+  return listAvailableTheoryWindows() as Promise<ExamWindowWithExam[]>;
 }

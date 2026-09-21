@@ -170,9 +170,9 @@ export default function AdminSyncPage() {
         'Lỗi xác thực API TTDT (401 / JWT / authorization).',
         '',
         '1. Mở file .env của app thi online.',
-        '2. Kiểm tra lại VITE_TTDT_RECEIVE_GRADES_URL trỏ đúng endpoint receive-exam-results của TTDT.',
-        '3. Kiểm tra lại VITE_TTDT_API_KEY trùng với API key cấu hình trong hàm receive-exam-results bên Supabase/app quản lý.',
-        '4. Khởi động lại server/build để môi trường nhận giá trị mới, rồi bấm "Thử lại".',
+        '2. Kiểm tra TTDT_RECEIVE_GRADES_URL và TTDT_API_KEY trong cấu hình máy chủ Vercel.',
+        '3. Kiểm tra SUPABASE_SERVICE_ROLE_KEY chỉ được đặt trong biến môi trường máy chủ.',
+        '4. Deploy lại sau khi cập nhật cấu hình, rồi bấm "Thử lại".',
       ].join('\n');
     }
     return [
@@ -228,7 +228,7 @@ export default function AdminSyncPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-800 mb-4">Đồng bộ điểm TTDT</h1>
         <p className="text-amber-600">
-          Chưa cấu hình VITE_TTDT_RECEIVE_GRADES_URL hoặc VITE_TTDT_API_KEY. Không thể đồng bộ hoặc xem log.
+          Chưa bật đồng bộ TTDT. Kiểm tra VITE_TTDT_SYNC_ENABLED và cấu hình máy chủ.
         </p>
       </div>
     );

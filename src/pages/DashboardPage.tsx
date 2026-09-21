@@ -3,11 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   getAllowedWindows,
-  getExamWindow,
-  getExamIdForNewAttempt,
   type ExamWindowWithExam,
 } from '../services/examWindowService';
-import { createAttempt, countUserAttemptsForWindow } from '../services/attemptService';
+import { startExamAttempt } from '../services/attemptService';
 import {
   getAllowedPracticalSessions,
   getPracticalSession,
@@ -172,7 +170,7 @@ function StudentDashboard() {
     let cancelled = false;
     // Dùng student_id (từ Supabase profile hoặc từ phiên CCCD) để lọc kỳ thi được phép.
     const sid = user?.student_id ?? studentSession?.student_id ?? undefined;
-    Promise.all([getAllowedWindows(sid), getAllowedPracticalSessions(sid)])
+    Promise.all([getAllowedWindows(), getAllowedPracticalSessions(sid)])
       .then(([winList, practicalList]) => {
         if (!cancelled) {
           setWindows(winList);
@@ -197,17 +195,7 @@ function StudentDashboard() {
     setEnterError('');
     setEnteringWindowId(windowId);
     try {
-      const win = await getExamWindow(windowId);
-      if (!win) {
-        setEnterError('Không tìm thấy kỳ thi.');
-        return;
-      }
-      if (win.access_code !== code) {
-        setEnterError('Mã truy cập không đúng.');
-        return;
-      }
-      const now = Date.now();
-      if (now < win.start_at || now > win.end_at) {
+      if (!windows.some((window) => window.id === windowId)) {
         setEnterError('Hiện không trong thời gian làm bài của kỳ thi này.');
         return;
       }
@@ -222,17 +210,7 @@ function StudentDashboard() {
         setEnteringWindowId(null);
         return;
       }
-      // Kiểm tra giới hạn số lần thi (bỏ qua cho kỳ thi thử, admin, và max_attempts <= 0 = không giới hạn)
-      const maxAllowed = win.max_attempts ?? 2;
-      if (!win.is_trial && user.role !== 'admin' && maxAllowed > 0) {
-        const used = await countUserAttemptsForWindow(user.id, windowId);
-        if (used >= maxAllowed) {
-          setEnterError(`Bạn đã thi ${used}/${maxAllowed} lần cho kỳ thi này và không thể thi thêm.`);
-          setEnteringWindowId(null);
-          return;
-        }
-      }
-      const attempt = await createAttempt(user.id, windowId, getExamIdForNewAttempt(win));
+      const attempt = await startExamAttempt(windowId, code);
       navigate(`/exam/${attempt.id}`);
     } catch (e) {
       setEnterError(e instanceof Error ? e.message : 'Lỗi tạo bài làm.');

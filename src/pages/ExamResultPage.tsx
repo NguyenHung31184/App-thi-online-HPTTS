@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAttempt, fetchStartExamPhotoSignedUrl } from '../services/attemptService';
+import { getAttempt, getAttemptWindowContext, fetchStartExamPhotoSignedUrl } from '../services/attemptService';
 import { getExam } from '../services/examService';
-import { getExamWindow } from '../services/examWindowService';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
 import { supabase } from '../lib/supabaseClient';
 import type { Attempt, Exam } from '../types';
@@ -105,19 +104,19 @@ export default function ExamResultPage() {
     (async () => {
       setAutoSyncStatus('retrying');
       try {
-        const win = await getExamWindow(attempt.window_id);
+        const windowContext = await getAttemptWindowContext(attempt.id);
         if (cancelled) return;
-        if (!win || win.is_trial) { setAutoSyncStatus('idle'); return; }
+        if (!windowContext || windowContext.is_trial) { setAutoSyncStatus('idle'); return; }
         const hasModule = Boolean(exam.module_id && String(exam.module_id).trim());
         const studentId = (user as { student_id?: string } | null)?.student_id
           ?? studentSession?.student_id
           ?? null;
         const hasStudentId = Boolean(studentId && String(studentId).trim());
-        const hasClassId = Boolean(win.class_id && String(win.class_id).trim());
+        const hasClassId = Boolean(windowContext.class_id && String(windowContext.class_id).trim());
         if (!hasModule || !hasStudentId || !hasClassId) { setAutoSyncStatus('idle'); return; }
         const result = await syncAttemptToTtdt(attempt, exam, {
           studentId,
-          classId: win.class_id ?? null,
+          classId: windowContext.class_id,
           userEmail: user?.email ?? undefined,
           userName: (studentSession?.student_name
             ?? (user as { student_name?: string } | null)?.student_name

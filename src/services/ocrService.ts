@@ -2,20 +2,9 @@
  * OCR CCCD — gửi ảnh base64 lên proxy Vercel /api/scan-id-card.
  * Proxy giữ POTENTIAL_STUDENT_API_KEY server-side; client không cần biết key.
  *
- * Dev local override: đặt VITE_TTDT_SCAN_ID_CARD_URL để gọi thẳng Edge Function (kèm VITE_TTDT_API_KEY).
- * KHÔNG dùng VITE_TTDT_VERIFY_CCCD_URL để derive URL — verify URL luôn được set và sẽ bypass proxy.
+ * Luôn gọi proxy Vercel để khóa API không xuất hiện trong JavaScript của trình duyệt.
  */
 import type { OcrCccdResult } from '../types';
-
-/** Dùng proxy Vercel mặc định; hoặc gọi thẳng nếu dev đặt VITE_TTDT_SCAN_ID_CARD_URL. */
-function getScanConfig(): { url: string; apiKey: string } {
-  const directUrl = (import.meta.env.VITE_TTDT_SCAN_ID_CARD_URL || '').trim();
-  const directKey = (import.meta.env.VITE_TTDT_API_KEY || '').trim();
-
-  if (directUrl) return { url: directUrl, apiKey: directKey };
-  // Production: luôn dùng proxy Vercel — key giữ server-side, client không cần biết
-  return { url: '/api/scan-id-card', apiKey: '' };
-}
 
 export function isOcrConfigured(): boolean {
   return true;
@@ -42,7 +31,6 @@ function fileToBase64(file: File): Promise<string> {
 export async function analyzeCccdByImageFile(
   file: File,
 ): Promise<{ success: boolean; data?: OcrCccdResult; error?: string }> {
-  const { url, apiKey } = getScanConfig();
 
   let image_data: string;
   try {
@@ -53,7 +41,6 @@ export async function analyzeCccdByImageFile(
 
   const mime_type = file.type || 'image/jpeg';
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (apiKey) headers['x-api-key'] = apiKey;
 
   try {
     const controller = new AbortController();
@@ -61,7 +48,7 @@ export async function analyzeCccdByImageFile(
 
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await fetch('/api/scan-id-card', {
         method: 'POST',
         headers,
         body: JSON.stringify({ image_data, mime_type }),

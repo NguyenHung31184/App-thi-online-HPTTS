@@ -1,212 +1,49 @@
-/**
- * Gọi API TTDT nhận điểm (receive-exam-results) và ghi exam_sync_log / practical_sync_log.
- */
 import { supabase } from '../lib/supabaseClient';
 import type { Attempt } from '../types';
-
-const RECEIVE_GRADES_URL = import.meta.env.VITE_TTDT_RECEIVE_GRADES_URL ?? '';
-const TTDT_API_KEY = import.meta.env.VITE_TTDT_API_KEY ?? '';
-
-export function isTtdtSyncConfigured(): boolean {
-  return Boolean(RECEIVE_GRADES_URL && TTDT_API_KEY && !RECEIVE_GRADES_URL.includes('your-'));
-}
 
 export interface SyncResult {
   success: boolean;
   message?: string;
 }
 
-/** Payload gửi TTDT (receive-exam-results). */
-export interface ReceiveGradesPayload {
-  attempt_id: string;
-  source: 'theory' | 'practical';
-  enrollment_id?: string | null;
-  student_id?: string | null;
-  class_id?: string | null;
-  module_id?: string | null;
-  final_exam_score: number;
-  raw_score?: number;
-  passed: boolean;
-  disqualified?: boolean;
+export function isTtdtSyncConfigured(): boolean {
+  return (import.meta.env.VITE_TTDT_SYNC_ENABLED ?? '') === '1';
 }
 
-/** Đồng bộ điểm 1 attempt sang TTDT và ghi exam_sync_log. */
+async function requestSync(body: Record<string, string>): Promise<SyncResult> {
+  const { data } = await supabase.auth.getSession();
+  if (!data.session?.access_token) return { success: false, message: 'Phiên đăng nhập đã hết hạn.' };
+  try {
+    const response = await fetch('/api/sync-ttdt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
+      body: JSON.stringify(body),
+    });
+    const result = await response.json() as { success?: boolean; message?: string };
+    return { success: response.ok && result.success === true, message: result.message };
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'Không thể gọi dịch vụ đồng bộ TTDT.' };
+  }
+}
+
 export async function syncAttemptToTtdt(
   attempt: Attempt,
-  exam: { module_id?: string | null; title: string; pass_threshold?: number },
-  options?: {
-    enrollmentId?: string | null;
-    studentId?: string | null;
-    classId?: string | null;
-    userEmail?: string;
-    userName?: string;
-  }
+  _exam: { module_id?: string | null; title: string; pass_threshold?: number },
+  _options?: Record<string, unknown>,
 ): Promise<SyncResult> {
-  if (!isTtdtSyncConfigured()) {
-    return { success: false, message: 'Chưa cấu hình VITE_TTDT_RECEIVE_GRADES_URL hoặc VITE_TTDT_API_KEY.' };
-  }
-
-  const threshold = exam.pass_threshold ?? 0.7;
-  // Điểm trong attempts.score đang là thang 0–1; TTDT dùng thang 0–10 với 1 chữ số thập phân.
-  const score01 = attempt.score ?? 0;
-  const finalExamScore10 = Number((score01 * 10).toFixed(1));
-  const payload: ReceiveGradesPayload = {
-    attempt_id: attempt.id,
-    source: 'theory',
-    enrollment_id: options?.enrollmentId ?? null,
-    student_id: options?.studentId ?? null,
-    class_id: options?.classId ?? null,
-    module_id: exam.module_id ?? null,
-    final_exam_score: finalExamScore10,
-    raw_score: attempt.raw_score ?? 0,
-    passed: score01 >= threshold,
-    disqualified: attempt.disqualified ?? false,
-  };
-
-  try {
-    const res = await fetch(RECEIVE_GRADES_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': TTDT_API_KEY,
-      },
-      body: JSON.stringify(payload),
-    });
-    const text = await res.text();
-    const status = res.status;
-    const success = status >= 200 && status < 300;
-
-    try {
-      await supabase.from('exam_sync_log').insert({
-        attempt_id: attempt.id,
-        enrollment_id: options?.enrollmentId ?? null,
-        module_id: exam.module_id ?? null,
-        payload,
-        status: success ? 'success' : 'failed',
-        response: text.slice(0, 2000),
-        exam_title: exam.title ?? null,
-        window_id: attempt.window_id ?? null,
-        class_id: options?.classId ?? null,
-        user_email: options?.userEmail ?? null,
-        user_name: options?.userName ?? null,
-      });
-    } catch {
-      /* Không ném lại — tránh lỗi log làm hỏng luồng đồng bộ chính. */
-    }
-    if (success) {
-      try {
-        await supabase
-          .from('attempts')
-          .update({ synced_to_ttdt_at: new Date().toISOString() })
-          .eq('id', attempt.id);
-      } catch {
-        /* cập nhật synced_at thất bại — không chặn luồng */
-      }
-    }
-
-    return { success, message: success ? undefined : `HTTP ${status}: ${text.slice(0, 200)}` };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Lỗi gọi API TTDT';
-    try {
-      await supabase.from('exam_sync_log').insert({
-        attempt_id: attempt.id,
-        enrollment_id: options?.enrollmentId ?? null,
-        module_id: exam.module_id ?? null,
-        payload,
-        status: 'failed',
-        response: message.slice(0, 2000),
-        exam_title: exam.title ?? null,
-        window_id: attempt.window_id ?? null,
-        class_id: options?.classId ?? null,
-        user_email: options?.userEmail ?? null,
-        user_name: options?.userName ?? null,
-      });
-    } catch {
-      /* ghi log thất bại — bỏ qua */
-    }
-    return { success: false, message };
-  }
+  void _exam;
+  void _options;
+  if (!isTtdtSyncConfigured()) return { success: false, message: 'Chưa bật đồng bộ TTDT.' };
+  return requestSync({ source: 'theory', attempt_id: attempt.id });
 }
 
-/** Đồng bộ điểm thi thực hành (practical_attempt) sang TTDT, ghi practical_sync_log. */
 export async function syncPracticalAttemptToTtdt(
   practicalAttemptId: string,
-  totalScore: number,
-  options?: {
-    studentId?: string | null;
-    classId?: string | null;
-    moduleId?: string | null;
-    /** passed: mặc định true nếu totalScore > 0 */
-    passed?: boolean;
-  }
+  _totalScore: number,
+  _options?: Record<string, unknown>,
 ): Promise<SyncResult> {
-  if (!isTtdtSyncConfigured()) {
-    return { success: false, message: 'Chưa cấu hình VITE_TTDT_RECEIVE_GRADES_URL hoặc VITE_TTDT_API_KEY.' };
-  }
-
-  const payload: ReceiveGradesPayload = {
-    attempt_id: practicalAttemptId,
-    source: 'practical',
-    student_id: options?.studentId ?? null,
-    class_id: options?.classId ?? null,
-    module_id: options?.moduleId ?? null,
-    enrollment_id: null,
-    final_exam_score: totalScore,
-    raw_score: totalScore,
-    passed: options?.passed ?? totalScore > 0,
-    disqualified: false,
-  };
-
-  try {
-    const res = await fetch(RECEIVE_GRADES_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': TTDT_API_KEY,
-      },
-      body: JSON.stringify(payload),
-    });
-    const text = await res.text();
-    const status = res.status;
-    const success = status >= 200 && status < 300;
-
-    try {
-      await supabase.from('practical_sync_log').insert({
-        practical_attempt_id: practicalAttemptId,
-        enrollment_id: null,
-        module_id: options?.moduleId ?? null,
-        payload,
-        status: success ? 'success' : 'failed',
-        response: text.slice(0, 2000),
-      });
-    } catch {
-      /* insert sync log thất bại */
-    }
-    if (success) {
-      try {
-        await supabase
-          .from('practical_attempts')
-          .update({ synced_to_ttdt_at: new Date().toISOString() })
-          .eq('id', practicalAttemptId);
-      } catch {
-        /* cập nhật synced_at thất bại */
-      }
-    }
-
-    return { success, message: success ? undefined : `HTTP ${status}: ${text.slice(0, 200)}` };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Lỗi gọi API TTDT';
-    try {
-      await supabase.from('practical_sync_log').insert({
-        practical_attempt_id: practicalAttemptId,
-        module_id: options?.moduleId ?? null,
-        payload,
-        status: 'failed',
-        response: message.slice(0, 2000),
-      });
-    } catch {
-      /* ghi log thất bại — bỏ qua */
-    }
-    return { success: false, message };
-  }
+  void _totalScore;
+  void _options;
+  if (!isTtdtSyncConfigured()) return { success: false, message: 'Chưa bật đồng bộ TTDT.' };
+  return requestSync({ source: 'practical', attempt_id: practicalAttemptId });
 }

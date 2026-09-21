@@ -5,7 +5,7 @@
 ## Tech Stack
 
 - React + Vite + TypeScript (types viết tay trong `src/types/index.ts` — không gen từ Supabase)
-- Supabase JS (chung project `vmtztbmlzszuxkglubro` với app quản lý TTDT)
+- Supabase JS và React Query (chung project `vmtztbmlzszuxkglubro` với app quản lý TTDT)
 - TensorFlow.js (BlazeFace + coco-ssd) cho giám sát thi
 - Tailwind CSS, sonner (toast)
 
@@ -13,16 +13,31 @@
 
 ```
 src/
+  app/providers/       # Provider toàn ứng dụng, gồm React Query
+  platform/supabase/   # Adapter Supabase dùng chung
+  modules/             # Domain theo lát dọc; chỉ import chéo qua public.ts
+    exam-taking/        # Luồng kỳ thi lý thuyết P0
+      domain/ application/ data/ queries/ public.ts
   App.tsx              # Toàn bộ routes (import trực tiếp, không lazy)
   contexts/AuthContext.tsx   # Supabase Auth + StudentSession (CCCD)
   lib/supabaseClient.ts
   types/index.ts       # Domain types viết tay
   pages/               # Trang học viên + admin/
   components/          # ExamCard, proctoring/, CccdCameraCapture...
-  services/            # 1 file / domain — mọi call Supabase ở đây
+  services/            # Facade chuyển tiếp cho màn chưa chuyển module
 supabase/migrations/   # Migration riêng app thi (KHÔNG chứa elearning_*)
 docs/                  # 4 file chuẩn: PROJECT_STRUCTURE, DIARY, ROLLBACK, GHI_CHU
 ```
+
+## Quy tắc modular monolith
+
+Luồng mới phải theo `ui → queries → application → data → Supabase`. `data/` là nơi duy nhất
+gọi `supabase.from`, `rpc`, Storage hoặc Edge Function cho lát nghiệp vụ đó. Module khác và route
+chỉ import qua `src/modules/<name>/public.ts`. Chạy `npm run check:boundaries` trước khi merge.
+
+Lát `exam-taking` đã chuyển luồng danh sách kỳ thi, vào thi, lưu đáp án và ngữ cảnh cửa sổ thi.
+Các CRUD quản trị đề/cửa sổ thi, thi thực hành, chấm và báo cáo vẫn là facade cũ; sẽ chuyển từng
+use case, không di chuyển hàng loạt file.
 
 ## Routes học viên
 

@@ -27,9 +27,13 @@ npm run preview  # Preview production build
 
 ```
 src/
+  app/providers/       # App-wide providers, including React Query
+  platform/            # Shared integrations such as Supabase
+  modules/             # Modular-monolith domains; cross-module imports use public.ts only
+    exam-taking/       # Theory exam P0 flow
   App.tsx              # All routes (no lazy loading — direct imports)
   contexts/
-    AuthContext.tsx    # Supabase Auth session (admin/teacher flow)
+    AuthContext.tsx    # Supabase Auth session
   lib/
     supabaseClient.ts  # Supabase client + isSupabaseConfigured()
   types/
@@ -37,7 +41,7 @@ src/
   pages/
     LoginPage.tsx
     RoleSelectPage.tsx
-    VerifyCccdPage.tsx           # Student entry — no Supabase Auth required
+    VerifyCccdPage.tsx           # Student identity verification through server proxy
     DashboardPage.tsx / StudentExamsPage.tsx / StudentResultsPage.tsx
     ExamIntroPage.tsx / ExamTakePage.tsx / ExamResultPage.tsx
     PracticalTakePage.tsx
@@ -48,7 +52,7 @@ src/
       ProctoringEvidenceCapture.tsx
       ViolationAlertModal.tsx
     CccdCameraCapture.tsx        # Camera UI for CCCD verification
-  services/                      # One file per domain — all Supabase calls here
+  services/                      # Temporary compatibility facades for legacy pages
   utils/
     blazeFaceProctor.ts          # BlazeFace face detection wrapper
     examImageCompress.ts         # Compress question/evidence images
@@ -57,14 +61,23 @@ supabase/
   migrations/                    # Apply in numbered order (001 → latest)
 ```
 
+### Modular Monolith
+
+Mọi logic mới dùng luồng `ui → queries → application → data → Supabase`.
+
+- `data/` là lớp duy nhất được gọi Supabase cho use case đó.
+- `application/` không chứa JSX, toast hoặc state UI.
+- Module khác chỉ import từ `src/modules/<name>/public.ts`.
+- Chạy `npm run check:boundaries` cùng với typecheck và lint.
+
 ### Two Auth Flows
 
 | Flow | Who | How |
 |------|-----|-----|
 | Admin/Teacher | Staff | Supabase Auth (email+password) → role from `profiles` table |
-| Student | Exam taker | CCCD verification via `verify-cccd-for-exam` Edge Function (no Supabase auth needed) |
+| Student | Exam taker | Supabase Auth → CCCD verification through `/api/verify-cccd-for-exam` |
 
-Student session is stored in local state as `StudentSession` (id_card_number, student_id, student_code, student_name) — not in Supabase auth.
+`StudentSession` stores the display identity after verification. All P0 exam mutations still require the Supabase Auth session and are authorized in database RPCs.
 
 ### Question Types
 
@@ -74,7 +87,7 @@ Student session is stored in local state as `StudentSession` (id_card_number, st
 
 ### Exam Grading
 
-Server-side RPC `grade_attempt` in Supabase handles scoring. Essay questions use `attempt_question_scores` table for manual grading by teachers. After grading, results sync to TTDT via `receive-exam-results` Edge Function.
+Server-side RPC `grade_attempt` in Supabase handles scoring. Essay questions use `attempt_question_scores` table for manual grading by teachers. After grading, `/api/sync-ttdt` builds the canonical TTDT payload from Supabase rather than trusting client-supplied scores.
 
 ### Proctoring
 
@@ -115,12 +128,15 @@ After adding a migration, test locally with `npx supabase db push` (if using loc
 ```
 VITE_SUPABASE_URL             # Supabase project URL
 VITE_SUPABASE_ANON_KEY        # Anon key (respects RLS)
-VITE_OCR_CCCD_URL             # OCR proxy endpoint (shared standard with Chatbot repo)
-VITE_OCR_CCCD_API_KEY         # Optional: x-api-key for OCR proxy
-VITE_TTDT_VERIFY_CCCD_URL     # TTDT Edge Function verify-cccd-for-exam
-VITE_TTDT_API_KEY             # API key for TTDT Edge Functions
+VITE_AI_PROCTORING_ENABLED    # Enable client-side proctoring UI
+VITE_TTDT_SYNC_ENABLED        # Enable the TTDT sync entry point
+SUPABASE_URL                  # Server-side Supabase project URL
+SUPABASE_SERVICE_ROLE_KEY     # Server-only key for P0 API routes
+TTDT_RECEIVE_GRADES_URL       # Server-only TTDT result endpoint
+TTDT_VERIFY_CCCD_URL          # Server-only TTDT CCCD endpoint
+TTDT_API_KEY                  # Server-only TTDT API key
 ```
 
 ## Sync with TTDT
 
-After an exam attempt is graded, results POST to TTDT's `receive-exam-results` Edge Function. Sync status tracked in `exam_sync_log` table. Admin can manually re-trigger sync from `/admin/sync` page.
+After an exam attempt is graded, the server posts the result to TTDT's `receive-exam-results` endpoint. Sync status is tracked in `exam_sync_log`; an admin can re-trigger sync from `/admin/sync`.

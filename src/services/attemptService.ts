@@ -1,17 +1,21 @@
 import { supabase } from '../lib/supabaseClient';
 import type { Attempt, QuestionForStudent } from '../types';
+import {
+  getTheoryAttemptWindowContext,
+  getTheoryAttemptQuestions,
+  disqualifyTheoryAttempt,
+  recordTheoryAttemptAuditEvent,
+  saveTheoryAttemptAnswers,
+  startTheoryAttempt,
+  submitTheoryAttempt,
+  type AttemptWindowContext,
+} from '../modules/exam-taking/public';
 
-export async function createAttempt(
-  _userId: string,
+export async function startExamAttempt(
   windowId: string,
-  examId: string
+  accessCode: string,
 ): Promise<Attempt> {
-  const { data, error } = await supabase.rpc('create_attempt_with_questions', {
-    p_window_id: windowId,
-    p_exam_id: examId,
-  });
-  if (error) throw error;
-  return data as Attempt;
+  return startTheoryAttempt(windowId, accessCode);
 }
 
 export async function getAttempt(id: string): Promise<Attempt | null> {
@@ -21,6 +25,12 @@ export async function getAttempt(id: string): Promise<Attempt | null> {
     throw error;
   }
   return data as Attempt;
+}
+
+export type { AttemptWindowContext };
+
+export async function getAttemptWindowContext(attemptId: string): Promise<AttemptWindowContext | null> {
+  return getTheoryAttemptWindowContext(attemptId);
 }
 
 const EXAM_UPLOADS_BUCKET = 'exam-uploads';
@@ -92,31 +102,21 @@ export async function updateAttemptAnswers(
   attemptId: string,
   answers: Record<string, string>
 ): Promise<void> {
-  const { error } = await supabase
-    .from('attempts')
-    .update({ answers, updated_at: new Date().toISOString() })
-    .eq('id', attemptId);
-  if (error) throw error;
+  return saveTheoryAttemptAnswers(attemptId, answers);
 }
 
 /** Chấm bài server-side (RPC), trả về kết quả. */
 export async function submitAttempt(
   attemptId: string
 ): Promise<{ ok: boolean; raw_score?: number; total_max?: number; score?: number; error?: string }> {
-  const { data, error } = await supabase.rpc('grade_attempt', { aid: attemptId });
-  if (error) return { ok: false, error: error.message };
-  const result = data as { ok: boolean; raw_score?: number; total_max?: number; score?: number; error?: string };
-  return result;
+  return submitTheoryAttempt(attemptId);
 }
 
 /** Đánh dấu bài thi bị hủy do vi phạm: score=0, disqualified=true, không tính điểm. */
 export async function disqualifyAttempt(
   attemptId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const { data, error } = await supabase.rpc('disqualify_attempt', { aid: attemptId });
-  if (error) return { ok: false, error: error.message };
-  const result = data as { ok: boolean; error?: string };
-  return result;
+  return disqualifyTheoryAttempt(attemptId);
 }
 
 /** Ghi audit log (focus_lost, visibility_hidden, ...) */
@@ -125,11 +125,7 @@ export async function logAuditEvent(
   event: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
-  await supabase.from('attempt_audit_logs').insert({
-    attempt_id: attemptId,
-    event,
-    metadata: metadata ?? null,
-  });
+  return recordTheoryAttemptAuditEvent(attemptId, event, metadata);
 }
 
 /** Lấy câu hỏi cho thí sinh (không có answer_key).
@@ -139,41 +135,5 @@ export async function getQuestionsForAttempt(
   attemptId: string,
   examId: string,
 ): Promise<QuestionForStudent[]> {
-  // Kiểm tra attempt có question_ids không (bài làm theo hệ mới)
-  const { data: attemptRow } = await supabase
-    .from('attempts')
-    .select('question_ids')
-    .eq('id', attemptId)
-    .single();
-
-  if (attemptRow?.question_ids?.length) {
-    const { data, error } = await supabase.rpc('get_questions_for_attempt', { aid: attemptId });
-    if (error) throw error;
-    return (data ?? []) as QuestionForStudent[];
-  }
-
-  // Legacy: attempt cũ không có question_ids — đọc từ questions table
-  let ids: string[] | null = null;
-  const { data: exam, error: examErr } = await supabase
-    .from('exams')
-    .select('questions_snapshot_url')
-    .eq('id', examId)
-    .single();
-
-  if (!examErr && exam?.questions_snapshot_url) {
-    try {
-      const res = await fetch(exam.questions_snapshot_url as string);
-      if (res.ok) {
-        const snapshot = (await res.json()) as { question_ids?: string[] };
-        ids = snapshot.question_ids ?? [];
-      }
-    } catch { /* fallback sang full list nếu snapshot lỗi */ }
-  }
-
-  const { data: questions, error } = await supabase.rpc('get_questions_for_student', {
-    eid: examId,
-    qids: ids && ids.length > 0 ? ids : null,
-  });
-  if (error) throw error;
-  return (questions ?? []) as QuestionForStudent[];
+  return getTheoryAttemptQuestions(attemptId, examId);
 }

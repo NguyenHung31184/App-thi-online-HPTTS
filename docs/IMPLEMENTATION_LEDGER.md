@@ -25,4 +25,8 @@ This ledger is the entry point for people and coding agents continuing the proje
 3. Add live examination monitoring.
 4. Add practical examination reporting.
 
+## Workspace agent setup
+
+- Antigravity cost-controlled subagents: active. See `docs/implementation/2026-09-22-antigravity-cost-controlled-agents.md`.
+
 See `docs/implementation/2026-09-22-admin-navigation-and-live-monitoring.md`.

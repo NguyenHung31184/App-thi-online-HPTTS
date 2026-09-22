@@ -16,14 +16,13 @@ This ledger is the entry point for people and coding agents continuing the proje
 - Stable P0 commit: `428b6c0`
 - Current P1 foundation commit: `68c008d`
 - Local environment source: `.env` is intentionally ignored by Git.
-- Current P1 database state: the minimal question-library tables and RLS policies were created manually in Supabase. The repository migration must be reconciled before further P1 database work.
+- P1 database reconciliation: completed and verified in Supabase production on 2026-09-22 by `20260922110000_reconcile_p1_question_bank.sql`. The five P1 tables have RLS, the document-import bucket is private, and the exam draw excludes non-published questions.
 
 ## Active sequence
 
-1. Reconcile and verify P1 database migration.
-2. Restructure the admin menu and route labels.
-3. Split question-bank UI into task-focused pages.
-4. Add live examination monitoring.
-5. Add practical examination reporting.
+1. Restructure the admin menu and route labels.
+2. Split question-bank UI into task-focused pages.
+3. Add live examination monitoring.
+4. Add practical examination reporting.
 
 See `docs/implementation/2026-09-22-admin-navigation-and-live-monitoring.md`.

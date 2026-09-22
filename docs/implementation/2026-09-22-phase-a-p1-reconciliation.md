@@ -1,6 +1,6 @@
 ﻿# Phase A — P1 database reconciliation
 
-- Status: ready for database application
+- Status: complete and verified in Supabase production
 - Baseline commit: `2b1e542`
 - Migration: `supabase/migrations/20260922110000_reconcile_p1_question_bank.sql`
 - Rollback: `docs/rollback/2026-09-22-phase-a-p1-reconciliation.md`
@@ -16,10 +16,19 @@ The initial P1 migration was applied partially through the Supabase SQL Editor. 
 - Restores all staff RLS policies and the private `question-imports` bucket.
 - Redefines `start_exam_attempt` so only published questions can be drawn.
 
-## Validation after application
+## Application record
 
-1. Confirm the five P1 tables exist.
-2. Confirm existing question-bank rows remain present and receive a library where possible.
-3. Confirm authenticated admin/teacher can list question libraries; anon cannot.
-4. Confirm a locked exam with a draft question reports insufficient published questions instead of drawing that draft.
-5. Confirm the `question-imports` bucket is private.
+- Applied through the Supabase SQL Editor on 2026-09-22.
+- The migration completed with `Success. No rows returned`.
+- No question-bank rows, attempts, users, or storage objects were deleted.
+
+## Verification
+
+The following production checks returned `true` on 2026-09-22:
+
+1. All five P1 tables exist: libraries, taxonomy nodes, import jobs, import drafts, and versions.
+2. RLS is enabled on each of those tables.
+3. The `question-imports` bucket exists and is private.
+4. `start_exam_attempt` contains the published-question predicate, so draft, review, and retired questions cannot be drawn into an attempt.
+
+The admin UI still requires an authenticated admin or teacher browser session for its manual click-through check. Document import remains disabled until the separate Docling worker is deployed and its environment variables are configured.

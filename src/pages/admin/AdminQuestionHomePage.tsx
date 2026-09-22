@@ -38,6 +38,9 @@ export default function AdminQuestionHomePage() {
       <p className="text-slate-600 text-sm mb-6">
         Soạn câu hỏi <strong>theo nghề đào tạo</strong> (không theo khóa học). Chọn một nghề bên dưới để thêm/sửa câu hỏi trong ngân hàng hoặc import từ Excel. Phần này tách riêng, không phụ thuộc vào việc tạo đề thi.
       </p>
+      <Link to="/admin/question-libraries" className="inline-flex mb-6 px-4 py-2 bg-indigo-700 text-white text-sm font-medium rounded-lg hover:bg-indigo-800">
+        Mở ngân hàng câu hỏi mới
+      </Link>
 
       {loading && <p className="text-slate-500">Đang tải...</p>}
       {error && <p className="text-red-600">{error}</p>}

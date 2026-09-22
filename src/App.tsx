@@ -39,6 +39,7 @@ import StudentExamsPage from './pages/StudentExamsPage';
 import StudentResultsPage from './pages/StudentResultsPage';
 import StudentLearnPage from './pages/StudentLearnPage';
 import LessonPlayerPage from './pages/LessonPlayerPage';
+import { QuestionImportReviewPage, QuestionLibraryDashboardPage } from './modules/question-bank/public';
 
 function App() {
   return (
@@ -56,6 +57,8 @@ function App() {
             <Route path="exams" element={<AdminExamsPage />} />
             <Route path="exams/new" element={<AdminExamFormPage />} />
             <Route path="questions" element={<AdminQuestionHomePage />} />
+            <Route path="question-libraries" element={<QuestionLibraryDashboardPage />} />
+            <Route path="question-libraries/imports/:jobId" element={<QuestionImportReviewPage />} />
             <Route path="questions/occupation/:occupationId" element={<AdminOccupationQuestionsPage />} />
             <Route path="questions/occupation/:occupationId/new" element={<AdminQuestionBankFormPage />} />
             <Route path="questions/occupation/:occupationId/import" element={<AdminQuestionBankImportPage />} />

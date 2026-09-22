@@ -226,7 +226,7 @@ export default function AdminSyncPage() {
   if (!isTtdtSyncConfigured()) {
     return (
       <div>
-        <h1 className="text-xl font-semibold text-slate-800 mb-4">Đồng bộ điểm TTDT</h1>
+        <h1 className="text-xl font-semibold text-slate-800 mb-4">Nhật ký đồng bộ TTDT</h1>
         <p className="text-amber-600">
           Chưa bật đồng bộ TTDT. Kiểm tra VITE_TTDT_SYNC_ENABLED và cấu hình máy chủ.
         </p>
@@ -238,7 +238,7 @@ export default function AdminSyncPage() {
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800">Đồng bộ điểm TTDT</h1>
+          <h1 className="text-xl font-semibold text-slate-800">Nhật ký đồng bộ TTDT</h1>
           <p className="text-slate-600 text-sm mt-1">
             Theo dõi log đồng bộ và thử lại các bản ghi lỗi. Chỉ Admin có quyền thao tác.
           </p>

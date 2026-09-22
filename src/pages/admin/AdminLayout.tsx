@@ -16,15 +16,16 @@ import {
 const adminTitles: Record<string, string> = {
   '/admin': 'Dashboard',
   '/admin/dashboard': 'Dashboard',
-  '/admin/exams': 'Ngân hàng đề thi',
-  '/admin/questions': 'Soạn câu hỏi',
+  '/admin/question-libraries': 'Ngân hàng câu hỏi',
+  '/admin/exams': 'Đề thi & ma trận',
+  '/admin/questions': 'Ngân hàng câu hỏi',
   '/admin/windows': 'Kỳ thi',
-  '/admin/practical-templates': 'Thi thực hành',
+  '/admin/practical-templates': 'Mẫu đánh giá',
   '/admin/practical-sessions': 'Ca thi thực hành',
   '/admin/essay-grading': 'Chấm tự luận',
   '/admin/practical-grading': 'Chấm thi thực hành',
-  '/admin/report': 'Báo cáo',
-  '/admin/sync': 'Đồng bộ điểm',
+  '/admin/report': 'Báo cáo lý thuyết',
+  '/admin/sync': 'Nhật ký đồng bộ TTDT',
 };
 
 function getAdminTitle(pathname: string): string {
@@ -55,9 +56,9 @@ export default function AdminLayout() {
           id: 'theory',
           title: 'THI LÝ THUYẾT',
           items: [
-            { to: '/admin/exams', label: 'Ngân hàng đề thi', icon: ExamIcon },
-            { to: '/admin/questions', label: 'Soạn câu hỏi', icon: QuestionBankIcon },
-            { to: '/admin/report', label: 'Báo cáo', icon: ReportIcon },
+            { to: '/admin/question-libraries', label: 'Ngân hàng câu hỏi', icon: QuestionBankIcon },
+            { to: '/admin/exams', label: 'Đề thi & ma trận', icon: ExamIcon },
+            { to: '/admin/report', label: 'Báo cáo lý thuyết', icon: ReportIcon },
           ],
         },
       ];
@@ -72,11 +73,11 @@ export default function AdminLayout() {
         id: 'theory',
         title: 'THI LÝ THUYẾT',
         items: [
-          { to: '/admin/exams', label: 'Ngân hàng đề thi', icon: ExamIcon },
-          { to: '/admin/questions', label: 'Soạn câu hỏi', icon: QuestionBankIcon },
+          { to: '/admin/question-libraries', label: 'Ngân hàng câu hỏi', icon: QuestionBankIcon },
+          { to: '/admin/exams', label: 'Đề thi & ma trận', icon: ExamIcon },
           { to: '/admin/windows', label: 'Kỳ thi', icon: CalendarIcon },
           { to: '/admin/essay-grading', label: 'Chấm tự luận', icon: EssayGradingIcon },
-          { to: '/admin/report', label: 'Báo cáo', icon: ReportIcon },
+          { to: '/admin/report', label: 'Báo cáo lý thuyết', icon: ReportIcon },
         ],
       },
       {
@@ -89,9 +90,9 @@ export default function AdminLayout() {
         ],
       },
       {
-        id: 'integration',
-        title: 'TÍCH HỢP',
-        items: [{ to: '/admin/sync', label: 'Đồng bộ điểm', icon: SyncIcon }],
+        id: 'system',
+        title: 'HỆ THỐNG',
+        items: [{ to: '/admin/sync', label: 'Nhật ký đồng bộ TTDT', icon: SyncIcon }],
       },
     ];
   }, [isTeacher]);
@@ -112,8 +113,8 @@ export default function AdminLayout() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Giáo viên chỉ được vào: dashboard, đề thi, soạn câu hỏi, báo cáo + xem chi tiết bài làm
-  const teacherAllowedPrefixes = ['/admin', '/admin/dashboard', '/admin/exams', '/admin/questions', '/admin/report', '/admin/attempts'];
+  // Teachers can access the question library, exam authoring, reports, and attempt details.
+  const teacherAllowedPrefixes = ['/admin', '/admin/dashboard', '/admin/exams', '/admin/questions', '/admin/question-libraries', '/admin/report', '/admin/attempts'];
   if (isTeacher && !teacherAllowedPrefixes.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))) {
     return <Navigate to="/admin/dashboard" replace />;
   }

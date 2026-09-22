@@ -20,7 +20,7 @@ This ledger is the entry point for people and coding agents continuing the proje
 
 ## Active sequence
 
-1. Restructure the admin menu and route labels.
+1. Restructure the admin menu and route labels: complete. See `docs/implementation/2026-09-22-phase-b-admin-navigation.md`.
 2. Split question-bank UI into task-focused pages.
 3. Add live examination monitoring.
 4. Add practical examination reporting.

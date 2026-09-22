@@ -43,7 +43,8 @@ function NavLink({
     <Link
       to={to}
       onClick={onClick}
-      className={`group flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
+      aria-current={isActive ? 'page' : undefined}
+      className={`group flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 ${
         isActive
           ? 'bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 text-white shadow-lg shadow-indigo-500/30 -translate-y-[1px]'
           : 'text-slate-200 hover:bg-white/10 hover:text-white hover:translate-x-0.5'
@@ -130,7 +131,7 @@ export default function AppLayout({
           <button
             type="button"
             onClick={onLogout}
-            className="w-full flex items-center px-3 py-2.5 text-sm font-semibold text-rose-200 hover:text-white hover:bg-rose-500/30 rounded-xl transition-colors"
+            className="w-full flex items-center px-3 py-2.5 text-sm font-semibold text-rose-200 hover:text-white hover:bg-rose-500/30 rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-200"
           >
             <LogoutIcon className="h-5 w-5 mr-3" />
             Đăng xuất
@@ -146,7 +147,7 @@ export default function AppLayout({
             <button
               type="button"
               onClick={() => setSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
               aria-label="Menu"
             >
               <MenuIcon className="w-6 h-6" />

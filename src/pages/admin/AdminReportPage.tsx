@@ -199,7 +199,7 @@ export default function AdminReportPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800">Báo cáo thi</h1>
+          <h1 className="text-xl font-semibold text-slate-800">Báo cáo lý thuyết</h1>
           <p className="text-sm text-slate-500 mt-0.5">Lọc theo lớp, đề thi, loại kỳ thi rồi chọn kỳ thi cụ thể để xem báo cáo.</p>
         </div>
         <button

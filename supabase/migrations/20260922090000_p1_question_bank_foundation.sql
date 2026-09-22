@@ -52,13 +52,13 @@ ALTER TABLE public.question_bank
 
 INSERT INTO public.question_libraries (occupation_id, module_id, name, description, created_by)
 SELECT
-  q.occupation_id,
+  q.occupation_id::uuid,
   q.module_id,
   COALESCE(o.name, 'Ngân hàng câu hỏi') || CASE WHEN q.module_id IS NULL THEN ' — Chưa gắn mô-đun' ELSE ' — Mô-đun ' || q.module_id END,
   'Ngân hàng được tạo tự động từ dữ liệu câu hỏi hiện có.',
   NULL
 FROM public.question_bank q
-LEFT JOIN public.occupations o ON o.id = q.occupation_id
+LEFT JOIN public.occupations o ON o.id::text = q.occupation_id::text
 WHERE q.library_id IS NULL
 GROUP BY q.occupation_id, q.module_id, o.name
 ON CONFLICT DO NOTHING;
@@ -67,7 +67,7 @@ UPDATE public.question_bank q
 SET library_id = l.id
 FROM public.question_libraries l
 WHERE q.library_id IS NULL
-  AND l.occupation_id = q.occupation_id
+  AND l.occupation_id::text = q.occupation_id::text
   AND l.module_id IS NOT DISTINCT FROM q.module_id;
 
 CREATE INDEX IF NOT EXISTS question_bank_library_status_idx

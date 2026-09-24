@@ -118,6 +118,7 @@ export async function createQuestionLibrary(input: {
     })
     .select('id, occupation_id, module_id, name, description, status, created_at')
     .single();
+  if (error?.code === '23505') throw new Error('Mô-đun này đã có ngân hàng câu hỏi. Mở ngân hàng đó trong danh sách.');
   if (error) throw new Error(error.message);
   return libraryFromRow(data as Row);
 }

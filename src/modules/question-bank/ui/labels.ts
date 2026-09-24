@@ -2,6 +2,7 @@ import type { ModuleItem, Occupation, QuestionType } from '../../../types';
 import type { QuestionImportJob, QuestionLibrary, QuestionStatus } from '../domain/question-library';
 
 export const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600';
+export const fieldClass = `min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm ${focusRing}`;
 
 export const questionStatusLabels: Record<QuestionStatus, string> = {
   draft: 'Bản nháp',
@@ -17,12 +18,20 @@ export const questionStatusTone: Record<QuestionStatus, string> = {
   retired: 'bg-rose-50 text-rose-900',
 };
 
-export const questionTypeLabels: Partial<Record<QuestionType, string>> = {
-  single_choice: 'Một đáp án',
-  multiple_choice: 'Nhiều đáp án',
-  drag_drop: 'Kéo thả',
-  video_paragraph: 'Video và đoạn văn',
-  main_idea: 'Ý chính',
+export const questionTypeLabels: Record<QuestionType, string> = {
+  single_choice: 'Trắc nghiệm một đáp án đúng',
+  multiple_choice: 'Trắc nghiệm nhiều đáp án đúng',
+  drag_drop: 'Kéo thả (sắp thứ tự hoặc gắn nhãn lên ảnh)',
+  true_false_multi: 'Đúng/Sai nhiều phát biểu',
+  matching: 'Nối đôi',
+  video_paragraph: 'Xem video và tự luận',
+  main_idea: 'Phân tích ý chính',
+};
+
+export const difficultyLabels: Record<string, string> = {
+  easy: 'Dễ',
+  medium: 'Trung bình',
+  hard: 'Khó',
 };
 
 export const importJobLabels: Record<QuestionImportJob['status'], string> = {
@@ -37,12 +46,10 @@ export function moduleLabel(module: ModuleItem): string {
   return module.code ? `${module.code} · ${module.name}` : module.name;
 }
 
-/** Pass `modules` only when the library's occupation modules are loaded; without them a module-bound library reads as "Một mô-đun". */
-export function libraryScope(library: QuestionLibrary, occupations: Occupation[], modules?: ModuleItem[]): string {
-  const occupation = occupations.find((item) => item.id === library.occupationId)?.name ?? 'Nghề chưa xác định';
-  const matched = library.moduleId ? modules?.find((item) => item.id === library.moduleId) : undefined;
-  const module = !library.moduleId ? 'Tất cả mô-đun' : matched ? moduleLabel(matched) : 'Một mô-đun';
-  return `${occupation} · ${module}`;
+/** The library name already carries the module (since C2), so the scope line names only the course. */
+export function libraryCourse(library: QuestionLibrary, occupations: Occupation[]): string {
+  if (!library.occupationId) return 'Dùng chung nhiều nghề';
+  return occupations.find((item) => item.id === library.occupationId)?.name ?? 'Nghề chưa xác định';
 }
 
 export function errorMessage(reason: unknown, fallback: string): string {

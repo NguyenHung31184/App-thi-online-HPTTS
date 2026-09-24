@@ -26,6 +26,7 @@ export async function addQuestionLibrary(input: {
   createdBy: string;
 }): Promise<QuestionLibrary> {
   if (!input.occupationId) throw new Error('Chọn nghề đào tạo cho ngân hàng.');
+  if (!input.moduleId) throw new Error('Chọn mô-đun: mỗi mô-đun có một ngân hàng câu hỏi.');
   if (input.name.trim().length < 3) throw new Error('Tên ngân hàng cần ít nhất 3 ký tự.');
   return createQuestionLibrary(input);
 }

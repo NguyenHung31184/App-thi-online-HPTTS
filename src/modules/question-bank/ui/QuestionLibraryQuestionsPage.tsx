@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { filterLibraryQuestions, type QuestionStatus } from '../domain/question-library';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { filterLibraryQuestions, type LibraryQuestionFilter, type QuestionStatus } from '../domain/question-library';
 import { useLibraryContext } from './library-context';
 import { errorMessage, focusRing, questionStatusLabels, questionStatusTone, questionTypeLabels } from './labels';
 import { EmptyState, ErrorState, LoadingState } from './states';
@@ -11,8 +11,11 @@ const fieldClass = `min-h-11 w-full rounded-lg border border-slate-300 bg-white 
 export default function QuestionLibraryQuestionsPage() {
   const { library, workspace, workspaceLoading, workspaceError, refetchWorkspace } = useLibraryContext();
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
   const rawStatus = params.get('status') ?? '';
-  const status: QuestionStatus | '' = statuses.includes(rawStatus as QuestionStatus) ? rawStatus as QuestionStatus : '';
+  const status: LibraryQuestionFilter['status'] = rawStatus === 'all' || statuses.includes(rawStatus as QuestionStatus) ? rawStatus as LibraryQuestionFilter['status'] : '';
+  // The editor returns here with the same filters.
+  const returnState = { returnTo: `${location.pathname}${location.search}` };
   const taxonomyNodeId = params.get('node') ?? '';
   const text = params.get('q') ?? '';
   const nodes = useMemo(() => workspace?.nodes ?? [], [workspace]);
@@ -30,7 +33,10 @@ export default function QuestionLibraryQuestionsPage() {
   };
 
   const hasFilter = Boolean(status || taxonomyNodeId || text);
-  const legacyListUrl = `/admin/questions/occupation/${library.occupationId}${library.moduleId ? `?moduleId=${encodeURIComponent(library.moduleId)}` : ''}`;
+  // Excel/ZIP import still runs on the legacy screen until C2 step 2 slice 2; it needs a course, which a shared library lacks.
+  const legacyImportUrl = library.occupationId
+    ? `/admin/questions/occupation/${library.occupationId}/import${library.moduleId ? `?moduleId=${encodeURIComponent(library.moduleId)}` : ''}`
+    : null;
 
   return (
     <div className="space-y-4">
@@ -41,7 +47,8 @@ export default function QuestionLibraryQuestionsPage() {
         </label>
         <label className="grid gap-1 text-sm font-medium text-slate-700">Trạng thái
           <select value={status} onChange={(event) => setFilter('status', event.target.value)} className={fieldClass}>
-            <option value="">Tất cả trạng thái</option>
+            <option value="">Đang dùng (trừ Ngừng sử dụng)</option>
+            <option value="all">Tất cả trạng thái</option>
             {statuses.map((value) => <option key={value} value={value}>{questionStatusLabels[value]}</option>)}
           </select>
         </label>
@@ -60,14 +67,19 @@ export default function QuestionLibraryQuestionsPage() {
             <button type="button" onClick={() => setParams({}, { replace: true })} className={`ml-2 inline-flex min-h-11 items-center rounded px-1 font-medium text-indigo-700 hover:text-indigo-900 ${focusRing}`}>Bỏ lọc</button>
           )}
         </p>
-        <Link to={legacyListUrl} className={`inline-flex min-h-11 items-center rounded px-1 font-medium text-indigo-700 hover:text-indigo-900 ${focusRing}`}>Mở kho câu hỏi cũ của nghề này</Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {legacyImportUrl && (
+            <Link to={legacyImportUrl} className={`inline-flex min-h-11 items-center rounded px-1 font-medium text-indigo-700 hover:text-indigo-900 ${focusRing}`}>Nhập Excel/ZIP (màn cũ)</Link>
+          )}
+          <Link to="new" state={returnState} className={`inline-flex min-h-11 items-center rounded-lg bg-indigo-700 px-4 font-semibold text-white hover:bg-indigo-800 ${focusRing}`}>Thêm câu hỏi</Link>
+        </div>
       </div>
 
       {workspaceLoading && <LoadingState>Đang tải câu hỏi…</LoadingState>}
       {workspaceError != null && <ErrorState title="Không tải được câu hỏi" detail={errorMessage(workspaceError, 'Kiểm tra kết nối mạng.')} onRetry={refetchWorkspace} />}
       {workspace && questions.length === 0 && (
         <EmptyState title="Ngân hàng chưa có câu hỏi">
-          <p>Câu hỏi chỉ vào ngân hàng này qua lần chuyển dữ liệu từ kho cũ khi nâng cấp. Câu thêm mới hoặc nhập Excel ở kho cũ sau đó chưa tự vào đây, và chưa đưa được bản nháp từ tài liệu vào.</p>
+          <p>Bấm "Thêm câu hỏi" để soạn câu đầu tiên. Câu nhập từ Excel/ZIP cũng tự vào ngân hàng này.</p>
         </EmptyState>
       )}
       {workspace && questions.length > 0 && visible.length === 0 && (
@@ -92,7 +104,7 @@ export default function QuestionLibraryQuestionsPage() {
               </div>
               <div className="flex items-center gap-3 sm:justify-end">
                 <span className={`rounded-md px-2 py-1 text-xs font-medium ${questionStatusTone[question.status]}`}>{questionStatusLabels[question.status]}</span>
-                <Link to={`/admin/questions/occupation/${library.occupationId}/questions/${question.id}`} className={`inline-flex min-h-11 items-center rounded px-1 text-sm font-medium text-indigo-700 hover:text-indigo-900 ${focusRing}`}>
+                <Link to={question.id} state={returnState} className={`inline-flex min-h-11 items-center rounded px-1 text-sm font-medium text-indigo-700 hover:text-indigo-900 ${focusRing}`}>
                   Sửa
                 </Link>
               </div>

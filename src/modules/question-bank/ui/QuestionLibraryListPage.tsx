@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCreateQuestionLibrary, useModuleOptions, useOccupationOptions, useQuestionLibraries } from '../queries/use-question-library';
-import { errorMessage, focusRing, libraryScope, moduleLabel } from './labels';
+import { errorMessage, focusRing, libraryCourse, moduleLabel } from './labels';
 import { BackLink, EmptyState, ErrorState, LoadingState } from './states';
 
 const fieldClass = `mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-100 ${focusRing}`;
@@ -46,7 +46,7 @@ export default function QuestionLibraryListPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Ngân hàng câu hỏi</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-600">Mỗi ngân hàng gắn với một nghề và có thể giới hạn theo mô-đun. Chọn ngân hàng để xem cây kiến thức, câu hỏi và phiếu nhập tài liệu.</p>
+          <p className="mt-1 max-w-3xl text-sm text-slate-600">Mỗi mô-đun có một ngân hàng câu hỏi; mô-đun dùng chung cho nhiều nghề thì các nghề dùng chung ngân hàng đó. Chọn ngân hàng để xem cây kiến thức, câu hỏi và phiếu nhập tài liệu.</p>
         </div>
         <BackLink to="/admin/questions">Mở kho câu hỏi cũ</BackLink>
       </header>
@@ -70,7 +70,7 @@ export default function QuestionLibraryListPage() {
                       <span className="font-medium text-slate-900">{library.name}</span>
                       {library.status === 'archived' && <span className="text-xs font-medium text-slate-600">Đã lưu trữ</span>}
                     </span>
-                    <span className="mt-0.5 block text-sm text-slate-600">{libraryScope(library, occupations)}</span>
+                    <span className="mt-0.5 block text-sm text-slate-600">{libraryCourse(library, occupations)}</span>
                     {library.description && <span className="mt-1 block text-sm text-slate-500 line-clamp-2">{library.description}</span>}
                   </Link>
                 </li>
@@ -90,8 +90,8 @@ export default function QuestionLibraryListPage() {
               </select>
             </label>
             <label className="block text-sm font-medium text-slate-700">Mô-đun
-              <select value={moduleId} onChange={(event) => setModuleId(event.target.value)} disabled={!occupationId} className={fieldClass}>
-                <option value="">Dùng cho tất cả mô-đun</option>
+              <select value={moduleId} onChange={(event) => setModuleId(event.target.value)} disabled={!occupationId} required className={fieldClass}>
+                <option value="">Chọn mô-đun</option>
                 {modules.map((module) => <option key={module.id} value={module.id}>{moduleLabel(module)}</option>)}
               </select>
             </label>

@@ -40,6 +40,7 @@ import StudentResultsPage from './pages/StudentResultsPage';
 import StudentLearnPage from './pages/StudentLearnPage';
 import LessonPlayerPage from './pages/LessonPlayerPage';
 import {
+  QuestionEditorPage,
   QuestionImportReviewPage,
   QuestionLibraryImportsPage,
   QuestionLibraryLayout,
@@ -69,6 +70,8 @@ function App() {
             <Route path="question-libraries/:libraryId" element={<QuestionLibraryLayout />}>
               <Route index element={<QuestionLibraryStructurePage />} />
               <Route path="questions" element={<QuestionLibraryQuestionsPage />} />
+              <Route path="questions/new" element={<QuestionEditorPage />} />
+              <Route path="questions/:questionId" element={<QuestionEditorPage />} />
               <Route path="imports" element={<QuestionLibraryImportsPage />} />
               <Route path="imports/:jobId" element={<QuestionImportReviewPage />} />
             </Route>

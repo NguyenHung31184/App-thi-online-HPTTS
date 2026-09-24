@@ -66,7 +66,8 @@ export interface QuestionImportDraft {
 }
 
 export interface LibraryQuestionFilter {
-  status: QuestionStatus | '';
+  /** '' = every status except retired; 'all' = every status. */
+  status: QuestionStatus | '' | 'all';
   taxonomyNodeId: string;
   text: string;
 }
@@ -95,7 +96,8 @@ export function filterLibraryQuestions(
   const nodeIds = filter.taxonomyNodeId ? taxonomySubtreeIds(nodes, filter.taxonomyNodeId) : null;
   const text = filter.text.trim().toLocaleLowerCase('vi');
   return questions.filter((question) => {
-    if (filter.status && question.status !== filter.status) return false;
+    if (filter.status === '' && question.status === 'retired') return false;
+    if (filter.status !== '' && filter.status !== 'all' && question.status !== filter.status) return false;
     if (nodeIds && (!question.taxonomyNodeId || !nodeIds.has(question.taxonomyNodeId))) return false;
     if (text && !`${question.stem} ${question.topic}`.toLocaleLowerCase('vi').includes(text)) return false;
     return true;

@@ -1,6 +1,6 @@
 # Phase C2 — single question store
 
-- Status: step 1 applied to production 2026-09-24; step 2 next
+- Status: step 1 applied 2026-09-24; step 2 slice 1 (question editor) complete; slice 2 (Excel/ZIP import) next
 - Date: 2026-09-24
 - Depends on: Phase C, question-library scope contract, draw-excludes-duplicate-content fix
 - Migration (step 1): `supabase/migrations/20260924111343_c2_single_question_store.sql`

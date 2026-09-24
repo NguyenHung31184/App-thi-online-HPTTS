@@ -1,8 +1,8 @@
 import { Link, NavLink, Outlet, useParams } from 'react-router-dom';
 import { countQuestionsByStatus } from '../domain/question-library';
 import type { LibraryOutletContext } from './library-context';
-import { useModuleOptions, useOccupationOptions, useQuestionLibraries, useQuestionLibraryWorkspace } from '../queries/use-question-library';
-import { errorMessage, focusRing, libraryScope, questionStatusLabels } from './labels';
+import { useOccupationOptions, useQuestionLibraries, useQuestionLibraryWorkspace } from '../queries/use-question-library';
+import { errorMessage, focusRing, libraryCourse, questionStatusLabels } from './labels';
 import { BackLink, ErrorState, LoadingState } from './states';
 
 const tabs = [
@@ -16,7 +16,6 @@ export default function QuestionLibraryLayout() {
   const { data: libraries = [], isLoading, error, refetch } = useQuestionLibraries();
   const { data: occupations = [] } = useOccupationOptions();
   const library = libraries.find((item) => item.id === libraryId) ?? null;
-  const { data: modules } = useModuleOptions(library?.occupationId ?? '');
   const { data: workspace, isLoading: workspaceLoading, error: workspaceError, refetch: refetchWorkspace } = useQuestionLibraryWorkspace(library ? libraryId : '');
 
   if (isLoading) return <LoadingState>Đang tải ngân hàng câu hỏi…</LoadingState>;
@@ -34,7 +33,7 @@ export default function QuestionLibraryLayout() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm text-slate-600">{libraryScope(library, occupations, modules)}</p>
+          <p className="text-sm text-slate-600">{libraryCourse(library, occupations)}</p>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 break-words">{library.name}</h1>
           {library.description && <p className="mt-1 max-w-3xl text-sm text-slate-600">{library.description}</p>}
         </div>

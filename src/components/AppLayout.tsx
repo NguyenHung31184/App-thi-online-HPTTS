@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { GraduationCap } from 'lucide-react';
 import { MenuIcon, LogoutIcon } from './Icons';
 
@@ -56,6 +56,19 @@ function NavLink({
   );
 }
 
+// Trùng breakpoint `lg` của Tailwind: từ đây sidebar luôn hiện, không còn là ngăn kéo trượt.
+const desktopQuery = '(min-width: 1024px)';
+
+function subscribeDesktop(onChange: () => void) {
+  const media = window.matchMedia(desktopQuery);
+  media.addEventListener('change', onChange);
+  return () => media.removeEventListener('change', onChange);
+}
+
+function useIsDesktop() {
+  return useSyncExternalStore(subscribeDesktop, () => window.matchMedia(desktopQuery).matches, () => true);
+}
+
 export default function AppLayout({
   children,
   navSections,
@@ -67,6 +80,24 @@ export default function AppLayout({
   setSidebarOpen,
 }: AppLayoutProps) {
   const location = useLocation();
+  const isDesktop = useIsDesktop();
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerOpen = !isDesktop && isSidebarOpen;
+  // Ngăn kéo đóng chỉ bị đẩy ra ngoài màn hình; thiếu `inert` thì Tab vẫn đi vào các link bị ẩn.
+  const sidebarInert = !isDesktop && !isSidebarOpen;
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    sidebarRef.current?.querySelector<HTMLElement>('a, button')?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setSidebarOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [drawerOpen, setSidebarOpen]);
 
   return (
     <div className="flex h-full w-full overflow-hidden relative min-h-screen">
@@ -80,6 +111,9 @@ export default function AppLayout({
 
       {/* Sidebar — đồng bộ với app quản lý TTDT */}
       <aside
+        id="app-sidebar"
+        ref={sidebarRef}
+        inert={sidebarInert}
         className={`fixed lg:static inset-y-0 left-0 z-40 w-72 bg-gradient-to-b from-[#0a1230] via-[#10235f] to-[#0b142f] text-white flex flex-col p-4 transform transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
@@ -145,10 +179,13 @@ export default function AppLayout({
         <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 lg:px-6 border-b border-slate-200/60 bg-white/50">
           <div className="flex items-center gap-3">
             <button
+              ref={menuButtonRef}
               type="button"
               onClick={() => setSidebarOpen(!isSidebarOpen)}
               className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
-              aria-label="Menu"
+              aria-label={isSidebarOpen ? 'Đóng menu' : 'Mở menu'}
+              aria-expanded={isSidebarOpen}
+              aria-controls="app-sidebar"
             >
               <MenuIcon className="w-6 h-6" />
             </button>

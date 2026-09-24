@@ -14,7 +14,6 @@ import {
 } from '../../components/Icons';
 
 const adminTitles: Record<string, string> = {
-  '/admin': 'Dashboard',
   '/admin/dashboard': 'Dashboard',
   '/admin/question-libraries': 'Ngân hàng câu hỏi',
   '/admin/exams': 'Đề thi & ma trận',
@@ -31,10 +30,12 @@ const adminTitles: Record<string, string> = {
 function getAdminTitle(pathname: string): string {
   if (pathname === '/admin' || pathname === '/admin/') return 'Quản trị';
   if (pathname.startsWith('/admin/attempts/')) return 'Chi tiết bài làm';
-  for (const [path, title] of Object.entries(adminTitles)) {
-    if (pathname.startsWith(path)) return title;
+  // Lấy route khớp dài nhất, để '/admin/question-libraries/x' không rơi vào key ngắn hơn.
+  let match = '';
+  for (const path of Object.keys(adminTitles)) {
+    if ((pathname === path || pathname.startsWith(`${path}/`)) && path.length > match.length) match = path;
   }
-  return 'Quản trị';
+  return match ? adminTitles[match] : 'Quản trị';
 }
 
 export default function AdminLayout() {

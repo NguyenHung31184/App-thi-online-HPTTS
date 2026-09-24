@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { getMyProfile, updateMyStudentId } from '../services/profileService';
@@ -91,12 +91,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [studentSession, setStudentSession] = useState<StudentSession | null>(null);
 
-  const applyUser = useCallback((u: SupabaseUser | null, set: (user: User | null) => void) => {
-    if (!u) {
-      set(null);
-      return;
-    }
-    mapUserWithProfile(u).then(set);
+  // Tăng sau mỗi lần đổi phiên. Lượt đọc profile nào xong sau một lần đổi mới hơn thì bị bỏ,
+  // để một request chậm không khôi phục lại người dùng đã đăng xuất.
+  const authVersion = useRef(0);
+
+  // Giữ `loading` = true tới khi biết role: guard thấy `loading === false` mà chưa có user sẽ đẩy về /login
+  // (trước đây F5 ở trang admin nào cũng bị như vậy).
+  const resolveUser = useCallback(async (u: SupabaseUser | null) => {
+    const version = ++authVersion.current;
+    const mapped = u ? await mapUserWithProfile(u) : null;
+    if (version !== authVersion.current) return;
+    setUser(mapped);
+    setLoading(false);
   }, []);
 
   // Khởi tạo phiên học viên từ sessionStorage (trường hợp thí sinh vào bằng CCCD, không dùng Supabase auth).
@@ -125,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(({ data: { session: s }, error }) => {
       if (error) {
+        authVersion.current += 1;
         supabase.auth.signOut();
         setSession(null);
         setUser(null);
@@ -132,21 +139,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       setSession(s);
-      if (s?.user) applyUser(s.user, setUser);
-      else setUser(null);
-      setLoading(false);
+      void resolveUser(s?.user ?? null);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
-      if (s?.user) applyUser(s.user, setUser);
-      else setUser(null);
+      // Supabase giữ khóa phiên trong lúc chạy callback này; gọi query ngay bên trong có thể treo (deadlock).
+      if (s?.user) {
+        const next = s.user;
+        setTimeout(() => void resolveUser(next), 0);
+      } else {
+        void resolveUser(null);
+      }
     });
 
-    return () => subscription.unsubscribe();
-  }, [applyUser]);
+    return () => {
+      authVersion.current += 1;
+      subscription.unsubscribe();
+    };
+  }, [resolveUser]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {

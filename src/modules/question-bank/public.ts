@@ -26,3 +26,4 @@ export { default as QuestionLibraryImportsPage } from './ui/QuestionLibraryImpor
 export { default as QuestionEditorPage } from './ui/editor/QuestionEditorPage';
 export { default as QuestionSpreadsheetImportPage } from './ui/QuestionSpreadsheetImportPage';
 export { default as QuestionImportReviewPage } from './ui/QuestionImportReviewPage';
+export { default as LegacyQuestionBankRedirect } from './ui/LegacyQuestionBankRedirect';

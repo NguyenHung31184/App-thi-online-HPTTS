@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCreateQuestionLibrary, useModuleOptions, useOccupationOptions, useQuestionLibraries } from '../queries/use-question-library';
 import { errorMessage, focusRing, libraryCourse, moduleLabel } from './labels';
-import { BackLink, EmptyState, ErrorState, LoadingState } from './states';
+import { EmptyState, ErrorState, LoadingState } from './states';
 
 const fieldClass = `mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-100 ${focusRing}`;
 
@@ -48,7 +48,6 @@ export default function QuestionLibraryListPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Ngân hàng câu hỏi</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-600">Mỗi mô-đun có một ngân hàng câu hỏi; mô-đun dùng chung cho nhiều nghề thì các nghề dùng chung ngân hàng đó. Chọn ngân hàng để xem cây kiến thức, câu hỏi và phiếu nhập tài liệu.</p>
         </div>
-        <BackLink to="/admin/questions">Mở kho câu hỏi cũ</BackLink>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)]">

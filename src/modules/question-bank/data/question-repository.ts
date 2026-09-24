@@ -69,6 +69,74 @@ export async function insertQuestions(rows: NewQuestionRow[]): Promise<number> {
 }
 
 const PAGE_SIZE = 1000;
+// Ids travel in the query string of an `in`/`ov` filter; 200 uuids stay well under URL limits.
+const ID_CHUNK = 200;
+
+function chunks<T>(items: T[]): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += ID_CHUNK) result.push(items.slice(index, index + ID_CHUNK));
+  return result;
+}
+
+/** Returns the number of rows changed. Rows outside the library are left alone. */
+export async function setQuestionsStatus(libraryId: string, ids: string[], status: QuestionStatus): Promise<number> {
+  let changed = 0;
+  for (const part of chunks(ids)) {
+    const { data, error } = await supabase
+      .from('question_bank')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('library_id', libraryId)
+      .eq('is_deleted', false)
+      .in('id', part)
+      .select('id');
+    if (error) throw new Error(error.message);
+    changed += (data ?? []).length;
+  }
+  return changed;
+}
+
+/** Soft delete; returns the number of rows deleted. Rows outside the library are left alone. */
+export async function softDeleteQuestions(libraryId: string, ids: string[]): Promise<number> {
+  let deleted = 0;
+  const now = new Date().toISOString();
+  for (const part of chunks(ids)) {
+    const { data, error } = await supabase
+      .from('question_bank')
+      .update({ is_deleted: true, deleted_at: now })
+      .eq('library_id', libraryId)
+      .eq('is_deleted', false)
+      .in('id', part)
+      .select('id');
+    if (error) throw new Error(error.message);
+    deleted += (data ?? []).length;
+  }
+  return deleted;
+}
+
+/** The ids among `ids` that some attempt has drawn (attempts.question_ids). */
+export async function findQuestionsUsedInAttempts(ids: string[]): Promise<Set<string>> {
+  const used = new Set<string>();
+  for (const part of chunks(ids)) {
+    const wanted = new Set(part);
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await supabase
+        .from('attempts')
+        .select('id, question_ids')
+        .overlaps('question_ids', part)
+        .order('id')
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw new Error(error.message);
+      const page = (data ?? []) as Row[];
+      for (const row of page) {
+        for (const id of Array.isArray(row.question_ids) ? row.question_ids : []) {
+          if (wanted.has(String(id))) used.add(String(id));
+        }
+      }
+      if (page.length < PAGE_SIZE) break;
+    }
+  }
+  return used;
+}
 
 /** Stem and options of every live question in the library, paged past the API's 1000-row cap. */
 export async function listLibraryQuestionContent(libraryId: string): Promise<{ stem: string; options: unknown }[]> {

@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
 import { validateMediaUrl } from '../../../utils/mediaUrlValidator';
 import { OPTION_IDS } from '../domain/question-draft';
-import { IMAGE_EXTENSIONS, MAX_IMPORT_ROWS, contentKey, imageKey, planImport, readImportSheet, type ImportPlan, type ImportSheet } from '../domain/question-import';
+import { IMAGE_EXTENSIONS, IMPORT_HEADER, IMPORT_TYPE_NAMES as TYPE, MAX_IMPORT_ROWS, contentKey, imageKey, planImport, readImportSheet, type ImportPlan, type ImportSheet } from '../domain/question-import';
 import type { QuestionLibrary, QuestionStatus } from '../domain/question-library';
 import { insertQuestions, listLibraryQuestionContent, uploadQuestionImage } from '../data/question-repository';
 import { resolveLibraryCourse } from './library-course';
@@ -151,8 +151,6 @@ export async function runQuestionImport({ library, preview, status, createdBy, o
   })));
 }
 
-const TEMPLATE_HEADER = ['Nội dung câu hỏi', ...OPTION_IDS.map((id) => `Đáp án ${id}`), 'Đáp án đúng', 'Loại câu hỏi', 'Keys', 'Chủ đề', 'Độ khó', 'Điểm', 'Tên file ảnh'];
-
 function exampleRow(stem: string, options: string[], answer: string, type: string, keys: string, topic: string, points: number, image = ''): (string | number)[] {
   return [stem, ...OPTION_IDS.map((_, index) => options[index] ?? ''), answer, type, keys, topic, 'Trung bình', points, image];
 }
@@ -174,15 +172,15 @@ const TEMPLATE_RULES = [
 /** The question sheet (header only) comes first because the importer reads the first sheet. */
 export async function buildImportTemplate(kind: 'spreadsheet' | 'zip'): Promise<{ fileName: string; blob: Blob }> {
   const examples = [
-    exampleRow('Máy nâng dùng để làm gì?', ['Nâng hàng', 'Lái xe', 'Đóng gói', 'Kiểm tra hàng'], 'A', 'Trắc nghiệm', '', 'Kiến thức cơ bản', 1, kind === 'zip' ? 'cau1.jpg' : ''),
-    exampleRow('Thiết bị nào sau đây thuộc nhóm thiết bị nâng?', ['Cẩu trục', 'Palăng xích', 'Xe đẩy tay', 'Thang nâng'], 'A;B;D', 'Nhiều đáp án', '', 'Thiết bị', 2),
-    exampleRow('Sắp xếp quy trình nâng hàng theo đúng thứ tự', ['Móc cẩu vào hàng', 'Kiểm tra tải trọng', 'Ra lệnh nâng', 'Quan sát vùng nguy hiểm'], 'B;A;D;C', 'Kéo thả', '', 'Vận hành thiết bị', 2),
-    exampleRow('Xác định Đúng hoặc Sai cho từng phát biểu về an toàn vận hành cẩu RTG:', ['Phải kiểm tra khu vực trước khi nâng hàng.', 'Được phép nâng vượt tải 20% khi khẩn cấp.', 'Mọi hạn vị phải hoạt động trước mỗi ca.', 'Không cần tắt nguồn khi bảo trì nhỏ.'], 'Đ;S;Đ;S', 'Đúng/Sai', '', 'An toàn vận hành', 4),
-    exampleRow('Nối thiết bị RTG với chức năng đúng:', ['Bộ chống lắc hàng', 'Công tắc hành trình', 'Thiết bị đo tải', 'Cơ cấu Skew'], 'A-1;B-2;C-3;D-4', 'Nối đôi', 'Hãm lắc container khi xe con tăng/giảm tốc;Ngắt mạch khi chạm điểm giới hạn;Đo tải và ngắt tời khi quá tải;Vi chỉnh góc xoay để căn lỗ chốt gù', 'Thiết bị', 4),
-    exampleRow('Nêu các nguyên nhân gây tai nạn lao động tại cảng biển.', [], '', 'Tự luận', 'sai quy trình|2;thiếu bảo hộ|2;không kiểm tra thiết bị|2;vi phạm quy định|2;chủ quan|2', 'An toàn lao động', 10),
+    exampleRow('Máy nâng dùng để làm gì?', ['Nâng hàng', 'Lái xe', 'Đóng gói', 'Kiểm tra hàng'], 'A', TYPE.single_choice, '', 'Kiến thức cơ bản', 1, kind === 'zip' ? 'cau1.jpg' : ''),
+    exampleRow('Thiết bị nào sau đây thuộc nhóm thiết bị nâng?', ['Cẩu trục', 'Palăng xích', 'Xe đẩy tay', 'Thang nâng'], 'A;B;D', TYPE.multiple_choice, '', 'Thiết bị', 2),
+    exampleRow('Sắp xếp quy trình nâng hàng theo đúng thứ tự', ['Móc cẩu vào hàng', 'Kiểm tra tải trọng', 'Ra lệnh nâng', 'Quan sát vùng nguy hiểm'], 'B;A;D;C', TYPE.drag_drop, '', 'Vận hành thiết bị', 2),
+    exampleRow('Xác định Đúng hoặc Sai cho từng phát biểu về an toàn vận hành cẩu RTG:', ['Phải kiểm tra khu vực trước khi nâng hàng.', 'Được phép nâng vượt tải 20% khi khẩn cấp.', 'Mọi hạn vị phải hoạt động trước mỗi ca.', 'Không cần tắt nguồn khi bảo trì nhỏ.'], 'Đ;S;Đ;S', TYPE.true_false_multi, '', 'An toàn vận hành', 4),
+    exampleRow('Nối thiết bị RTG với chức năng đúng:', ['Bộ chống lắc hàng', 'Công tắc hành trình', 'Thiết bị đo tải', 'Cơ cấu Skew'], 'A-1;B-2;C-3;D-4', TYPE.matching, 'Hãm lắc container khi xe con tăng/giảm tốc;Ngắt mạch khi chạm điểm giới hạn;Đo tải và ngắt tời khi quá tải;Vi chỉnh góc xoay để căn lỗ chốt gù', 'Thiết bị', 4),
+    exampleRow('Nêu các nguyên nhân gây tai nạn lao động tại cảng biển.', [], '', TYPE.main_idea, 'sai quy trình|2;thiếu bảo hộ|2;không kiểm tra thiết bị|2;vi phạm quy định|2;chủ quan|2', 'An toàn lao động', 10),
   ];
-  const questions = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADER]);
-  const sample = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADER, ...examples, [], ...TEMPLATE_RULES.map((line) => [line])]);
+  const questions = XLSX.utils.aoa_to_sheet([IMPORT_HEADER]);
+  const sample = XLSX.utils.aoa_to_sheet([IMPORT_HEADER, ...examples, [], ...TEMPLATE_RULES.map((line) => [line])]);
   const widths = [{ wch: 50 }, ...OPTION_IDS.map(() => ({ wch: 20 })), { wch: 16 }, { wch: 16 }, { wch: 40 }, { wch: 18 }, { wch: 12 }, { wch: 8 }, { wch: 16 }];
   questions['!cols'] = widths;
   sample['!cols'] = widths;

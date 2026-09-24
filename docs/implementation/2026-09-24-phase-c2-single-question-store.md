@@ -1,6 +1,6 @@
 # Phase C2 — single question store
 
-- Status: step 1 applied 2026-09-24; step 2 complete (slice 1 question editor, slice 2 Excel/ZIP import `docs/implementation/2026-09-24-c2-excel-zip-import.md`); step 3 next
+- Status: steps 1–3 complete 2026-09-24 (step 2: editor and Excel/ZIP import; step 3: old screens retired, `docs/implementation/2026-09-24-c2-retire-old-question-store.md`); acceptance waits for the teacher click-through and a draw check on a locked trial exam
 - Date: 2026-09-24
 - Depends on: Phase C, question-library scope contract, draw-excludes-duplicate-content fix
 - Migration (step 1): `supabase/migrations/20260924111343_c2_single_question_store.sql`

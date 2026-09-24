@@ -363,9 +363,9 @@ export default function AdminQuestionsPage() {
             </button>
           )}
           <Link
-            to="/admin/questions"
+            to="/admin/question-libraries"
             className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 text-sm"
-            title="Quản lý ngân hàng câu hỏi theo nghề"
+            title="Mở ngân hàng câu hỏi"
           >
             <svg className="w-4 h-4 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -459,7 +459,7 @@ export default function AdminQuestionsPage() {
           {!blueprintAllOk && (
             <p className="mt-2 text-xs text-red-600">
               Thêm câu hỏi vào ngân hàng trước khi mở kỳ thi — vào{' '}
-              <Link to="/admin/questions" className="underline font-medium">Quản lý ngân hàng</Link>.
+              <Link to="/admin/question-libraries" className="underline font-medium">Quản lý ngân hàng</Link>.
             </p>
           )}
         </div>
@@ -529,7 +529,7 @@ export default function AdminQuestionsPage() {
           <p className="text-sm font-medium">Ngân hàng câu hỏi của mô-đun này đang trống</p>
           <p className="text-xs mt-1">
             Vào{' '}
-            <Link to="/admin/questions" className="underline text-indigo-500">Quản lý ngân hàng</Link>{' '}
+            <Link to="/admin/question-libraries" className="underline text-indigo-500">Quản lý ngân hàng</Link>{' '}
             để thêm câu hỏi.
           </p>
         </div>

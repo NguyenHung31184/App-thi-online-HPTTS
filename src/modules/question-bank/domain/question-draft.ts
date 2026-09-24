@@ -2,7 +2,7 @@ import type { QuestionType } from '../../../types';
 import type { QuestionStatus } from './question-library';
 
 // Encodings below are read by grade_attempt and the student exam screen; they follow what the legacy
-// form (pages/admin/AdminQuestionBankFormPage) writes, type by type. Three legacy behaviours are not
+// form (pages/admin/AdminQuestionBankFormPage, removed in C2 step 3) wrote, type by type. Three legacy behaviours are not
 // copied because opening and saving a question would change it: drag_drop is not forced to 4 labels,
 // essay key points are not re-spread on load, and zone positions are written only for a label-on-image
 // question (see isLabelOnImage).

@@ -100,6 +100,18 @@ export async function listQuestionLibraries(): Promise<QuestionLibrary[]> {
   return (data ?? []).map((row) => libraryFromRow(row as Row));
 }
 
+/** Since C2 a module has at most one active library (unique index question_libraries_one_active_per_module). */
+export async function findActiveLibraryIdForModule(moduleId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('question_libraries')
+    .select('id')
+    .eq('module_id', moduleId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? String((data as Row).id) : null;
+}
+
 export async function createQuestionLibrary(input: {
   occupationId: string;
   moduleId: string | null;

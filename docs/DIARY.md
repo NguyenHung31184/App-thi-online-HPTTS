@@ -25,13 +25,16 @@
 
 - 2026-09-24: C2 bước 2 lát 2, nhập Excel/CSV/ZIP ngay trong ngân hàng (`/admin/question-libraries/<id>/questions/import`), dùng được cho cả ngân hàng dùng chung QTHH-AT. Mỗi dòng đi qua đúng hàm dựng câu của editor. Dòng đọc không được thì báo lỗi kèm số dòng thay vì tự điền đáp án mặc định như bộ nhập cũ. Dòng trùng (theo khóa của hàm bốc đề) bị bỏ qua. Ảnh tải lên trước, câu lưu trong một lần ghi: hoặc đủ cả, hoặc không câu nào. Sửa lỗi cũ: CSV UTF-8 không có BOM bị mất dấu tiếng Việt; "Đ;S" bị đọc thành toàn Sai. Thử trên Edge với 6 câu `[TEST]` ở trạng thái nháp, kiểm tra DB, rồi xóa mềm.
 
+- 2026-09-24: C2 bước 3, bỏ kho câu hỏi cũ. Trước khi bỏ, chuyển vào tab Câu hỏi của ngân hàng những gì chỉ màn cũ có: lọc theo loại câu, lọc câu lỗi dữ liệu kèm cảnh báo, chọn nhiều để đổi trạng thái hoặc xóa, xóa từng câu trong editor, xuất Excel (cùng cột với file nhập). Khi xóa, câu đã có trong bài thi của học viên được chuyển sang "Ngừng sử dụng" thay vì xóa, vì `grade_attempt` bỏ qua câu đã xóa. URL cũ `/admin/questions/...` tự chuyển tới ngân hàng tương ứng; 4 trang cũ đã xóa. Viết lại hướng dẫn nhập câu hỏi (`docs/HUONG_DAN_SOAN_DE_VA_IMPORT_CAU_HOI.md`). Kiểm tra 7 ngân hàng thật: 1.100 câu đang dùng, 0 câu lỗi.
+
 ### Vấn đề gặp
 - `node_modules` trên máy thiếu `@tanstack/react-query` sau khi pull; đã `npm install` (lockfile giữ nguyên).
 - Chưa click thử khi đăng nhập admin và giáo viên.
 - Phát hiện route guard của giáo viên cho mở mọi URL `/admin/...` (lỗi có từ trước, ghi ở mục "Open issues" trong ledger, chưa sửa).
 
 ### Kế hoạch tiếp theo
-- Click thử Phase C khi đăng nhập admin và giáo viên, rồi chuyển sang Phase D (giám sát trực tuyến).
+- Nghiệm thu C2: click thử bằng tài khoản giáo viên; thử bốc đề trên một đề thử đã kiểm định.
+- Sau C2: nhập tài liệu Word (cần file mẫu của trung tâm), rồi giám sát trực tuyến.
 
 ---
 

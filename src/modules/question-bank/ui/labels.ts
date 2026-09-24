@@ -1,15 +1,10 @@
 import type { ModuleItem, Occupation, QuestionType } from '../../../types';
-import type { QuestionImportJob, QuestionLibrary, QuestionStatus } from '../domain/question-library';
+import { QUESTION_STATUS_LABELS, type QuestionImportJob, type QuestionLibrary, type QuestionStatus } from '../domain/question-library';
 
 export const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600';
 export const fieldClass = `min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm ${focusRing}`;
 
-export const questionStatusLabels: Record<QuestionStatus, string> = {
-  draft: 'Bản nháp',
-  review: 'Chờ duyệt',
-  published: 'Đã phát hành',
-  retired: 'Ngừng sử dụng',
-};
+export const questionStatusLabels = QUESTION_STATUS_LABELS;
 
 export const questionStatusTone: Record<QuestionStatus, string> = {
   draft: 'bg-slate-100 text-slate-800',
@@ -54,4 +49,14 @@ export function libraryCourse(library: QuestionLibrary, occupations: Occupation[
 
 export function errorMessage(reason: unknown, fallback: string): string {
   return reason instanceof Error && reason.message ? reason.message : fallback;
+}
+
+export const drawWarning = 'Chỉ câu "Đã phát hành" được bốc vào đề. Nếu ma trận đề của mô-đun cần nhiều câu hơn số còn lại, thí sinh sẽ không vào thi được.';
+export const deleteExplanation = 'Câu đã có trong bài thi của học viên sẽ chuyển sang "Ngừng sử dụng" thay vì bị xóa, để bài cũ vẫn chấm và xem lại được. Câu chưa từng vào bài thi sẽ bị xóa khỏi ngân hàng.';
+
+export function removeResultMessage({ deleted, retired }: { deleted: number; retired: number }): string {
+  const parts: string[] = [];
+  if (deleted > 0) parts.push(`Đã xóa ${deleted} câu.`);
+  if (retired > 0) parts.push(`${retired} câu đã có trong bài thi nên được chuyển sang Ngừng sử dụng.`);
+  return parts.join(' ') || 'Không có câu nào thay đổi.';
 }

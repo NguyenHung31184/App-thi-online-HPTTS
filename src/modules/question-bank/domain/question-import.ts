@@ -5,6 +5,19 @@ import { OPTION_IDS, buildQuestionPayload, emptyDraft, type EssayKey, type Quest
 // Unlike those screens, a cell that cannot be read turns the row into an error instead of a default answer.
 
 export const MAX_IMPORT_ROWS = 1000;
+export const IMPORT_HEADER = ['Nội dung câu hỏi', ...OPTION_IDS.map((id) => `Đáp án ${id}`), 'Đáp án đúng', 'Loại câu hỏi', 'Keys', 'Chủ đề', 'Độ khó', 'Điểm', 'Tên file ảnh'];
+
+/** Type names written in templates and exports; parseQuestionType reads them back. */
+export const IMPORT_TYPE_NAMES: Record<QuestionType, string> = {
+  single_choice: 'Trắc nghiệm',
+  multiple_choice: 'Nhiều đáp án',
+  drag_drop: 'Kéo thả',
+  true_false_multi: 'Đúng/Sai',
+  matching: 'Nối đôi',
+  main_idea: 'Tự luận',
+  video_paragraph: 'Video tự luận',
+};
+const IMPORT_DIFFICULTY_NAMES: Record<string, string> = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' };
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
@@ -258,6 +271,55 @@ function draftFromImportRow(row: ImportRow): DraftResult {
       draft.essayKeys = parseEssayKeys(row.keys);
   }
   return { ok: true, draft };
+}
+
+export interface ExportableQuestion {
+  questionType: string;
+  stem: string;
+  options: unknown;
+  answerKey: string;
+  points: number;
+  topic: string;
+  difficulty: string;
+}
+
+function parsedKey(answerKey: string): unknown {
+  try { return JSON.parse(answerKey); } catch { return null; }
+}
+
+/**
+ * A stored question as the import columns, without the picture column, so an exported file can be
+ * edited and imported again. The video link of a video question has no column and is not exported.
+ */
+export function importCellsFor(question: ExportableQuestion): (string | number)[] {
+  const options = Array.isArray(question.options) ? question.options as { id?: unknown; text?: unknown }[] : [];
+  const optionCells = OPTION_IDS.map((id) => String(options.find((option) => option?.id === id)?.text ?? ''));
+  const key = parsedKey(question.answerKey);
+  const list = Array.isArray(key) ? key : [];
+  let answer = '';
+  let keys = '';
+  switch (question.questionType) {
+    case 'single_choice':
+      answer = question.answerKey;
+      break;
+    case 'multiple_choice':
+    case 'drag_drop':
+      answer = list.map(String).join(';');
+      break;
+    case 'true_false_multi':
+      answer = list.map((value) => (value === 'F' ? 'S' : 'Đ')).join(';');
+      break;
+    case 'matching': {
+      const { right, map } = (key && typeof key === 'object' ? key : {}) as { right?: unknown[]; map?: Record<string, unknown> };
+      keys = (right ?? []).map(String).join(';');
+      answer = Object.entries(map ?? {}).map(([id, position]) => `${id}-${String(position)}`).join(';');
+      break;
+    }
+    default:
+      keys = list.map((item) => `${String((item as EssayKey)?.text ?? '')}|${Number((item as EssayKey)?.points ?? 0)}`).join(';');
+  }
+  const typeName = IMPORT_TYPE_NAMES[question.questionType as QuestionType] ?? question.questionType;
+  return [question.stem, ...optionCells, answer, typeName, keys, question.topic, IMPORT_DIFFICULTY_NAMES[question.difficulty] ?? question.difficulty, question.points];
 }
 
 export function imageKey(fileName: string): string {

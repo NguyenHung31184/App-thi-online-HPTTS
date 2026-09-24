@@ -4,6 +4,19 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-09-24 — Phase C2: một kho câu hỏi (ngân hàng theo mô-đun)
+
+**Commit (chưa push):** `0e2e7de` gộp kho (migration `20260924111343`), `46fca4f` editor, `750902f` nhập Excel/ZIP, bước 3 bỏ màn cũ (commit ngay sau `750902f`)
+**Branch:** main
+
+Mỗi bước có tài liệu rollback riêng trong `docs/rollback/`:
+- `2026-09-24-phase-c2-single-question-store.md` (DB, sửa tiến bằng migration mới, không xóa dữ liệu)
+- `2026-09-24-c2-question-editor.md`, `2026-09-24-c2-excel-zip-import.md`, `2026-09-24-c2-retire-old-question-store.md` (code: `git revert <sha>`)
+
+Câu nhập từ file có `source = 'spreadsheet_import'`; câu xóa là xóa mềm, khôi phục bằng `is_deleted = false`.
+
+---
+
 ## 2026-06-11 — Tính năng Học trực tuyến (E-Learning lát 1)
 
 **Commit:** _(sau khi push)_

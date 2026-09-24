@@ -6,6 +6,7 @@ import type { ImportProgress } from '../application/import-questions';
 import type { QuestionPayload } from '../domain/question-draft';
 import type { SkippedRow } from '../domain/question-import';
 import { useImportTemplate, usePreviewQuestionImport, useRunQuestionImport } from '../queries/use-question-import';
+import { saveFile } from './download';
 import { useLibraryContext } from './library-context';
 import { difficultyLabels, errorMessage, fieldClass, focusRing, questionTypeLabels } from './labels';
 import { BackLink, ErrorState, LoadingState } from './states';
@@ -81,13 +82,7 @@ export default function QuestionSpreadsheetImportPage() {
 
   const downloadTemplate = async (kind: 'spreadsheet' | 'zip') => {
     try {
-      const { fileName, blob } = await template.mutateAsync(kind);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      saveFile(await template.mutateAsync(kind));
     } catch {
       toast.error('Không tạo được file mẫu.');
     }

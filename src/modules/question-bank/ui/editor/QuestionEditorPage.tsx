@@ -3,9 +3,11 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { QUESTION_TYPES, emptyDraft, type QuestionDraft } from '../../domain/question-draft';
 import type { QuestionLibrary, QuestionStatus } from '../../domain/question-library';
+import { useRemoveQuestions } from '../../queries/use-question-actions';
 import { useQuestionDraft, useSaveQuestion } from '../../queries/use-question-editor';
+import { ConfirmDialog } from '../confirm-dialog';
 import { useLibraryContext } from '../library-context';
-import { difficultyLabels, errorMessage, fieldClass, focusRing, questionStatusLabels, questionTypeLabels } from '../labels';
+import { deleteExplanation, difficultyLabels, drawWarning, errorMessage, fieldClass, focusRing, questionStatusLabels, questionTypeLabels, removeResultMessage } from '../labels';
 import { BackLink, ErrorState, LoadingState } from '../states';
 import { ChoiceOptionsField, DragDropField, EssayField, MatchingField, TrueFalseField, type DraftUpdate } from './question-fields';
 
@@ -47,6 +49,8 @@ interface FormProps {
 function QuestionEditorForm({ library, questionId, initialDraft, returnTo }: FormProps) {
   const navigate = useNavigate();
   const save = useSaveQuestion(library.id);
+  const remove = useRemoveQuestions(library.id);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [draft, setDraft] = useState(initialDraft);
   const [initialJson] = useState(() => JSON.stringify(initialDraft));
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -84,6 +88,17 @@ function QuestionEditorForm({ library, questionId, initialDraft, returnTo }: For
     } catch (reason) {
       setFormError(errorMessage(reason, 'Không lưu được câu hỏi.'));
       requestAnimationFrame(() => errorRef.current?.focus());
+    }
+  };
+
+  const deleteQuestion = async () => {
+    if (!questionId) return;
+    try {
+      toast.success(removeResultMessage(await remove.mutateAsync([questionId])));
+      navigate(returnTo);
+    } catch (reason) {
+      setConfirmingDelete(false);
+      toast.error(errorMessage(reason, 'Không xóa được câu hỏi.'));
     }
   };
 
@@ -186,8 +201,26 @@ function QuestionEditorForm({ library, questionId, initialDraft, returnTo }: For
           <button type="button" onClick={leave} className={`min-h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 ${focusRing}`}>
             Hủy
           </button>
+          {!isNew && (
+            <button type="button" onClick={() => setConfirmingDelete(true)} className={`min-h-11 rounded-lg border border-rose-300 bg-white px-4 text-sm font-medium text-rose-800 hover:bg-rose-50 sm:ml-auto ${focusRing}`}>
+              Xóa câu hỏi
+            </button>
+          )}
         </div>
       </form>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Xóa câu hỏi này?"
+        confirmLabel="Xóa"
+        tone="danger"
+        pending={remove.isPending}
+        onConfirm={() => void deleteQuestion()}
+        onCancel={() => setConfirmingDelete(false)}
+      >
+        <p>{deleteExplanation}</p>
+        <p>{drawWarning}</p>
+      </ConfirmDialog>
     </div>
   );
 }

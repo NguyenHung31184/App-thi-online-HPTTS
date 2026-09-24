@@ -1,7 +1,15 @@
 import type { QuestionType } from '../../../types';
+import { validateQuestion, type QuestionIssue } from '../../../utils/questionValidation';
 
 export type CognitiveLevel = 'recognition' | 'comprehension' | 'application';
 export type QuestionStatus = 'draft' | 'review' | 'published' | 'retired';
+
+export const QUESTION_STATUS_LABELS: Record<QuestionStatus, string> = {
+  draft: 'Bản nháp',
+  review: 'Chờ duyệt',
+  published: 'Đã phát hành',
+  retired: 'Ngừng sử dụng',
+};
 export type ImportJobStatus = 'queued' | 'processing' | 'review_required' | 'failed' | 'completed';
 export type ImportSourceKind = 'xlsx' | 'csv' | 'zip' | 'docx' | 'pdf' | 'image';
 
@@ -70,6 +78,19 @@ export interface LibraryQuestionFilter {
   status: QuestionStatus | '' | 'all';
   taxonomyNodeId: string;
   text: string;
+  /** '' = every type; 'broken' = questions the exam screen cannot show (see questionIssues). */
+  type?: QuestionType | '' | 'broken';
+}
+
+/** Problems that stop a student from answering the question, as the exam screen checks them. */
+export function questionIssues(question: LibraryQuestion): QuestionIssue[] {
+  return validateQuestion({
+    question_type: question.questionType,
+    stem: question.stem,
+    options: question.options,
+    answer_key: question.answerKey,
+    points: question.points,
+  }).issues;
 }
 
 /** Collects a node and every node below it, so filtering by a topic also matches questions tagged to its outcomes. */
@@ -100,6 +121,8 @@ export function filterLibraryQuestions(
     if (filter.status !== '' && filter.status !== 'all' && question.status !== filter.status) return false;
     if (nodeIds && (!question.taxonomyNodeId || !nodeIds.has(question.taxonomyNodeId))) return false;
     if (text && !`${question.stem} ${question.topic}`.toLocaleLowerCase('vi').includes(text)) return false;
+    if (filter.type === 'broken') return questionIssues(question).length > 0;
+    if (filter.type && question.questionType !== filter.type) return false;
     return true;
   });
 }

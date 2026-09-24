@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { addQuestionLibrary, addTaxonomyNode, getImportDrafts, getQuestionLibraries, getQuestionLibraryWorkspace, stageQuestionImport } from '../application/manage-question-library';
+import {
+  addQuestionLibrary,
+  addTaxonomyNode,
+  getImportDrafts,
+  getModuleOptions,
+  getOccupationOptions,
+  getQuestionLibraries,
+  getQuestionLibraryWorkspace,
+  stageQuestionImport,
+} from '../application/manage-question-library';
 import { questionBankKeys } from './keys';
 
 export function useQuestionLibraries() {
@@ -36,4 +45,17 @@ export function useStageQuestionImport(libraryId: string) {
 
 export function useQuestionImportDrafts(jobId: string) {
   return useQuery({ queryKey: questionBankKeys.drafts(jobId), queryFn: () => getImportDrafts(jobId), enabled: Boolean(jobId) });
+}
+
+export function useOccupationOptions() {
+  return useQuery({ queryKey: questionBankKeys.occupations(), queryFn: getOccupationOptions, staleTime: 5 * 60_000 });
+}
+
+export function useModuleOptions(occupationId: string) {
+  return useQuery({
+    queryKey: questionBankKeys.modules(occupationId),
+    queryFn: () => getModuleOptions(occupationId),
+    enabled: Boolean(occupationId),
+    staleTime: 5 * 60_000,
+  });
 }

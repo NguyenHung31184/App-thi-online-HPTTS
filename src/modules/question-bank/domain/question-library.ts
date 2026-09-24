@@ -64,3 +64,46 @@ export interface QuestionImportDraft {
   validationIssues: string[];
   status: 'pending' | 'accepted' | 'rejected' | 'imported';
 }
+
+export interface LibraryQuestionFilter {
+  status: QuestionStatus | '';
+  taxonomyNodeId: string;
+  text: string;
+}
+
+/** Collects a node and every node below it, so filtering by a topic also matches questions tagged to its outcomes. */
+export function taxonomySubtreeIds(nodes: TaxonomyNode[], rootId: string): Set<string> {
+  const ids = new Set<string>([rootId]);
+  let added = true;
+  while (added) {
+    added = false;
+    for (const node of nodes) {
+      if (node.parentId && ids.has(node.parentId) && !ids.has(node.id)) {
+        ids.add(node.id);
+        added = true;
+      }
+    }
+  }
+  return ids;
+}
+
+export function filterLibraryQuestions(
+  questions: LibraryQuestion[],
+  nodes: TaxonomyNode[],
+  filter: LibraryQuestionFilter,
+): LibraryQuestion[] {
+  const nodeIds = filter.taxonomyNodeId ? taxonomySubtreeIds(nodes, filter.taxonomyNodeId) : null;
+  const text = filter.text.trim().toLocaleLowerCase('vi');
+  return questions.filter((question) => {
+    if (filter.status && question.status !== filter.status) return false;
+    if (nodeIds && (!question.taxonomyNodeId || !nodeIds.has(question.taxonomyNodeId))) return false;
+    if (text && !`${question.stem} ${question.topic}`.toLocaleLowerCase('vi').includes(text)) return false;
+    return true;
+  });
+}
+
+export function countQuestionsByStatus(questions: LibraryQuestion[]): Record<QuestionStatus, number> {
+  const counts: Record<QuestionStatus, number> = { draft: 0, review: 0, published: 0, retired: 0 };
+  for (const question of questions) counts[question.status] += 1;
+  return counts;
+}

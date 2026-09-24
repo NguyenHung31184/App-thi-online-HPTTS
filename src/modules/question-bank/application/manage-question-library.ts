@@ -1,3 +1,4 @@
+import type { ModuleItem, Occupation } from '../../../types';
 import type { ImportSourceKind, QuestionLibrary, TaxonomyNode } from '../domain/question-library';
 import {
   createImportJob,
@@ -9,6 +10,8 @@ import {
   listQuestionLibraries,
   listTaxonomyNodes,
   requestImportProcessing,
+  listQuestionLibraryModules,
+  listQuestionLibraryOccupations,
 } from '../data/question-library-repository';
 
 export async function getQuestionLibraries(): Promise<QuestionLibrary[]> {
@@ -60,4 +63,12 @@ export async function stageQuestionImport(input: {
 
 export async function getImportDrafts(jobId: string) {
   return listImportDrafts(jobId);
+}
+
+export async function getOccupationOptions(): Promise<Occupation[]> {
+  return listQuestionLibraryOccupations();
+}
+
+export async function getModuleOptions(occupationId: string): Promise<ModuleItem[]> {
+  return listQuestionLibraryModules(occupationId);
 }

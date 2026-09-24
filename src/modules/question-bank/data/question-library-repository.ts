@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient';
+import type { ModuleItem, Occupation } from '../../../types';
 import type {
   ImportSourceKind,
   LibraryQuestion,
@@ -9,6 +10,48 @@ import type {
 } from '../domain/question-library';
 
 type Row = Record<string, unknown>;
+
+export async function listQuestionLibraryOccupations(): Promise<Occupation[]> {
+  const { data, error } = await supabase
+    .from('courses')
+    .select('id, name, code')
+    .order('name');
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const value = row as Row;
+    return {
+      id: string(value.id),
+      name: string(value.name),
+      code: nullableString(value.code) ?? undefined,
+    };
+  });
+}
+
+export async function listQuestionLibraryModules(occupationId: string): Promise<ModuleItem[]> {
+  const { data, error } = await supabase
+    .from('course_modules')
+    .select('modules(id, name, code, is_deleted)')
+    .eq('course_id', occupationId);
+  if (error) throw error;
+
+  const modules = new Map<string, ModuleItem>();
+  for (const row of data ?? []) {
+    const related = (row as Row).modules;
+    const values = Array.isArray(related) ? related : related && typeof related === 'object' ? [related] : [];
+    for (const item of values) {
+      const module = item as Row;
+      if (module.is_deleted === true) continue;
+      const id = string(module.id);
+      if (!id) continue;
+      modules.set(id, {
+        id,
+        name: string(module.name),
+        code: nullableString(module.code) ?? undefined,
+      });
+    }
+  }
+  return [...modules.values()];
+}
 
 function string(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -75,7 +118,7 @@ export async function createQuestionLibrary(input: {
     })
     .select('id, occupation_id, module_id, name, description, status, created_at')
     .single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return libraryFromRow(data as Row);
 }
 

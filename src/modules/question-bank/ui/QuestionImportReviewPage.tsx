@@ -1,45 +1,65 @@
-﻿import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useQuestionImportDrafts } from '../queries/use-question-library';
+import type { QuestionImportDraft } from '../domain/question-library';
+import { errorMessage } from './labels';
+import { BackLink, EmptyState, ErrorState, LoadingState } from './states';
+
+const draftStatusLabels: Record<QuestionImportDraft['status'], string> = {
+  pending: 'Chờ rà soát',
+  accepted: 'Đã chấp nhận',
+  rejected: 'Đã loại',
+  imported: 'Đã đưa vào ngân hàng',
+};
 
 export default function QuestionImportReviewPage() {
-  const { jobId = '' } = useParams();
-  const { data: drafts = [], isLoading, error } = useQuestionImportDrafts(jobId);
-
-  if (isLoading) return <p className="text-slate-600">Dang tai ban nhap...</p>;
-  if (error) return <p className="text-red-700">{error instanceof Error ? error.message : 'Khong the tai ban nhap.'}</p>;
+  const { jobId = '', libraryId } = useParams();
+  const { data: drafts = [], isLoading, error, refetch } = useQuestionImportDrafts(jobId);
+  const Heading = libraryId ? 'h2' : 'h1';
+  // Reached either inside a library (nested route) or through the pre-Phase C URL that has no library id.
+  const backTo = libraryId ? `/admin/question-libraries/${libraryId}/imports` : '/admin/question-libraries';
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm text-slate-500">Nhap tai lieu</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Ra soat cau hoi nhap</h1>
-          <p className="mt-1 text-sm text-slate-600">Ket qua tu tai lieu chua duoc dua vao de thi. Hoan thien dap an va noi dung truoc khi phat hanh.</p>
+          <Heading className="text-xl font-semibold tracking-tight text-slate-900">Bản nháp tách từ tài liệu</Heading>
+          <p className="mt-1 max-w-3xl text-sm text-slate-600">Màn này chỉ để xem kết quả tách. Chưa có chức năng sửa, chấp nhận hay đưa bản nháp vào ngân hàng, nên không câu nào dưới đây có trong đề thi.</p>
         </div>
-        <Link to="/admin/question-libraries" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Quay lai ngan hang</Link>
+        <BackLink to={backTo}>{libraryId ? 'Về phiếu nhập' : 'Về danh sách ngân hàng'}</BackLink>
       </header>
 
-      {drafts.length === 0 ? (
-        <section className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-          <h2 className="font-semibold text-slate-800">Chua co ban nhap de ra soat</h2>
-          <p className="mt-2 text-sm text-slate-600">Worker co the dang xu ly, hoac tai lieu khong tach duoc cau hoi.</p>
-        </section>
-      ) : (
+      {isLoading && <LoadingState>Đang tải bản nháp…</LoadingState>}
+      {error && <ErrorState title="Không tải được bản nháp" detail={errorMessage(error, 'Kiểm tra kết nối mạng.')} onRetry={() => void refetch()} />}
+      {!isLoading && !error && drafts.length === 0 && (
+        <EmptyState title="Chưa có bản nháp">
+          <p>Worker có thể vẫn đang xử lý, hoặc không tách được câu hỏi nào từ tài liệu này.</p>
+        </EmptyState>
+      )}
+
+      {drafts.length > 0 && (
         <ol className="space-y-4">
           {drafts.map((draft) => (
-            <li key={draft.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <li key={draft.id} className="rounded-xl border border-slate-200 bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <h2 className="font-semibold text-slate-900">Cau {draft.sequenceNumber}</h2>
-                <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900">Can ra soat: {draft.status}</span>
+                <h3 className="font-semibold text-slate-900">
+                  Câu {draft.sequenceNumber}
+                  {draft.sourcePage != null && <span className="ml-2 text-sm font-normal text-slate-600">trang {draft.sourcePage}</span>}
+                </h3>
+                <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900">{draftStatusLabels[draft.status]}</span>
               </div>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-800">{draft.payload.stem || 'Khong nhan dien duoc noi dung cau hoi.'}</p>
+              <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">{draft.payload.stem || 'Không nhận diện được nội dung câu hỏi.'}</p>
               {Array.isArray(draft.payload.options) && draft.payload.options.length > 0 && (
                 <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                  {draft.payload.options.map((option) => <li key={option.id} className="rounded-lg bg-slate-50 px-3 py-2"><strong>{option.id}.</strong> {option.text}</li>)}
+                  {draft.payload.options.map((option) => <li key={option.id} className="rounded-lg bg-slate-50 px-3 py-2 break-words"><strong>{option.id}.</strong> {option.text}</li>)}
                 </ul>
               )}
-              {draft.validationIssues.length > 0 && <p className="mt-3 text-sm text-amber-900">Can kiem tra: {draft.validationIssues.join(' ')}</p>}
-              {draft.imagePaths.length > 0 && <p className="mt-2 text-sm text-slate-600">Da tach {draft.imagePaths.length} hinh; can gan dung hinh vao cau hoi khi bien tap.</p>}
+              {draft.validationIssues.length > 0 && (
+                <div className="mt-3 text-sm text-amber-900">
+                  <p className="font-medium">Cần kiểm tra:</p>
+                  <ul className="mt-1 list-disc pl-5">{draft.validationIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul>
+                </div>
+              )}
+              {draft.imagePaths.length > 0 && <p className="mt-2 text-sm text-slate-600">Đã tách {draft.imagePaths.length} hình. Cần gắn đúng hình vào câu hỏi khi biên tập.</p>}
             </li>
           ))}
         </ol>

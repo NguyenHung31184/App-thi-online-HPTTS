@@ -3,4 +3,6 @@ export const questionBankKeys = {
   libraries: () => [...questionBankKeys.all, 'libraries'] as const,
   workspace: (libraryId: string) => [...questionBankKeys.all, 'workspace', libraryId] as const,
   drafts: (jobId: string) => [...questionBankKeys.all, 'drafts', jobId] as const,
+  occupations: () => [...questionBankKeys.all, 'occupations'] as const,
+  modules: (occupationId: string) => [...questionBankKeys.all, 'modules', occupationId] as const,
 };

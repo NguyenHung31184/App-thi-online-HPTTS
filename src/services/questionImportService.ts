@@ -75,7 +75,7 @@ function normalizeDifficulty(d: string): string {
 
 /** Chuẩn hóa giá trị cột "Loại câu hỏi" sang question_type hợp lệ, hoặc '' nếu không nhận dạng được. */
 function normalizeQuestionType(raw: string): string {
-  const s = raw.trim().toLowerCase().replace(/[\s_\-]/g, '');
+  const s = raw.trim().toLowerCase().replace(/[\s_-]/g, '');
   if (['dragdrop','kéothả','keothả','sapxep','sắpxếp','thutu','thứtự','order','ordering'].some((k) => s.includes(k))) return 'drag_drop';
   if (['multiplechoice','nhieudapan','nhiềuđápán','multiple','checkbox','nhieu'].some((k) => s.includes(k))) return 'multiple_choice';
   if (['mainidea','tuluan','tựluận','essay','tluận'].some((k) => s.includes(k))) return 'main_idea';

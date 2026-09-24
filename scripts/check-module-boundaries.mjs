@@ -3,6 +3,8 @@ import { resolve, relative, sep } from 'node:path';
 
 const sourceRoot = resolve('src');
 const modulesRoot = resolve(sourceRoot, 'modules');
+const servicesRoot = resolve(sourceRoot, 'services');
+const supabaseClient = resolve(sourceRoot, 'lib', 'supabaseClient');
 const sourceFiles = [];
 
 async function collect(directory) {
@@ -24,9 +26,16 @@ for (const file of sourceFiles) {
   const contents = await readFile(file, 'utf8');
   const imports = [...contents.matchAll(/(?:from\s*|import\s*)['"]([^'"]+)['"]/g)].map((match) => match[1]);
   const currentModule = file.startsWith(`${modulesRoot}${sep}`) ? moduleName(file) : null;
+  const moduleLayer = currentModule ? relative(resolve(modulesRoot, currentModule), file).split(sep)[0] : null;
   for (const specifier of imports) {
     if (!specifier.startsWith('.')) continue;
-    const target = resolve(file, '..', specifier);
+    const target = resolve(file, '..', specifier).replace(/\.(ts|tsx)$/, '');
+    if (currentModule && target.startsWith(`${servicesRoot}${sep}`)) {
+      violations.push(`${relative(sourceRoot, file)} imports ${specifier}; modules must not depend on legacy services.`);
+    }
+    if (currentModule && target === supabaseClient && moduleLayer !== 'data') {
+      violations.push(`${relative(sourceRoot, file)} imports ${specifier}; only a module data adapter may import the Supabase client.`);
+    }
     if (!target.startsWith(`${modulesRoot}${sep}`)) continue;
     const targetModule = moduleName(target);
     if (targetModule === currentModule) continue;

@@ -39,7 +39,14 @@ import StudentExamsPage from './pages/StudentExamsPage';
 import StudentResultsPage from './pages/StudentResultsPage';
 import StudentLearnPage from './pages/StudentLearnPage';
 import LessonPlayerPage from './pages/LessonPlayerPage';
-import { QuestionImportReviewPage, QuestionLibraryDashboardPage } from './modules/question-bank/public';
+import {
+  QuestionImportReviewPage,
+  QuestionLibraryImportsPage,
+  QuestionLibraryLayout,
+  QuestionLibraryListPage,
+  QuestionLibraryQuestionsPage,
+  QuestionLibraryStructurePage,
+} from './modules/question-bank/public';
 
 function App() {
   return (
@@ -57,8 +64,14 @@ function App() {
             <Route path="exams" element={<AdminExamsPage />} />
             <Route path="exams/new" element={<AdminExamFormPage />} />
             <Route path="questions" element={<AdminQuestionHomePage />} />
-            <Route path="question-libraries" element={<QuestionLibraryDashboardPage />} />
+            <Route path="question-libraries" element={<QuestionLibraryListPage />} />
             <Route path="question-libraries/imports/:jobId" element={<QuestionImportReviewPage />} />
+            <Route path="question-libraries/:libraryId" element={<QuestionLibraryLayout />}>
+              <Route index element={<QuestionLibraryStructurePage />} />
+              <Route path="questions" element={<QuestionLibraryQuestionsPage />} />
+              <Route path="imports" element={<QuestionLibraryImportsPage />} />
+              <Route path="imports/:jobId" element={<QuestionImportReviewPage />} />
+            </Route>
             <Route path="questions/occupation/:occupationId" element={<AdminOccupationQuestionsPage />} />
             <Route path="questions/occupation/:occupationId/new" element={<AdminQuestionBankFormPage />} />
             <Route path="questions/occupation/:occupationId/import" element={<AdminQuestionBankImportPage />} />

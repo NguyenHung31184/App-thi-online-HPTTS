@@ -61,6 +61,25 @@ Local work set aside so it does not conflict with the active sequence. Each item
 - Decision 2026-09-24: exclude repeats by content (stem + options). Fix applied to production 2026-09-24 (migration `20260924094701`): `docs/implementation/2026-09-24-draw-exclude-duplicate-content.md`. New attempts no longer repeat a question; past attempts are unchanged.
 - Past attempts: read-only report prepared, scores unchanged. 203 completed attempts; counting each repeated question once would flip 1 pass to fail and 2 fails to pass. The report names students, so it is kept outside Git at `D:\Data\App-thi-online-HPTTS-bao-cao\2026-09-24-QTHH-AT-cau-lap.xlsx`. Whether to change any score is still open.
 
+### Exam app roles leak from Sổ chuyên cần (found 2026-09-24, security; not fixed)
+
+- Exam RLS (`question_bank`, `question_libraries`, `attempts`, …) checks `get_my_role() IN ('admin','teacher')`. `get_my_role()` returns `profiles.satellite_role` when it is `teacher` or `admin` (changed by Sổ chuyên cần migration `20260524150000_fix_get_my_role_satellite`), and `satellite_role` is the Sổ chuyên cần role.
+- Effect on 2026-09-24: 16 instructors with `satellite_role='teacher'` and 1 with `satellite_role='admin'` have teacher or admin rights on exam tables through the API, including writing `attempts` and `question_bank`. The operator has not given anyone an exam app account; the operator is the only exam admin.
+- The UI also promotes a user to teacher when `instructors.email` matches the login email and the specialization contains "lý thuyết" (`AuthContext.maybeUpgradeToTeacherByInstructor`): 2 instructors match today, and with the open route guard below they can open every admin page.
+- C2 acceptance drops the teacher click-through: there are no intended teacher accounts.
+- Accounts for Sổ chuyên cần and the exam app are issued only from the main app (operator, 2026-09-24).
+
+### `recompute_attempt_score` lets an anonymous caller through (found 2026-09-24, low; not fixed)
+
+- The function checks `IF get_my_role() NOT IN ('admin', 'teacher')`. Without a session `get_my_role()` is NULL, the comparison is NULL and the check passes, so an anonymous caller can recompute a score. It only recomputes from stored auto and essay scores, so no score can be set to an arbitrary value. Fix with `coalesce(get_my_role(), '')` or by revoking `anon` when exam roles are split from Sổ chuyên cần.
+- Related, fixed 2026-09-24 in the shared database (main app migration `20260924155908_emergency_revoke_anon_rpc`): 21 `SECURITY DEFINER` functions of the main app and Sổ chuyên cần (hard delete of students, tuition receipts, `create_satellite_user`, …) were callable without a session; anonymous execute is revoked.
+
+### Login email domains are not controlled by the center (found 2026-09-24; not fixed)
+
+- Generated logins: students `<mã HV>@hptts.vn` (186), instructors `<sđt>@hptts.com` (17); staff use real addresses (4, plus 3 users without a profile).
+- Public DNS on 2026-09-24: `hptts.vn` does not exist (unregistered); `hptts.com` exists on unrelated name servers (`klczy.com`) with a placeholder MX. Whoever registers or holds these domains could receive password-reset mail for those accounts if the project's mail settings send it.
+- Profiles do not match the account type: 107 of the 186 exam accounts carry `account_kind='staff'`, 108 carry `role='academic_affairs'`. The main app repo's account analysis (`QuanltTTDT-HPTTS/docs/GHI_CHU.md`, 2026-09-24) covers creation paths, default password `123456` and the remaining RLS phase 2.
+
 ### Teacher route guard allows every admin URL (found 2026-09-24)
 
 - `src/pages/admin/AdminLayout.tsx` lists `'/admin'` in `teacherAllowedPrefixes` and matches with `startsWith(prefix + '/')`, so the check passes for every `/admin/...` path.

@@ -9,7 +9,7 @@ const statuses: QuestionStatus[] = ['published', 'review', 'draft', 'retired'];
 const fieldClass = `min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm ${focusRing}`;
 
 export default function QuestionLibraryQuestionsPage() {
-  const { library, workspace, workspaceLoading, workspaceError, refetchWorkspace } = useLibraryContext();
+  const { workspace, workspaceLoading, workspaceError, refetchWorkspace } = useLibraryContext();
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const rawStatus = params.get('status') ?? '';
@@ -33,10 +33,6 @@ export default function QuestionLibraryQuestionsPage() {
   };
 
   const hasFilter = Boolean(status || taxonomyNodeId || text);
-  // Excel/ZIP import still runs on the legacy screen until C2 step 2 slice 2; it needs a course, which a shared library lacks.
-  const legacyImportUrl = library.occupationId
-    ? `/admin/questions/occupation/${library.occupationId}/import${library.moduleId ? `?moduleId=${encodeURIComponent(library.moduleId)}` : ''}`
-    : null;
 
   return (
     <div className="space-y-4">
@@ -68,9 +64,7 @@ export default function QuestionLibraryQuestionsPage() {
           )}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          {legacyImportUrl && (
-            <Link to={legacyImportUrl} className={`inline-flex min-h-11 items-center rounded px-1 font-medium text-indigo-700 hover:text-indigo-900 ${focusRing}`}>Nhập Excel/ZIP (màn cũ)</Link>
-          )}
+          <Link to="import" className={`inline-flex min-h-11 items-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 hover:bg-slate-50 ${focusRing}`}>Nhập từ Excel/ZIP</Link>
           <Link to="new" state={returnState} className={`inline-flex min-h-11 items-center rounded-lg bg-indigo-700 px-4 font-semibold text-white hover:bg-indigo-800 ${focusRing}`}>Thêm câu hỏi</Link>
         </div>
       </div>
@@ -79,7 +73,7 @@ export default function QuestionLibraryQuestionsPage() {
       {workspaceError != null && <ErrorState title="Không tải được câu hỏi" detail={errorMessage(workspaceError, 'Kiểm tra kết nối mạng.')} onRetry={refetchWorkspace} />}
       {workspace && questions.length === 0 && (
         <EmptyState title="Ngân hàng chưa có câu hỏi">
-          <p>Bấm "Thêm câu hỏi" để soạn câu đầu tiên. Câu nhập từ Excel/ZIP cũng tự vào ngân hàng này.</p>
+          <p>Bấm "Thêm câu hỏi" để soạn từng câu, hoặc "Nhập từ Excel/ZIP" để nhập nhiều câu một lần.</p>
         </EmptyState>
       )}
       {workspace && questions.length > 0 && visible.length === 0 && (

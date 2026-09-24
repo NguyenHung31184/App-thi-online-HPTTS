@@ -47,6 +47,7 @@ import {
   QuestionLibraryListPage,
   QuestionLibraryQuestionsPage,
   QuestionLibraryStructurePage,
+  QuestionSpreadsheetImportPage,
 } from './modules/question-bank/public';
 
 function App() {
@@ -71,6 +72,7 @@ function App() {
               <Route index element={<QuestionLibraryStructurePage />} />
               <Route path="questions" element={<QuestionLibraryQuestionsPage />} />
               <Route path="questions/new" element={<QuestionEditorPage />} />
+              <Route path="questions/import" element={<QuestionSpreadsheetImportPage />} />
               <Route path="questions/:questionId" element={<QuestionEditorPage />} />
               <Route path="imports" element={<QuestionLibraryImportsPage />} />
               <Route path="imports/:jobId" element={<QuestionImportReviewPage />} />

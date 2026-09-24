@@ -24,4 +24,5 @@ export { default as QuestionLibraryStructurePage } from './ui/QuestionLibraryStr
 export { default as QuestionLibraryQuestionsPage } from './ui/QuestionLibraryQuestionsPage';
 export { default as QuestionLibraryImportsPage } from './ui/QuestionLibraryImportsPage';
 export { default as QuestionEditorPage } from './ui/editor/QuestionEditorPage';
+export { default as QuestionSpreadsheetImportPage } from './ui/QuestionSpreadsheetImportPage';
 export { default as QuestionImportReviewPage } from './ui/QuestionImportReviewPage';

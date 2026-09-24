@@ -46,10 +46,46 @@ export async function getQuestion(id: string): Promise<EditableQuestion | null> 
   return data ? questionFromRow(data as Row) : null;
 }
 
-export async function insertQuestion(input: QuestionPayload & { image_url: string | null; library_id: string; module_id: string | null; occupation_id: string }): Promise<string> {
+export type NewQuestionRow = QuestionPayload & {
+  image_url: string | null;
+  library_id: string;
+  module_id: string | null;
+  occupation_id: string;
+  source?: string;
+  created_by?: string | null;
+};
+
+export async function insertQuestion(input: NewQuestionRow): Promise<string> {
   const { data, error } = await supabase.from('question_bank').insert(input).select('id').single();
   if (error) throw new Error(error.message);
   return String((data as Row).id);
+}
+
+/** One request, so either every row is stored or none is. Returns the number of rows stored. */
+export async function insertQuestions(rows: NewQuestionRow[]): Promise<number> {
+  const { data, error } = await supabase.from('question_bank').insert(rows).select('id');
+  if (error) throw new Error(error.message);
+  return (data ?? []).length;
+}
+
+const PAGE_SIZE = 1000;
+
+/** Stem and options of every live question in the library, paged past the API's 1000-row cap. */
+export async function listLibraryQuestionContent(libraryId: string): Promise<{ stem: string; options: unknown }[]> {
+  const result: { stem: string; options: unknown }[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('question_bank')
+      .select('stem, options')
+      .eq('library_id', libraryId)
+      .eq('is_deleted', false)
+      .order('id')
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as Row[];
+    for (const row of page) result.push({ stem: typeof row.stem === 'string' ? row.stem : '', options: row.options });
+    if (page.length < PAGE_SIZE) return result;
+  }
 }
 
 export async function updateQuestion(id: string, input: QuestionPayload & { image_url: string | null }): Promise<void> {
@@ -61,9 +97,10 @@ export async function updateQuestion(id: string, input: QuestionPayload & { imag
   if (error) throw new Error(error.message);
 }
 
-export async function uploadQuestionImage(file: File, libraryId: string, questionId: string | null): Promise<string> {
+/** `nameHint` starts the stored file name, e.g. the question id or "import-3". */
+export async function uploadQuestionImage(file: File, libraryId: string, nameHint: string): Promise<string> {
   const extension = file.name.split('.').pop() || 'jpg';
-  const path = `question-bank/${libraryId}/${questionId ?? 'new'}-${Date.now()}.${extension}`;
+  const path = `question-bank/${libraryId}/${nameHint}-${Date.now()}.${extension}`;
   const { data, error } = await supabase.storage.from(QUESTION_BUCKET).upload(path, file, { cacheControl: '3600', upsert: false });
   if (error) throw new Error(error.message);
   return supabase.storage.from(QUESTION_BUCKET).getPublicUrl(data.path).data.publicUrl;

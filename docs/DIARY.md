@@ -23,6 +23,8 @@
 
 - 2026-09-24: C2 bước 2 lát 1, editor soạn câu trong module ngân hàng (7 kiểu câu). Không chép 3 hành vi của form cũ vốn làm đổi câu khi chỉ mở rồi lưu (ép kéo thả 4 ô, chia lại điểm ý tự luận khi mở, ghi vị trí ô cho mọi câu 4 nhãn). Mở rồi lưu 6 câu thật trên Edge: md5 nội dung không đổi.
 
+- 2026-09-24: C2 bước 2 lát 2, nhập Excel/CSV/ZIP ngay trong ngân hàng (`/admin/question-libraries/<id>/questions/import`), dùng được cho cả ngân hàng dùng chung QTHH-AT. Mỗi dòng đi qua đúng hàm dựng câu của editor. Dòng đọc không được thì báo lỗi kèm số dòng thay vì tự điền đáp án mặc định như bộ nhập cũ. Dòng trùng (theo khóa của hàm bốc đề) bị bỏ qua. Ảnh tải lên trước, câu lưu trong một lần ghi: hoặc đủ cả, hoặc không câu nào. Sửa lỗi cũ: CSV UTF-8 không có BOM bị mất dấu tiếng Việt; "Đ;S" bị đọc thành toàn Sai. Thử trên Edge với 6 câu `[TEST]` ở trạng thái nháp, kiểm tra DB, rồi xóa mềm.
+
 ### Vấn đề gặp
 - `node_modules` trên máy thiếu `@tanstack/react-query` sau khi pull; đã `npm install` (lockfile giữ nguyên).
 - Chưa click thử khi đăng nhập admin và giáo viên.

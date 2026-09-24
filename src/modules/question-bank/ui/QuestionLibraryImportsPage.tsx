@@ -52,7 +52,11 @@ export default function QuestionLibraryImportsPage() {
     <div className="grid gap-6 lg:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.5fr)]">
       <section aria-labelledby="upload-heading" className="h-fit rounded-xl border border-slate-200 bg-white p-4">
         <h2 id="upload-heading" className="font-semibold text-slate-900">Tải tài liệu lên</h2>
-        <p className="mt-1 text-sm text-slate-600">DOCX, PDF và ảnh được worker tách thành câu hỏi nháp để xem lại. Bản nháp không tự vào ngân hàng hay đề thi. File Excel/ZIP vẫn nhập ở kho câu hỏi cũ.</p>
+        <p className="mt-1 text-sm text-slate-600">DOCX, PDF và ảnh được worker tách thành câu hỏi nháp để xem lại. Bản nháp không tự vào ngân hàng hay đề thi.</p>
+        <p className="mt-2 text-sm text-slate-600">
+          Có sẵn file Excel hoặc ZIP?{' '}
+          <Link to="../questions/import" relative="path" className={`inline-flex min-h-11 items-center rounded font-medium text-indigo-700 hover:text-indigo-900 ${focusRing}`}>Nhập từ Excel/ZIP</Link>
+        </p>
         {!documentImportEnabled && (
           <p role="status" className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Môi trường này chưa bật worker tách tài liệu, nên chưa tạo được phiếu nhập.</p>
         )}

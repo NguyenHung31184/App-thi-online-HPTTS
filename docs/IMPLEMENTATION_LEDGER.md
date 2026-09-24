@@ -50,6 +50,15 @@ Local work set aside so it does not conflict with the active sequence. Each item
 
 ## Open issues
 
+### Shared module draws the same question more than once (found 2026-09-24, exam integrity; draw fixed, past scores open)
+
+- Module `m07` (QTHH-AT) is used by four courses. `question_bank` holds 600 active rows for it, but only 150 distinct stems: each course has its own copy of the same 150 questions.
+- `start_exam_attempt` draws by `module_id` only and excludes repeats by `id`, not by content. A draw for an `m07` exam therefore picks from 600 rows that are four copies of 150 questions.
+- Production check on 2026-09-24: 326 of 326 attempts on the three `m07` exams contain at least one repeated question; the worst has 13 repeats in 50 questions. Affected attempts started between about 2026-05-28 and 2026-09-11.
+- Other modules belong to a single course. Inside them a few stems repeat (HH-GN 1, KT-GN 1, NLĐK-CO 4, NLĐK-QC 3); these may be real duplicates or questions that share wording but differ in image or options, not yet reviewed.
+- Decision 2026-09-24: exclude repeats by content (stem + options). Fix applied to production 2026-09-24 (migration `20260924094701`): `docs/implementation/2026-09-24-draw-exclude-duplicate-content.md`. New attempts no longer repeat a question; past attempts are unchanged.
+- Past attempts: read-only report prepared, scores unchanged. 203 completed attempts; counting each repeated question once would flip 1 pass to fail and 2 fails to pass. The report names students, so it is kept outside Git at `D:\Data\App-thi-online-HPTTS-bao-cao\2026-09-24-QTHH-AT-cau-lap.xlsx`. Whether to change any score is still open.
+
 ### Teacher route guard allows every admin URL (found 2026-09-24)
 
 - `src/pages/admin/AdminLayout.tsx` lists `'/admin'` in `teacherAllowedPrefixes` and matches with `startsWith(prefix + '/')`, so the check passes for every `/admin/...` path.

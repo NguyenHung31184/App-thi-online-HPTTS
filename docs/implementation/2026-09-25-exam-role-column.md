@@ -34,6 +34,10 @@ This repo:
 
 Until this code is live, the database already denies exam data to instructors. Two instructors whose email and specialization match the old promotion rule still see the teacher menu, with empty pages.
 
+## Local check (2026-09-25)
+
+This code ran on `localhost:5173` against the production database, read-only, in Edge with the operator's existing session: the role shows Admin (from `exam_role`); Dashboard, the question library list (all 7 libraries) and Kỳ thi load with data; no console errors and no Supabase response of 400 or above.
+
 ## After deploy
 
 1. Sign in with the operator account: admin menu, question library, windows and results load.

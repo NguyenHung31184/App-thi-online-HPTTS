@@ -69,12 +69,17 @@ Local work set aside so it does not conflict with the active sequence. Each item
 - C2 acceptance drops the teacher click-through: there are no intended teacher accounts.
 - Accounts for Sổ chuyên cần and the exam app are issued only from the main app (operator, 2026-09-24).
 
-### `recompute_attempt_score` lets an anonymous caller through (found 2026-09-24, low; not fixed)
+### `recompute_attempt_score` lets an anonymous caller through (found 2026-09-24; fixed 2026-09-25)
 
-- The function checks `IF get_my_role() NOT IN ('admin', 'teacher')`. Without a session `get_my_role()` is NULL, the comparison is NULL and the check passes, so an anonymous caller can recompute a score. It only recomputes from stored auto and essay scores, so no score can be set to an arbitrary value. Fix with `coalesce(get_my_role(), '')` or by revoking `anon` when exam roles are split from Sổ chuyên cần.
+- The function checks `IF get_my_role() NOT IN ('admin', 'teacher')`. Without a session `get_my_role()` is NULL, the comparison is NULL and the check passes, so an anonymous caller can recompute a score.
+- Correction 2026-09-25: the risk was not low. The function sums the maximum from the legacy `questions` table; for attempts drawn from `question_bank` that sum is 0, so a recompute sets the score to 0. Before the fix, no completed attempt had score 0 with a raw score above 0.
+- Fixed in the shared database by main app migration `20260925001110_emergency_views_exam_rpc`: `anon` can no longer execute `get_questions_for_student`, `get_questions_for_attempt`, `grade_attempt`, `disqualify_attempt`, `recompute_attempt_score`; the three role checks use `coalesce(get_my_role(), '')`. The same migration closed the view `questions_for_student` (it ran as its owner, so an anonymous caller could read all 750 legacy questions and insert, update or delete them) and the two RPCs that returned any exam's questions without a session. Verified with simulated accounts: a student still gets their own attempt's questions and none of another attempt's.
 - Related, fixed 2026-09-24 in the shared database (main app migration `20260924155908_emergency_revoke_anon_rpc`): 21 `SECURITY DEFINER` functions of the main app and Sổ chuyên cần (hard delete of students, tuition receipts, `create_satellite_user`, …) were callable without a session; anonymous execute is revoked.
 
-### Login email domains are not controlled by the center (found 2026-09-24; not fixed)
+### Login email domains are not controlled by the center (found 2026-09-24; resolved 2026-09-25)
+
+- Resolved: the 17 instructors moved to `<sđt>@hptts.vn`; `create-user`, `create_satellite_user` and the main app create `@hptts.vn`; Sổ chuyên cần signs in with `@hptts.vn` only; the 186 exam accounts carry `account_kind='exam_student'`, `role='other'`. The operator does not register `hptts.vn`: custom SMTP is off, so Supabase sends auth mail only to organization members. Self-signup is disabled. Details: `QuanltTTDT-HPTTS/docs/GHI_CHU.md`.
+- Original finding:
 
 - Generated logins: students `<mã HV>@hptts.vn` (186), instructors `<sđt>@hptts.com` (17); staff use real addresses (4, plus 3 users without a profile).
 - Public DNS on 2026-09-24: `hptts.vn` does not exist (unregistered); `hptts.com` exists on unrelated name servers (`klczy.com`) with a placeholder MX. Whoever registers or holds these domains could receive password-reset mail for those accounts if the project's mail settings send it.

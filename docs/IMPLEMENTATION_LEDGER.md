@@ -61,7 +61,11 @@ Local work set aside so it does not conflict with the active sequence. Each item
 - Decision 2026-09-24: exclude repeats by content (stem + options). Fix applied to production 2026-09-24 (migration `20260924094701`): `docs/implementation/2026-09-24-draw-exclude-duplicate-content.md`. New attempts no longer repeat a question; past attempts are unchanged.
 - Past attempts: read-only report prepared, scores unchanged. 203 completed attempts; counting each repeated question once would flip 1 pass to fail and 2 fails to pass. The report names students, so it is kept outside Git at `D:\Data\App-thi-online-HPTTS-bao-cao\2026-09-24-QTHH-AT-cau-lap.xlsx`. Whether to change any score is still open.
 
-### Exam app roles leak from Sổ chuyên cần (found 2026-09-24, security; not fixed)
+### Exam app roles leak from Sổ chuyên cần (found 2026-09-24; database fixed 2026-09-25, UI ships with C2)
+
+- Database fixed 2026-09-25 (main app migration `20260925014616_exam_role_split`): new column `profiles.exam_role`, set only by a main app admin; theory-exam policies and the question RPCs use `get_my_exam_role()`. Practical-exam policies keep `get_my_role()` because teachers grade practical exams in Sổ chuyên cần. Measured before/after: instructors went from reading all 943 attempts and 2808 questions to none; admin, staff and students unchanged.
+- UI and API: `docs/implementation/2026-09-25-exam-role-column.md`, committed locally, deploys with the C2 push.
+- Original finding:
 
 - Exam RLS (`question_bank`, `question_libraries`, `attempts`, …) checks `get_my_role() IN ('admin','teacher')`. `get_my_role()` returns `profiles.satellite_role` when it is `teacher` or `admin` (changed by Sổ chuyên cần migration `20260524150000_fix_get_my_role_satellite`), and `satellite_role` is the Sổ chuyên cần role.
 - Effect on 2026-09-24: 16 instructors with `satellite_role='teacher'` and 1 with `satellite_role='admin'` have teacher or admin rights on exam tables through the API, including writing `attempts` and `question_bank`. The operator has not given anyone an exam app account; the operator is the only exam admin.

@@ -10,8 +10,9 @@ function fail(res: VercelResponse, status: number, message: string): void {
   res.status(status).json({ success: false, message });
 }
 
-function isStaff(role: unknown): boolean {
-  return role === 'admin' || role === 'teacher';
+/** Quyền App thi lấy từ profiles.exam_role (admin app quản lý cấp), không từ role của app quản lý. */
+function isStaff(examRole: unknown): boolean {
+  return examRole === 'admin' || examRole === 'teacher';
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
@@ -28,14 +29,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const { data: authData, error: authError } = await admin.auth.getUser(token);
   if (authError || !authData.user) { fail(res, 401, 'Phiên đăng nhập không hợp lệ.'); return; }
   const callerId = authData.user.id;
-  const { data: caller } = await admin.from('profiles').select('role').eq('id', callerId).maybeSingle();
+  const { data: caller } = await admin.from('profiles').select('exam_role').eq('id', callerId).maybeSingle();
 
   try {
     if (source === 'theory') {
       const { data: attempt, error } = await admin.from('attempts').select('id, user_id, window_id, score, raw_score, disqualified, status, exam_id').eq('id', attemptId).maybeSingle();
       if (error || !attempt) { fail(res, 404, 'Không tìm thấy bài làm.'); return; }
       if (attempt.status !== 'completed') { fail(res, 409, 'Bài thi chưa được nộp.'); return; }
-      if (attempt.user_id !== callerId && !isStaff(caller?.role)) { fail(res, 403, 'Bạn không có quyền đồng bộ bài làm này.'); return; }
+      if (attempt.user_id !== callerId && !isStaff(caller?.exam_role)) { fail(res, 403, 'Bạn không có quyền đồng bộ bài làm này.'); return; }
       const [{ data: exam }, { data: window }, { data: student }] = await Promise.all([
         admin.from('exams').select('module_id, title, pass_threshold').eq('id', attempt.exam_id).maybeSingle(),
         admin.from('exam_windows').select('class_id, is_trial').eq('id', attempt.window_id).maybeSingle(),
@@ -52,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       res.status(upstream.ok ? 200 : 502).json({ success: upstream.ok, message: upstream.ok ? undefined : `TTDT: ${responseText.slice(0, 200)}` });
       return;
     }
-    if (!isStaff(caller?.role)) { fail(res, 403, 'Chỉ giảng viên hoặc quản trị viên được đồng bộ điểm thực hành.'); return; }
+    if (!isStaff(caller?.exam_role)) { fail(res, 403, 'Chỉ giảng viên hoặc quản trị viên được đồng bộ điểm thực hành.'); return; }
     const { data: practical, error } = await admin.from('practical_attempts').select('id, session_id, user_id, total_score, status').eq('id', attemptId).maybeSingle();
     if (error || !practical) { fail(res, 404, 'Không tìm thấy bài thi thực hành.'); return; }
     if (practical.status !== 'graded') { fail(res, 409, 'Bài thi thực hành chưa được chấm xong.'); return; }

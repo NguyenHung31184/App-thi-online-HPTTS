@@ -20,12 +20,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const { data: auth, error: authError } = await admin.auth.getUser(token);
   if (authError || !auth.user) { fail(res, 401, 'Phiên đăng nhập không hợp lệ.'); return; }
   const [{ data: profile }, { data: job, error: jobError }] = await Promise.all([
-    admin.from('profiles').select('role').eq('id', auth.user.id).maybeSingle(),
+    admin.from('profiles').select('exam_role').eq('id', auth.user.id).maybeSingle(),
     admin.from('question_import_jobs').select('id, status, requested_by').eq('id', jobId).maybeSingle(),
   ]);
-  if (profile?.role !== 'admin' && profile?.role !== 'teacher') { fail(res, 403, 'Chỉ giảng viên hoặc quản trị viên được nhập tài liệu.'); return; }
+  if (profile?.exam_role !== 'admin' && profile?.exam_role !== 'teacher') { fail(res, 403, 'Chỉ giảng viên hoặc quản trị viên được nhập tài liệu.'); return; }
   if (jobError || !job) { fail(res, 404, 'Không tìm thấy phiếu nhập.'); return; }
-  if (profile?.role !== 'admin' && job.requested_by !== auth.user.id) { fail(res, 403, 'Ban khong co quyen xu ly phieu nhap nay.'); return; }
+  if (profile?.exam_role !== 'admin' && job.requested_by !== auth.user.id) { fail(res, 403, 'Ban khong co quyen xu ly phieu nhap nay.'); return; }
   if (job.status !== 'queued') { fail(res, 409, 'Phiếu nhập này đã được xử lý.'); return; }
   try {
     const workerResponse = await fetch(`${workerUrl}/jobs/${jobId}`, { method: 'POST', headers: { Authorization: `Bearer ${workerToken}`, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10_000) });

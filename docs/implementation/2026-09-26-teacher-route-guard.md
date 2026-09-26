@@ -1,6 +1,6 @@
 # Teacher route guard: `/admin` matches only itself
 
-- Status: committed locally 2026-09-26, not pushed.
+- Status: `5305972`, pushed 2026-09-26.
 - Date: 2026-09-26
 - Database: none. Client code only.
 - Rollback: `docs/rollback/2026-09-26-teacher-route-guard.md`

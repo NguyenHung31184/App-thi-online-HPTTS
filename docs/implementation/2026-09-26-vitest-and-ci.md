@@ -1,6 +1,6 @@
 # Unit tests with Vitest, and CI on GitHub
 
-- Status: committed locally 2026-09-26, not pushed.
+- Status: `d502acc`, pushed 2026-09-26.
 - Date: 2026-09-26
 - Database: none.
 - Rollback: `docs/rollback/2026-09-26-vitest-and-ci.md`

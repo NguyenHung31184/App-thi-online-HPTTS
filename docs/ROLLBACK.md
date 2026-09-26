@@ -6,7 +6,7 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ## 2026-09-26 — Chặn route giáo viên: `/admin` chỉ khớp chính nó
 
-**Commit:** _(commit này, chưa push)_
+**Commit:** `5305972`, push 2026-09-26
 **Branch:** main
 
 Chỉ đổi code trình duyệt. Rollback: `git revert <sha>`; chi tiết ở `docs/rollback/2026-09-26-teacher-route-guard.md`.
@@ -15,7 +15,7 @@ Chỉ đổi code trình duyệt. Rollback: `git revert <sha>`; chi tiết ở `
 
 ## 2026-09-26 — Vitest và CI GitHub
 
-**Commit:** _(commit này, chưa push)_
+**Commit:** `d502acc`, push 2026-09-26
 **Branch:** main
 
 Thêm dev dependency `vitest`, `vitest.config.ts`, test đầu tiên và `.github/workflows/ci.yml`; không đổi code chạy thật.

@@ -29,6 +29,9 @@
   kiểm tra khi khóa đề, 11/11 đạt. `docs/implementation/2026-09-26-vitest-and-ci.md`.
 - Chặn route giáo viên: `/admin` chỉ khớp chính nó, không còn là tiền tố mở mọi trang admin (`src/utils/adminAccess.ts`,
   24 test đường dẫn). Chưa thử trên trình duyệt vì chưa có tài khoản giáo viên.
+- Điểm QTHH-AT cũ: 2 học viên phía trượt đã thi lại và đạt trong ngày (app quản lý lưu điểm đạt); tính lại chỉ đổi 1
+  kết quả đạt. Người dùng chọn giữ nguyên điểm, đóng mục này trong ledger.
+- Push `d502acc`, `5305972` (người dùng: "Push ngay").
 
 ---
 

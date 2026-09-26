@@ -22,7 +22,7 @@ This ledger is the entry point for people and coding agents continuing the proje
 
 1. Restructure the admin menu and route labels: complete. See `docs/implementation/2026-09-22-phase-b-admin-navigation.md`.
 2. Split question-bank UI into task-focused pages: complete 2026-09-24 (Admin click-through passed after the scope-contract repair; Teacher check moves to Phase C2 acceptance). See `docs/implementation/2026-09-23-phase-c-question-bank-routes.md` and `docs/implementation/2026-09-24-question-library-scope-contract.md`.
-3. Phase C2, single question store: step 1 (one library per module, all questions linked, QTHH-AT copies merged, auto-assign trigger) applied 2026-09-24; step 2 slice 1 (create and edit questions inside the library, `docs/implementation/2026-09-24-c2-question-editor.md`), slice 2 (Excel/ZIP import inside the library, `docs/implementation/2026-09-24-c2-excel-zip-import.md`) and step 3 (old `/admin/questions` screens retired after moving their filters, bulk actions, delete and export into the library, `docs/implementation/2026-09-24-c2-retire-old-question-store.md`) complete. Acceptance open: teacher click-through, draw check on a locked trial exam. See `docs/implementation/2026-09-24-phase-c2-single-question-store.md`.
+3. Phase C2, single question store: step 1 (one library per module, all questions linked, QTHH-AT copies merged, auto-assign trigger) applied 2026-09-24; step 2 slice 1 (create and edit questions inside the library, `docs/implementation/2026-09-24-c2-question-editor.md`), slice 2 (Excel/ZIP import inside the library, `docs/implementation/2026-09-24-c2-excel-zip-import.md`) and step 3 (old `/admin/questions` screens retired after moving their filters, bulk actions, delete and export into the library, `docs/implementation/2026-09-24-c2-retire-old-question-store.md`) complete. Acceptance passed 2026-09-26 (draw check on all 7 exams; teacher click-through dropped). Pushed 2026-09-26 with the `exam_role` UI. See `docs/implementation/2026-09-24-phase-c2-single-question-store.md`.
 4. Document import, Word first (Azota-style: answers from formatting, "Đáp án:" lines or an end-of-file table; pictures mapped to their question; review in the library editor): planned after C2. See `docs/implementation/2026-09-24-document-import-plan.md`.
 5. Add live examination monitoring.
 6. Add practical examination reporting.
@@ -51,6 +51,18 @@ Local work set aside so it does not conflict with the active sequence. Each item
 - Status: parked, not scheduled.
 
 ## Open issues
+
+### No exam is locked, and the QC exam cannot be locked from the UI (found 2026-09-26, blocks exams)
+
+- `start_exam_attempt` rejects an exam whose `locked_at` is null (`exam_not_locked`, P0 since 2026-09-20). On
+  2026-09-26 all 7 active exams have `locked_at` null and there is no trial window. The last attempt was on 2026-09-11,
+  before P0, so no student has started an exam since P0 went live.
+- The admin "Khóa đề thi" button (`lockExam` → `validateBlueprint` in `src/services/examService.ts`) counts rows in the
+  legacy `questions` table by `exam_id`, while the draw uses `question_bank` by `module_id`. Six exams have 50 legacy
+  rows and lock. The QC exam ("Cấu tạo và nguyên lý vận hành cần trục giàn QC") has 0 legacy rows, so locking fails
+  with "Thiếu câu" although its module has 150 published questions.
+- Until fixed: an admin locks each exam before its window opens; the QC exam cannot run. Fix needs its own entry:
+  validate against `question_bank` with the draw's rules (module, topic, difficulty, published, distinct content).
 
 ### Shared module draws the same question more than once (found 2026-09-24, exam integrity; draw fixed, past scores open)
 

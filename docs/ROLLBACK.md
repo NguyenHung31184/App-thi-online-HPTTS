@@ -6,7 +6,7 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ## 2026-09-24 — Phase C2: một kho câu hỏi (ngân hàng theo mô-đun)
 
-**Commit (chưa push):** `0e2e7de` gộp kho (migration `20260924111343`), `46fca4f` editor, `750902f` nhập Excel/ZIP, bước 3 bỏ màn cũ (commit ngay sau `750902f`)
+**Commit (push 2026-09-26):** `0e2e7de` gộp kho (migration `20260924111343`), `46fca4f` editor, `750902f` nhập Excel/ZIP, `77a07d7` bỏ màn cũ; cùng lần push: `ce1beb7` quyền từ `exam_role`
 **Branch:** main
 
 Mỗi bước có tài liệu rollback riêng trong `docs/rollback/`:

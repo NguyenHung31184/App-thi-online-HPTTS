@@ -1,6 +1,6 @@
 # Exam app roles come from `profiles.exam_role`
 
-- Status: code committed locally, not deployed. Ships with the C2 push. The database part is live since 2026-09-25.
+- Status: pushed 2026-09-26 with C2. The database part is live since 2026-09-25.
 - Date: 2026-09-25
 - Database: main app migration `QuanltTTDT-HPTTS/supabase/migrations/20260925014616_exam_role_split.sql` (applied)
 - Rollback: `docs/rollback/2026-09-25-exam-role-column.md`

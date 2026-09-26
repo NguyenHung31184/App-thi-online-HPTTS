@@ -1,6 +1,6 @@
 # Phase C2 — single question store
 
-- Status: steps 1–3 complete 2026-09-24 (step 2: editor and Excel/ZIP import; step 3: old screens retired, `docs/implementation/2026-09-24-c2-retire-old-question-store.md`); acceptance waits for the teacher click-through and a draw check on a locked trial exam
+- Status: complete 2026-09-26. Steps 1–3 done 2026-09-24 (step 2: editor and Excel/ZIP import; step 3: old screens retired, `docs/implementation/2026-09-24-c2-retire-old-question-store.md`). Acceptance: draw check passed 2026-09-26; teacher click-through dropped because there are no intended teacher accounts (operator, 2026-09-24).
 - Date: 2026-09-24
 - Depends on: Phase C, question-library scope contract, draw-excludes-duplicate-content fix
 - Migration (step 1): `supabase/migrations/20260924111343_c2_single_question_store.sql`
@@ -68,3 +68,14 @@ All 2,798 rows get a library; 1,100 rows stay published. The QTHH-AT exam rule (
 - Result equals the dry run: 7 libraries, 0 unlinked rows, 1,100 published, 450 retired (all QTHH-AT), test libraries and their 2 taxonomy nodes gone, `occupation_id` nullable, unique index and trigger present. QTHH-AT keeps 150 published rows with 150 distinct stems; no image-less copy was kept where an image copy existed.
 - Trigger check in a block that raises at the end, so nothing persisted: an insert into `m07` got the QTHH-AT library; moving it to NLĐK-CO switched the library; an insert into an unknown module created a library for it. Afterwards: 7 libraries, no test rows.
 - Known UI gaps until step 2: the QTHH-AT library has no course, so the Phase C header shows "Nghề chưa xác định" and its "Sửa" links lack a course segment; the create form still asks for a course and cannot create a second library for a module.
+
+## Acceptance record (2026-09-26)
+
+- Draw check on production data inside a transaction that raises at the end, so nothing persisted: all 7 active exams
+  locked, one trial window per exam (class of one exam-student account, open for one hour, `max_attempts = 0`), then
+  `start_exam_attempt` and `get_questions_for_attempt` called as that student.
+- Result for every exam: 50 questions drawn, 50 distinct by content key (stem + options), none retired or deleted, all
+  from the exam's module and from one library, the student loads all 50. QTHH-AT draws from the merged pool of 150.
+- Afterwards: 0 locked exams, 0 test windows, 0 test attempts.
+- Found during the check, predates C2: no exam is locked, and the "Khóa đề thi" button validates against the legacy
+  `questions` table. See the ledger open issue "No exam is locked".

@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-09-26 | Nghiệm thu C2 và push
+
+### Đã làm
+- Bốc đề thử trên dữ liệu production trong khối lệnh tự hủy: khóa cả 7 đề, mỗi đề một kỳ thi thử, một tài khoản học
+  viên gọi `start_exam_attempt` và `get_questions_for_attempt`. Cả 7 đề: 50 câu, 50 nội dung khác nhau, không câu
+  `retired`/đã xóa, đúng mô-đun và một ngân hàng; học viên tải đủ 50 câu. Sau đó 0 đề khóa, 0 kỳ thi thử, 0 bài.
+- `check:boundaries` và `npm run build` đạt. Push 12 commit (Phase C, sửa khung admin, sửa bốc đề, C2, `exam_role`).
+
+### Vấn đề gặp
+- Không đề nào đang khóa; hàm bốc đề từ chối đề chưa khóa (từ P0). Nút "Khóa đề thi" đếm câu ở bảng cũ `questions`:
+  6 đề khóa được, đề QC có 0 câu ở bảng cũ nên không khóa được. Ghi ở mục Open issues của `IMPLEMENTATION_LEDGER.md`.
+
+### Kế hoạch tiếp theo
+- Người dùng quyết: sửa kiểm tra khi khóa đề cho khớp hàm bốc đề (cần entry riêng).
+
+---
+
 ## 2026-09-23 | Phase C: tách giao diện ngân hàng câu hỏi
 
 ### Đã làm

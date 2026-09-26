@@ -1,0 +1,33 @@
+name: CI
+
+# Chỉ kiểm tra, không deploy: Vercel vẫn tự deploy mỗi lần push main. Không cần secret nào.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Ranh giới import giữa module
+        run: npm run check:boundaries
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit test (hàm thuần, không cần Supabase)
+        run: npm test
+
+      - name: Type check và build
+        run: npm run build

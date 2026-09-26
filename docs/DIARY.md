@@ -24,6 +24,10 @@
 ### Kế hoạch tiếp theo
 - Người dùng tự khóa từng đề trước kỳ thi (đề nào chưa khóa thì học viên không vào được).
 
+### Việc nhỏ (người dùng: "làm các việc nhỏ trước đi")
+- Thêm Vitest 4.1.11 (`npm test`) và CI GitHub (ranh giới, lint, test, build). Test đầu tiên: 21 tình huống của hàm
+  kiểm tra khi khóa đề, 11/11 đạt. `docs/implementation/2026-09-26-vitest-and-ci.md`.
+
 ---
 
 ## 2026-09-23 | Phase C: tách giao diện ngân hàng câu hỏi

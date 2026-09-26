@@ -119,5 +119,6 @@ Local work set aside so it does not conflict with the active sequence. Each item
 ## Architecture enforcement
 
 - Question-bank data boundary: complete, shipped with Phase C. See `docs/implementation/2026-09-24-question-bank-data-boundary.md`.
+- Unit tests (Vitest, pure functions) and GitHub CI (boundaries, lint, test, build): added 2026-09-26. See `docs/implementation/2026-09-26-vitest-and-ci.md`.
 
 See `docs/implementation/2026-09-22-admin-navigation-and-live-monitoring.md`.

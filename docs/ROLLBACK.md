@@ -4,6 +4,16 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-09-26 — Vitest và CI GitHub
+
+**Commit:** _(commit này, chưa push)_
+**Branch:** main
+
+Thêm dev dependency `vitest`, `vitest.config.ts`, test đầu tiên và `.github/workflows/ci.yml`; không đổi code chạy thật.
+Rollback: `git revert <sha>`; chi tiết ở `docs/rollback/2026-09-26-vitest-and-ci.md`.
+
+---
+
 ## 2026-09-26 — "Khóa đề thi" kiểm tra ngân hàng câu hỏi mà hàm bốc đề dùng
 
 **Commit:** `e638b88`, push 2026-09-26

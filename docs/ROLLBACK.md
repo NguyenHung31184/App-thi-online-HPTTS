@@ -4,6 +4,16 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-09-26 — "Khóa đề thi" kiểm tra ngân hàng câu hỏi mà hàm bốc đề dùng
+
+**Commit:** _(commit này, chưa push)_
+**Branch:** main
+
+Chỉ đổi code phía trình duyệt, không đổi DB. Rollback: `git revert <sha>` rồi push; chi tiết ở
+`docs/rollback/2026-09-26-lock-exam-checks-question-bank.md`. Đề đã khóa vẫn giữ `locked_at`; mở khóa bằng nút "Mở khóa đề".
+
+---
+
 ## 2026-09-24 — Phase C2: một kho câu hỏi (ngân hàng theo mô-đun)
 
 **Commit (push 2026-09-26):** `0e2e7de` gộp kho (migration `20260924111343`), `46fca4f` editor, `750902f` nhập Excel/ZIP, `77a07d7` bỏ màn cũ; cùng lần push: `ce1beb7` quyền từ `exam_role`

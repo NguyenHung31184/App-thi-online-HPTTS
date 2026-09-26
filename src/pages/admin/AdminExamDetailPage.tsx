@@ -183,10 +183,10 @@ export default function AdminExamDetailPage() {
         </button>
         {guideOpen && (
           <div className="px-4 py-3 text-xs text-slate-600 space-y-1.5 bg-white border-t border-slate-200">
-            <p>1. Thêm đủ câu hỏi theo ma trận blueprint (nếu có).</p>
-            <p>2. Nhấn <strong>Khóa đề thi</strong> — hệ thống xác thực blueprint rồi đóng băng danh sách câu hỏi.</p>
+            <p>1. Kiểm tra ngân hàng câu hỏi của mô-đun có đủ câu cho từng nhóm trong ma trận.</p>
+            <p>2. Nhấn <strong>Khóa đề thi</strong> — hệ thống kiểm tra ngân hàng đủ câu rồi khóa đề. Học viên chỉ vào thi được đề đã khóa.</p>
             <p>3. Tạo kỳ thi (<strong>Kỳ thi</strong> trong menu) để học viên vào thi.</p>
-            <p>4. Nếu cần sửa câu hỏi sau khi khóa: nhấn <strong>Mở khóa</strong>, sửa xong, khóa lại.</p>
+            <p>4. Muốn đổi ma trận sau khi khóa: nhấn <strong>Mở khóa đề</strong>, sửa, rồi khóa lại.</p>
           </div>
         )}
       </div>

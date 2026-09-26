@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient';
+import type { DrawPoolQuestion } from '../domain/blueprint-coverage';
 import type { QuestionPayload, StoredQuestion } from '../domain/question-draft';
 import type { QuestionStatus } from '../domain/question-library';
 
@@ -152,6 +153,32 @@ export async function listLibraryQuestionContent(libraryId: string): Promise<{ s
     if (error) throw new Error(error.message);
     const page = (data ?? []) as Row[];
     for (const row of page) result.push({ stem: typeof row.stem === 'string' ? row.stem : '', options: row.options });
+    if (page.length < PAGE_SIZE) return result;
+  }
+}
+
+/** The rows start_exam_attempt draws from: the module's questions that are not deleted and published or without status. */
+export async function listDrawPool(moduleId: string): Promise<DrawPoolQuestion[]> {
+  const result: DrawPoolQuestion[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('question_bank')
+      .select('stem, options, topic, difficulty')
+      .eq('module_id', moduleId)
+      .not('is_deleted', 'is', true)
+      .or('status.is.null,status.eq.published')
+      .order('id')
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as Row[];
+    for (const row of page) {
+      result.push({
+        stem: typeof row.stem === 'string' ? row.stem : '',
+        options: row.options,
+        topic: nullableString(row.topic),
+        difficulty: nullableString(row.difficulty),
+      });
+    }
     if (page.length < PAGE_SIZE) return result;
   }
 }

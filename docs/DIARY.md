@@ -17,8 +17,12 @@
 - Không đề nào đang khóa; hàm bốc đề từ chối đề chưa khóa (từ P0). Nút "Khóa đề thi" đếm câu ở bảng cũ `questions`:
   6 đề khóa được, đề QC có 0 câu ở bảng cũ nên không khóa được. Ghi ở mục Open issues của `IMPLEMENTATION_LEDGER.md`.
 
+- Người dùng đồng ý sửa: nút "Khóa đề thi" giờ kiểm tra ngân hàng câu hỏi của mô-đun theo đúng quy tắc hàm bốc đề
+  (`docs/implementation/2026-09-26-lock-exam-checks-question-bank.md`). 21 tình huống mẫu đạt; SQL chỉ đọc cho thấy
+  cả 7 đề (kể cả QC) sẽ khóa được. Commit, chưa push.
+
 ### Kế hoạch tiếp theo
-- Người dùng quyết: sửa kiểm tra khi khóa đề cho khớp hàm bốc đề (cần entry riêng).
+- Push bản sửa khóa đề khi người dùng đồng ý; sau đó admin khóa từng đề trước kỳ thi.
 
 ---
 

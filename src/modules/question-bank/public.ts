@@ -1,4 +1,6 @@
 export { getQuestionLibraries, getQuestionLibraryWorkspace } from './application/manage-question-library';
+export { checkExamBlueprint } from './application/check-exam-blueprint';
+export type { BlueprintCoverage } from './domain/blueprint-coverage';
 export { questionBankKeys } from './queries/keys';
 export {
   useCreateQuestionLibrary,

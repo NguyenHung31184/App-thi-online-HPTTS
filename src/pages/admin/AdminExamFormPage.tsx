@@ -294,7 +294,7 @@ export default function AdminExamFormPage() {
 
             {rules.length === 0 && (
               <p className="text-xs text-slate-400 mt-2">
-                Để trống nếu không cần kiểm định ma trận — khóa đề sẽ bỏ qua bước validate.
+                Chưa có nhóm câu hỏi nào. Cần ít nhất một nhóm thì mới khóa đề được.
               </p>
             )}
           </div>

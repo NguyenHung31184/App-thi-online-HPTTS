@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import type { Exam, BlueprintRule } from '../types';
+import { checkExamBlueprint } from '../modules/question-bank/public';
 
 export async function listExams(): Promise<Exam[]> {
   const { data, error } = await supabase
@@ -86,72 +87,23 @@ export async function deleteExam(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Xác thực blueprint đề thi so với danh sách câu hỏi hiện tại.
- * Trả về lỗi nếu thiếu câu theo blueprint; null nếu hợp lệ. */
+/** Kiểm tra ngân hàng câu hỏi của mô-đun đủ câu cho ma trận, theo đúng cách start_exam_attempt bốc đề.
+ * Bảng `questions` cũ không phải nguồn bốc đề nên không dùng ở đây. */
 async function validateBlueprint(
   examId: string
-): Promise<{ valid: true; questionIds: string[]; count: number } | { valid: false; message: string }> {
+): Promise<{ valid: true; count: number } | { valid: false; message: string }> {
   const exam = await getExam(examId);
   if (!exam) return { valid: false, message: 'Không tìm thấy đề thi.' };
+  const moduleId = exam.module_id ?? '';
+  if (!moduleId.trim()) return { valid: false, message: 'Đề chưa gắn mô-đun nên chưa bốc được câu hỏi.' };
 
-  const { data: questions, error: qError } = await supabase
-    .from('questions')
-    .select('id, topic, difficulty')
-    .eq('exam_id', examId)
-    .eq('is_deleted', false)
-    .order('created_at', { ascending: true });
-  if (qError) return { valid: false, message: 'Lỗi tải câu hỏi: ' + qError.message };
-
-  const questionList = (questions ?? []) as { id: string; topic: string; difficulty: string }[];
-  const blueprint = Array.isArray(exam.blueprint) ? (exam.blueprint as BlueprintRule[]) : [];
-
-  if (blueprint.length === 0 && questionList.length === 0) {
-    return { valid: false, message: 'Chưa có ma trận blueprint hoặc chưa có câu hỏi.' };
+  try {
+    const coverage = await checkExamBlueprint(moduleId, exam.blueprint);
+    if (!coverage.ok) return { valid: false, message: coverage.message };
+    return { valid: true, count: coverage.questionsPerAttempt };
+  } catch (e) {
+    return { valid: false, message: 'Lỗi tải ngân hàng câu hỏi: ' + (e instanceof Error ? e.message : String(e)) };
   }
-
-  if (blueprint.length > 0) {
-    const byTopicDifficulty: Record<string, number> = {};
-    const byDifficulty: Record<string, number> = {};
-    const total = questionList.length;
-    for (const q of questionList) {
-      const topic = q.topic || '';
-      const difficulty = q.difficulty || '';
-      byTopicDifficulty[`${topic}|${difficulty}`] = (byTopicDifficulty[`${topic}|${difficulty}`] ?? 0) + 1;
-      byDifficulty[difficulty] = (byDifficulty[difficulty] ?? 0) + 1;
-    }
-
-    for (const rule of blueprint) {
-      const topic = rule.topic ?? '';
-      const difficulty = rule.difficulty ?? '';
-      const have =
-        topic === '*' && difficulty === '*'
-          ? total
-          : topic === '*'
-            ? (byDifficulty[difficulty] ?? 0)
-            : difficulty === '*'
-              ? questionList.filter((q) => (q.topic || '') === topic).length
-              : (byTopicDifficulty[`${topic}|${difficulty}`] ?? 0);
-
-      if (have < rule.count) {
-        const topicLabel = topic === '*' ? 'tất cả chủ đề' : `chủ đề "${topic}"`;
-        const diffLabel = difficulty === '*' ? 'mọi độ khó' : `độ khó "${difficulty}"`;
-        return {
-          valid: false,
-          message: `Thiếu câu: ${topicLabel}, ${diffLabel} cần ${rule.count}, hiện có ${have}.`,
-        };
-      }
-    }
-
-    const totalRequired = blueprint.reduce((s, r) => s + r.count, 0);
-    if (questionList.length < totalRequired) {
-      return {
-        valid: false,
-        message: `Ma trận yêu cầu ${totalRequired} câu, hiện chỉ có ${questionList.length} câu.`,
-      };
-    }
-  }
-
-  return { valid: true, questionIds: questionList.map((q) => q.id), count: questionList.length };
 }
 
 /** Khóa đề thi: xác thực blueprint rồi set locked_at = now().

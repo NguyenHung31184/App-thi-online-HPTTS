@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { teacherCanOpen } from '../../utils/adminAccess';
 import AppLayout, { type NavSection } from '../../components/AppLayout';
 import {
   ExamIcon,
@@ -114,9 +115,7 @@ export default function AdminLayout() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Teachers can access the question library, exam authoring, reports, and attempt details.
-  const teacherAllowedPrefixes = ['/admin', '/admin/dashboard', '/admin/exams', '/admin/questions', '/admin/question-libraries', '/admin/report', '/admin/attempts'];
-  if (isTeacher && !teacherAllowedPrefixes.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))) {
+  if (isTeacher && !teacherCanOpen(location.pathname)) {
     return <Navigate to="/admin/dashboard" replace />;
   }
 

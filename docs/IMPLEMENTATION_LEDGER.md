@@ -102,7 +102,12 @@ Local work set aside so it does not conflict with the active sequence. Each item
 - Public DNS on 2026-09-24: `hptts.vn` does not exist (unregistered); `hptts.com` exists on unrelated name servers (`klczy.com`) with a placeholder MX. Whoever registers or holds these domains could receive password-reset mail for those accounts if the project's mail settings send it.
 - Profiles do not match the account type: 107 of the 186 exam accounts carry `account_kind='staff'`, 108 carry `role='academic_affairs'`. The main app repo's account analysis (`QuanltTTDT-HPTTS/docs/GHI_CHU.md`, 2026-09-24) covers creation paths, default password `123456` and the remaining RLS phase 2.
 
-### Teacher route guard allows every admin URL (found 2026-09-24)
+### Teacher route guard allows every admin URL (found 2026-09-24; fixed 2026-09-26)
+
+- Fixed in `docs/implementation/2026-09-26-teacher-route-guard.md`: `/admin` matches only itself; path cases in
+  `src/utils/adminAccess.test.ts`.
+- Original finding:
+
 
 - `src/pages/admin/AdminLayout.tsx` lists `'/admin'` in `teacherAllowedPrefixes` and matches with `startsWith(prefix + '/')`, so the check passes for every `/admin/...` path.
 - Effect: a teacher does not see Kỳ thi or Nhật ký đồng bộ TTDT in the menu, but can open `/admin/windows` or `/admin/sync` by typing the URL. What data loads then depends on RLS for those tables.

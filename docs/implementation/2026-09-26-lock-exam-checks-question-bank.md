@@ -1,6 +1,6 @@
 # "Khóa đề thi" checks the question bank the draw uses
 
-- Status: committed locally 2026-09-26, not pushed.
+- Status: `e638b88`, pushed 2026-09-26 (operator: "Push đi, tôi sẽ khóa đề"). The operator locks the exams.
 - Date: 2026-09-26
 - Database: none. Client code only.
 - Rollback: `docs/rollback/2026-09-26-lock-exam-checks-question-bank.md`

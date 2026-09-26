@@ -61,8 +61,9 @@ Local work set aside so it does not conflict with the active sequence. Each item
   legacy `questions` table by `exam_id`, while the draw uses `question_bank` by `module_id`. Six exams have 50 legacy
   rows and lock. The QC exam ("Cấu tạo và nguyên lý vận hành cần trục giàn QC") has 0 legacy rows, so locking fails
   with "Thiếu câu" although its module has 150 published questions.
-- Fix committed 2026-09-26, not pushed: `docs/implementation/2026-09-26-lock-exam-checks-question-bank.md`. Locking
-  now checks `question_bank` with the draw's rules. An admin still has to lock each exam once before its window opens.
+- Fix `e638b88`, pushed 2026-09-26: `docs/implementation/2026-09-26-lock-exam-checks-question-bank.md`. Locking
+  now checks `question_bank` with the draw's rules. An admin still has to lock each exam once before its window opens;
+  the operator does this.
 
 ### Shared module draws the same question more than once (found 2026-09-24, exam integrity; draw fixed, past scores open)
 

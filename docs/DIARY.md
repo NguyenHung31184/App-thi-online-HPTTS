@@ -19,10 +19,10 @@
 
 - Người dùng đồng ý sửa: nút "Khóa đề thi" giờ kiểm tra ngân hàng câu hỏi của mô-đun theo đúng quy tắc hàm bốc đề
   (`docs/implementation/2026-09-26-lock-exam-checks-question-bank.md`). 21 tình huống mẫu đạt; SQL chỉ đọc cho thấy
-  cả 7 đề (kể cả QC) sẽ khóa được. Commit, chưa push.
+  cả 7 đề (kể cả QC) sẽ khóa được. `e638b88`, đã push (người dùng: "Push đi, tôi sẽ khóa đề").
 
 ### Kế hoạch tiếp theo
-- Push bản sửa khóa đề khi người dùng đồng ý; sau đó admin khóa từng đề trước kỳ thi.
+- Người dùng tự khóa từng đề trước kỳ thi (đề nào chưa khóa thì học viên không vào được).
 
 ---
 

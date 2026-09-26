@@ -6,7 +6,7 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ## 2026-09-26 — "Khóa đề thi" kiểm tra ngân hàng câu hỏi mà hàm bốc đề dùng
 
-**Commit:** _(commit này, chưa push)_
+**Commit:** `e638b88`, push 2026-09-26
 **Branch:** main
 
 Chỉ đổi code phía trình duyệt, không đổi DB. Rollback: `git revert <sha>` rồi push; chi tiết ở

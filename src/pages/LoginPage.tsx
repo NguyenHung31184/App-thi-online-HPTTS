@@ -36,9 +36,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50/40 p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8">
-        <h1 className="text-2xl font-bold text-slate-800 text-center mb-2">App Thi Online</h1>
+    <div className="min-h-screen flex items-center justify-center bg-brand-50 p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
+        <img src="/brand/hptts-logo.png" alt="HPTTS" className="h-20 w-auto mx-auto mb-4" />
+        <h1 className="text-2xl font-bold text-slate-900 text-center mb-2">App Thi Online</h1>
         <p className="text-slate-500 text-sm text-center mb-6">Đăng nhập để tiếp tục</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -54,7 +55,7 @@ export default function LoginPage() {
               type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
               required
               autoComplete="email"
             />
@@ -68,7 +69,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
               required
               autoComplete="current-password"
             />
@@ -76,13 +77,13 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-gradient-to-r from-indigo-500 via-blue-500 to-indigo-600 text-white font-semibold rounded-xl hover:from-indigo-600 hover:via-blue-600 hover:to-indigo-700 shadow-lg shadow-indigo-500/25 disabled:opacity-50 transition-all"
+            className="w-full py-2.5 bg-brand-500 text-white font-semibold rounded-lg hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
 
-        <p className="mt-6 text-xs text-slate-400 text-center">
+        <p className="mt-6 text-xs text-slate-500 text-center">
           Trước khi thi có thể cần xác thực CCCD (màn hình kế tiếp).
         </p>
       </div>

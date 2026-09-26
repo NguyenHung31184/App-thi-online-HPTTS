@@ -1,6 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
-import { GraduationCap } from 'lucide-react';
 import { MenuIcon, LogoutIcon } from './Icons';
 
 export interface NavItem {
@@ -44,13 +43,11 @@ function NavLink({
       to={to}
       onClick={onClick}
       aria-current={isActive ? 'page' : undefined}
-      className={`group flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 ${
-        isActive
-          ? 'bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 text-white shadow-lg shadow-indigo-500/30 -translate-y-[1px]'
-          : 'text-slate-200 hover:bg-white/10 hover:text-white hover:translate-x-0.5'
+      className={`group flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+        isActive ? 'bg-white text-brand-700' : 'text-slate-200 hover:bg-white/10 hover:text-white'
       }`}
     >
-      <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'}`} />
+      <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-brand-500' : 'text-slate-300 group-hover:text-white'}`} />
       {label}
     </Link>
   );
@@ -114,15 +111,14 @@ export default function AppLayout({
         id="app-sidebar"
         ref={sidebarRef}
         inert={sidebarInert}
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-72 bg-gradient-to-b from-[#0a1230] via-[#10235f] to-[#0b142f] text-white flex flex-col p-4 transform transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none ${
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-72 bg-brand-900 text-white flex flex-col p-4 transform transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="flex items-center mb-6 px-2 py-2 rounded-2xl bg-white/5 border border-white/10">
-          <div className="bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 p-2.5 rounded-xl mr-3 shadow-lg flex-shrink-0">
-            <GraduationCap className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-sm font-bold tracking-tight leading-tight">App Thi Online</h1>
+        {/* Dải nền trắng vì chưa có logo âm bản cho nền tối (DESIGN.md mục 1.6), giống thanh bên app quản lý. */}
+        <div className="-mx-4 -mt-4 mb-6 px-4 py-3 bg-white flex items-center">
+          <img src="/brand/hptts-logo.png" alt="HPTTS" className="h-10 w-auto flex-shrink-0" />
+          <h1 className="text-sm font-bold leading-tight text-brand-700 pl-3">App Thi Online</h1>
         </div>
 
         <nav className="flex-1 space-y-4 overflow-y-auto pr-1">
@@ -153,7 +149,7 @@ export default function AppLayout({
         <div className="mt-auto pt-4 border-t border-white/10 bg-white/5 rounded-xl p-2">
           {userEmail && (
             <div className="flex items-center px-2 mb-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 flex items-center justify-center text-sm font-bold flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-sm font-bold flex-shrink-0">
                 {userEmail.charAt(0).toUpperCase()}
               </div>
               <div className="ml-3 truncate min-w-0">
@@ -173,16 +169,15 @@ export default function AppLayout({
         </div>
       </aside>
 
-      {/* Main content — gradient giống TTDT */}
-      <div className="flex-1 flex flex-col h-full w-full overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50/40">
+      <div className="flex-1 flex flex-col h-full w-full overflow-hidden bg-slate-50">
         {/* Header với nút menu mobile */}
-        <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 lg:px-6 border-b border-slate-200/60 bg-white/50">
+        <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 lg:px-6 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-3">
             <button
               ref={menuButtonRef}
               type="button"
               onClick={() => setSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
+              className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
               aria-label={isSidebarOpen ? 'Đóng menu' : 'Mở menu'}
               aria-expanded={isSidebarOpen}
               aria-controls="app-sidebar"

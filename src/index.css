@@ -1,10 +1,60 @@
 @import "tailwindcss";
 
+/* Nhận diện HPTTS: QuanltTTDT-HPTTS/DESIGN.md mục 1, cùng giá trị với tailwind.config.js của app quản lý. */
+@theme {
+  --font-sans: Arial, Helvetica, sans-serif;
+
+  --color-brand-50: #eaf6fd;
+  --color-brand-100: #eaf1f8;
+  --color-brand-200: #c3d7eb;
+  --color-brand-300: #98badc;
+  --color-brand-400: #538cc5;
+  --color-brand-500: #286fb7;
+  --color-brand-600: #235d9f;
+  --color-brand-700: #1f4e8a;
+  --color-brand-800: #25437b;
+  --color-brand-900: #1d3d6f;
+
+  /* Cyan chỉ để trang trí: không làm chữ, icon, viền focus trên nền sáng; không đặt chữ trắng lên nền cyan. */
+  --color-brand-cyan-100: #abe1fa;
+  --color-brand-cyan-200: #9ddcf9;
+  --color-brand-cyan-300: #82c9f0;
+  --color-brand-cyan-400: #61c2ee;
+  --color-brand-cyan-500: #33bbed;
+
+  /* Class indigo-* cũ đổi màu một lần, ghép theo vai trò chứ không theo số: 600 là nút/link chính nên = brand-500.
+     Code mới viết brand-*. */
+  --color-indigo-50: #eaf6fd;
+  --color-indigo-100: #eaf1f8;
+  --color-indigo-200: #c3d7eb;
+  --color-indigo-300: #98badc;
+  --color-indigo-400: #538cc5;
+  --color-indigo-500: #286fb7;
+  --color-indigo-600: #286fb7;
+  --color-indigo-700: #235d9f;
+  --color-indigo-800: #1f4e8a;
+  --color-indigo-900: #1d3d6f;
+  --color-indigo-950: #1d3d6f;
+
+  /* Nền trung tính dùng thang gray như app quản lý. */
+  --color-slate-50: oklch(98.5% 0.002 247.839);
+  --color-slate-100: oklch(96.7% 0.003 264.542);
+  --color-slate-200: oklch(92.8% 0.006 264.531);
+  --color-slate-300: oklch(87.2% 0.01 258.338);
+  --color-slate-400: oklch(70.7% 0.022 261.325);
+  --color-slate-500: oklch(55.1% 0.027 264.364);
+  --color-slate-600: oklch(44.6% 0.03 256.802);
+  --color-slate-700: oklch(37.3% 0.034 259.733);
+  --color-slate-800: oklch(27.8% 0.033 256.848);
+  --color-slate-900: oklch(21% 0.034 264.665);
+  --color-slate-950: oklch(13% 0.028 261.692);
+}
+
 :root {
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-sans);
   line-height: 1.5;
-  color: #1e293b;
-  background-color: #f1f5f9;
+  color: var(--color-slate-800);
+  background-color: var(--color-slate-50);
 }
 
 html, body {

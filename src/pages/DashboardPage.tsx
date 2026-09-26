@@ -95,7 +95,7 @@ function AdminTeacherDashboard() {
                     return (
                       <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
                         <div
-                          className="w-full rounded-t-md bg-gradient-to-t from-indigo-500 to-sky-400"
+                          className="w-full rounded-t-md bg-brand-500"
                           style={{ height: `${height || 5}%` }}
                         />
                         <div className="text-[10px] text-slate-500">
@@ -280,7 +280,7 @@ function StudentDashboard() {
         <div className="flex gap-3 mb-6">
           <Link
             to="/verify-cccd"
-            className="px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold rounded-xl hover:from-indigo-600 hover:to-blue-600 shadow-lg shadow-indigo-500/25 transition-all"
+            className="px-4 py-2.5 bg-brand-500 text-white font-semibold rounded-lg hover:bg-brand-600 transition-colors"
           >
             Xác thực CCCD
           </Link>
@@ -320,7 +320,7 @@ function StudentDashboard() {
                 type="button"
                 disabled={enteringWindowId === w.id}
                 onClick={() => handleEnterExam(w.id)}
-                className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-medium rounded-xl hover:from-indigo-600 hover:to-blue-600 shadow-md disabled:opacity-50 transition-all"
+                className="px-4 py-2 bg-brand-500 text-white font-medium rounded-lg hover:bg-brand-600 disabled:opacity-50 transition-colors"
               >
                 {enteringWindowId === w.id ? 'Đang vào...' : 'Vào thi'}
               </button>
@@ -352,7 +352,7 @@ function StudentDashboard() {
                     type="button"
                     disabled={enteringPracticalId === s.id}
                     onClick={() => handleEnterPractical(s.id)}
-                    className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium rounded-xl hover:from-emerald-600 hover:to-teal-600 shadow-md disabled:opacity-50 transition-all"
+                    className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                   >
                     {enteringPracticalId === s.id ? 'Đang vào...' : 'Vào thi thực hành'}
                   </button>

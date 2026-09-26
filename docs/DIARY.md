@@ -33,6 +33,12 @@
   kết quả đạt. Người dùng chọn giữ nguyên điểm, đóng mục này trong ledger.
 - Push `d502acc`, `5305972` (người dùng: "Push ngay").
 
+### Giao diện theo nhận diện HPTTS (người dùng: "Toàn app, trước tổng duyệt")
+- Theo `QuanltTTDT-HPTTS/DESIGN.md`: `indigo-*` trỏ sang dải `brand` theo vai trò (như app quản lý), `slate-*` sang `gray`,
+  font Arial; logo chuẩn ở trang đăng nhập và đầu thanh bên; thanh bên `brand-900` phẳng; bỏ 22 gradient, bóng phát
+  sáng, chấm nhấp nháy; nhãn trên dải màu đầu thẻ dời vào thân thẻ; nút cảnh báo vi phạm đủ tương phản.
+- Thiếu file từ đơn vị thiết kế: favicon, logo âm bản, dải Tín – Tâm – Trí, font chính.
+
 ---
 
 ## 2026-09-23 | Phase C: tách giao diện ngân hàng câu hỏi

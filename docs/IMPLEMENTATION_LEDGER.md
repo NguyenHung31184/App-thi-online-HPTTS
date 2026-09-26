@@ -118,6 +118,12 @@ Local work set aside so it does not conflict with the active sequence. Each item
 
 - Antigravity cost-controlled subagents: active. See `docs/implementation/2026-09-22-antigravity-cost-controlled-agents.md`.
 
+## Brand identity
+
+- The whole exam app follows the HPTTS identity from `QuanltTTDT-HPTTS/DESIGN.md` (operator, 2026-09-26: "Toàn app,
+  trước tổng duyệt"). See `docs/implementation/2026-09-26-hptts-brand-identity.md`. Waiting on designer files:
+  favicon, negative logo, the "Tín – Tâm – Trí" band, the display font.
+
 ## Shell fixes
 
 - Admin shell fixes (reload redirect to `/login`, header always "Dashboard", focus entering the closed mobile sidebar): complete 2026-09-24, verified on Edge for admin; student shell not yet re-tested. See `docs/implementation/2026-09-24-admin-shell-fixes.md`.

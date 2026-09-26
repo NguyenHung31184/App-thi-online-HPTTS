@@ -103,7 +103,7 @@ export default function AdminLayout() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50/40">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-slate-500">Đang tải...</p>
       </div>
     );

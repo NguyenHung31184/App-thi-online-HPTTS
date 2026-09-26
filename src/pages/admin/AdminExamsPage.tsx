@@ -127,18 +127,14 @@ export default function AdminExamsPage() {
         {exams.map((exam) => {
           const isLocked = Boolean(exam.locked_at);
           return (
-            <div key={exam.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
-              {/* Card header gradient */}
-              <div className="h-20 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 relative overflow-hidden flex items-start justify-end p-2">
-                <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top,_#ffffff_0,_transparent_55%)]" />
-                <div className="relative z-10">
-                  <LockBadge locked={isLocked} />
-                </div>
-              </div>
-
-              {/* Card body */}
+            <div key={exam.id} className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col">
               <div className="flex-1 px-4 pt-3 pb-2">
-                <h3 className="text-sm font-semibold text-slate-900 line-clamp-2">{exam.title}</h3>
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-slate-900 line-clamp-2">{exam.title}</h3>
+                  <div className="flex-shrink-0">
+                    <LockBadge locked={isLocked} />
+                  </div>
+                </div>
                 {exam.description && (
                   <p className="mt-1 text-xs text-slate-500 line-clamp-1">{exam.description}</p>
                 )}

@@ -58,10 +58,10 @@ function ScoreDistributionChart({ rows }: { rows: DashboardRecentAttemptRow[] })
           <div
             className={`w-full rounded-t-sm transition-all ${
               b.label.startsWith('0') || b.label.startsWith('10') || b.label.startsWith('20') || b.label.startsWith('30') || b.label.startsWith('40') || b.label.startsWith('50')
-                ? 'bg-gradient-to-t from-rose-400 to-rose-300'
+                ? 'bg-red-400'
                 : b.label.startsWith('60') || b.label.startsWith('70')
-                ? 'bg-gradient-to-t from-amber-400 to-amber-300'
-                : 'bg-gradient-to-t from-emerald-500 to-emerald-400'
+                ? 'bg-amber-400'
+                : 'bg-emerald-500'
             }`}
             style={{ height: `${(b.count / max) * 100 || 3}%` }}
           />
@@ -240,7 +240,7 @@ export default function AdminDashboardPage() {
                     return (
                       <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
                         <div
-                          className="w-full rounded-t-md bg-gradient-to-t from-indigo-500 to-sky-400"
+                          className="w-full rounded-t-md bg-brand-500"
                           style={{ height: `${height || 5}%` }}
                         />
                         <div className="text-[10px] text-slate-500">

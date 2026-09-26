@@ -27,14 +27,14 @@ function StatusBadge({ startAt, endAt }: { startAt: number; endAt: number }) {
   const status = getWindowStatus(startAt, endAt);
   const config = {
     active: { label: 'Đang diễn ra', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-    upcoming: { label: 'Sắp tới', cls: 'bg-sky-100 text-sky-700 border-sky-200' },
+    upcoming: { label: 'Sắp tới', cls: 'bg-amber-100 text-amber-800 border-amber-200' },
     ended: { label: 'Đã kết thúc', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
   }[status];
 
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${config.cls}`}>
       {status === 'active' && (
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
       )}
       {config.label}
     </span>
@@ -44,7 +44,7 @@ function StatusBadge({ startAt, endAt }: { startAt: number; endAt: number }) {
 function ClassGroupBadge({ status }: { status: WindowStatus }) {
   if (status === 'active') return (
     <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
       Đang thi
     </span>
   );
@@ -229,22 +229,16 @@ export default function AdminWindowsPage() {
               {/* Cards in a responsive grid */}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {list.map((w) => (
-                  <div key={w.id} className="rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
-                    {/* Card header strip */}
-                    <div className={`h-12 relative overflow-hidden flex items-start justify-end p-2 ${w.is_trial ? 'bg-gradient-to-r from-slate-400 via-slate-500 to-slate-600' : 'bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500'}`}>
-                      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top,_#ffffff_0,_transparent_55%)]" />
-                      <div className="relative z-10 flex items-center gap-1.5">
+                  <div key={w.id} className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div className="flex-1 px-3 pt-2.5 pb-2">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                         {w.is_trial && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-white/20 text-white border-white/30">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-slate-100 text-slate-700 border-slate-200">
                             Thử
                           </span>
                         )}
                         <StatusBadge startAt={w.start_at} endAt={w.end_at} />
                       </div>
-                    </div>
-
-                    {/* Body */}
-                    <div className="flex-1 px-3 pt-2.5 pb-2">
                       <h3 className="text-sm font-semibold text-slate-900 line-clamp-2 leading-snug">
                         {exams[w.exam_id] ?? 'Kỳ thi'}
                       </h3>

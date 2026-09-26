@@ -112,7 +112,7 @@ export function ViolationAlertModal({
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 px-10 py-2.5 bg-sky-400 hover:bg-sky-500 text-white font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
+          className="mt-6 px-10 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
           autoFocus
         >
           OK ({countdown}s)

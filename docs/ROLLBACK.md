@@ -4,6 +4,16 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-09-26 — Giao diện app thi theo nhận diện HPTTS
+
+**Commit:** _(commit này)_
+**Branch:** main
+
+Chỉ đổi giao diện (theme trong `src/index.css`, khung, trang đăng nhập, thẻ, nút). Rollback: `git revert <sha>`; chi tiết ở
+`docs/rollback/2026-09-26-hptts-brand-identity.md`. Chỉnh màu thì sửa tiến ở `src/index.css`.
+
+---
+
 ## 2026-09-26 — Chặn route giáo viên: `/admin` chỉ khớp chính nó
 
 **Commit:** `5305972`, push 2026-09-26

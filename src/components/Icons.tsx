@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   Settings,
   GraduationCap,
-  FileSignature,
   BarChart3,
   RefreshCw,
   LogOut,
@@ -26,7 +25,6 @@ export const CalendarIcon = (p: IconProps) => <Calendar {...defaultProps} {...p}
 export const GradingIcon = (p: IconProps) => <ClipboardCheck {...defaultProps} {...p} />;
 export const SettingsIcon = (p: IconProps) => <Settings {...defaultProps} {...p} />;
 export const PracticalIcon = (p: IconProps) => <GraduationCap {...defaultProps} {...p} />;
-export const EssayGradingIcon = (p: IconProps) => <FileSignature {...defaultProps} {...p} />;
 export const ReportIcon = (p: IconProps) => <BarChart3 {...defaultProps} {...p} />;
 export const SyncIcon = (p: IconProps) => <RefreshCw {...defaultProps} {...p} />;
 export const LogoutIcon = (p: IconProps) => <LogOut {...defaultProps} {...p} />;

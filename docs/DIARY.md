@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-09-28 | Thứ tự việc mới, bỏ màn chấm tự luận
+
+### Đã làm
+- Người dùng chốt: giám sát thi trực tuyến làm tiếp (thay "Bài làm gần đây" ở dashboard, nhóm theo lớp, 5–10
+  học viên/lớp, người cần chú ý lên đầu, tín hiệu kết nối 20 giây, làm mới 15 giây); nhập đề Word và báo cáo thực hành
+  để sau.
+- Bỏ menu, route và trang "Chấm tự luận": `grade_attempt` đã chấm câu tự luận theo key.
+
+---
+
 ## 2026-09-26 | Nghiệm thu C2 và push
 
 ### Đã làm

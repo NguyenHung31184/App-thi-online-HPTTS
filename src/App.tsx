@@ -15,8 +15,6 @@ import AdminQuestionFormPage from './pages/admin/AdminQuestionFormPage';
 import AdminQuestionImportPage from './pages/admin/AdminQuestionImportPage';
 import AdminWindowsPage from './pages/admin/AdminWindowsPage';
 import AdminWindowFormPage from './pages/admin/AdminWindowFormPage';
-import AdminEssayGradingPage from './pages/admin/AdminEssayGradingPage';
-import AdminEssayGradingDetailPage from './pages/admin/AdminEssayGradingDetailPage';
 import AdminPracticalTemplatesPage from './pages/admin/AdminPracticalTemplatesPage';
 import AdminPracticalTemplateFormPage from './pages/admin/AdminPracticalTemplateFormPage';
 import AdminPracticalSessionsPage from './pages/admin/AdminPracticalSessionsPage';
@@ -87,8 +85,6 @@ function App() {
             <Route path="windows" element={<AdminWindowsPage />} />
             <Route path="windows/new" element={<AdminWindowFormPage />} />
             <Route path="windows/:id" element={<AdminWindowFormPage />} />
-            <Route path="essay-grading" element={<AdminEssayGradingPage />} />
-            <Route path="essay-grading/:attemptId" element={<AdminEssayGradingDetailPage />} />
             <Route path="practical-templates" element={<AdminPracticalTemplatesPage />} />
             <Route path="practical-templates/new" element={<AdminPracticalTemplateFormPage />} />
             <Route path="practical-templates/:id" element={<AdminPracticalTemplateFormPage />} />

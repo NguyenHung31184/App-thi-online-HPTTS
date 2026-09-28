@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getAttempt, getAttemptWindowContext, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt, disqualifyAttempt, logAuditEvent } from '../services/attemptService';
-import { useAttemptHeartbeat } from '../modules/exam-taking/public';
+import { optionLetter, referencesOtherOptions, useAttemptHeartbeat } from '../modules/exam-taking/public';
 import { getExam } from '../services/examService';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
 import { uploadExamFileViaEdge } from '../services/examUploadService';
@@ -1045,9 +1045,10 @@ export default function ExamTakePage() {
       <div className="space-y-6">
         {shuffledQuestions.map((q: QuestionForStudent, idx: number) => {
             const rawOpts = (Array.isArray(q.options) ? q.options as { id: string; text: string }[] : []);
-            // Tráo đáp án cho trắc nghiệm (giữ id, chỉ tráo thứ tự hiển thị)
+            // Tráo đáp án cho trắc nghiệm (giữ id, chỉ tráo thứ tự hiển thị), trừ câu có phương án kiểu "Đáp án a, b đúng"
             const optSeed = hashStringToSeed(`${attemptId ?? 'seed'}|${q.id}|opts`);
-            const opts = (q.question_type === 'single_choice' || q.question_type === 'multiple_choice')
+            const isChoice = q.question_type === 'single_choice' || q.question_type === 'multiple_choice';
+            const opts = isChoice && !referencesOtherOptions(rawOpts.map((o) => o.text ?? ''))
               ? shuffleWithSeed(rawOpts, optSeed)
               : rawOpts;
           const isMultiple = q.question_type === 'multiple_choice';
@@ -1248,7 +1249,7 @@ export default function ExamTakePage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {opts.map((opt) =>
+                  {opts.map((opt, optIdx) =>
                     isMultiple ? (
                       <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -1262,7 +1263,7 @@ export default function ExamTakePage() {
                           }}
                           className="w-4 h-4"
                         />
-                        <span>{opt.text}</span>
+                        <span>{optionLetter(optIdx)}) {opt.text}</span>
                       </label>
                     ) : (
                       <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
@@ -1273,7 +1274,7 @@ export default function ExamTakePage() {
                           onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: opt.id }))}
                           className="w-4 h-4"
                         />
-                        <span>{opt.text}</span>
+                        <span>{optionLetter(optIdx)}) {opt.text}</span>
                       </label>
                     )
                   )}

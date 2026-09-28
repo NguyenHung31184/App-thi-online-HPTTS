@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-09-28 — Giữ thứ tự phương án kiểu "Đáp án a, b đúng"
+
+**Commit:** _(commit này)_
+**Branch:** main
+
+Chỉ sửa màn thi, không có migration. Rollback: `git revert`; xem `docs/rollback/2026-09-28-keep-option-order.md`.
+
+---
+
 ## 2026-09-28 — Bỏ biểu đồ "Phân phối điểm số" và "Top đề thi"
 
 **Commit:** _(commit này)_

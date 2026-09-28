@@ -8,6 +8,7 @@ export {
   startTheoryAttempt,
   submitTheoryAttempt,
 } from './application/manage-theory-attempt';
+export { optionLetter, referencesOtherOptions } from './domain/option-order';
 export { examTakingKeys } from './queries/keys';
 export { useAvailableTheoryWindows, useStartTheoryAttempt } from './queries/use-theory-attempt';
 export { useAttemptHeartbeat } from './queries/use-attempt-heartbeat';

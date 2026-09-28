@@ -34,6 +34,7 @@ Document import from Word (item 4) is also later: every module has 150–200 que
 
 Removed 2026-09-28: the manual essay grading screen, `docs/implementation/2026-09-28-remove-essay-grading-screen.md`.
 Removed 2026-09-28: the "Phân phối điểm số" and "Top đề thi" dashboard charts, `docs/implementation/2026-09-28-remove-dashboard-charts.md`.
+Fixed 2026-09-28: options that refer to other options ("Đáp án a, b đúng", "Tất cả các ý trên") keep their order and every choice option shows its letter, `docs/implementation/2026-09-28-keep-option-order.md`.
 
 ## Parked changes
 

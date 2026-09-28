@@ -12,6 +12,10 @@
   học viên/lớp, người cần chú ý lên đầu, tín hiệu kết nối 20 giây, làm mới 15 giây); nhập đề Word và báo cáo thực hành
   để sau.
 - Bỏ menu, route và trang "Chấm tự luận": `grade_attempt` đã chấm câu tự luận theo key.
+- Giám sát thi trực tuyến: migration `20260928120000` (cột `last_seen_at`, `touch_attempt`, `get_live_exam_monitor`)
+  chạy thử trên production đạt; trang làm bài gửi tín hiệu 20 giây; module `exam-monitoring` (nhóm theo lớp, 8 học
+  viên đầu, người cần chú ý lên đầu, tự làm mới 15 giây) thay "Bài làm gần đây" ở dashboard. Chờ duyệt migration.
+- Kết nối Supabase MCP mất giữa buổi; dùng `npx supabase db query --linked` thay thế.
 
 ---
 

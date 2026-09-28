@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getAttempt, getAttemptWindowContext, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt, disqualifyAttempt, logAuditEvent } from '../services/attemptService';
+import { useAttemptHeartbeat } from '../modules/exam-taking/public';
 import { getExam } from '../services/examService';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
 import { uploadExamFileViaEdge } from '../services/examUploadService';
@@ -658,6 +659,8 @@ export default function ExamTakePage() {
       void persistAnswers();
     };
   }, [attemptId, persistAnswers]);
+
+  useAttemptHeartbeat(attemptId, attempt?.status === 'in_progress');
 
   useEffect(() => {
     if (

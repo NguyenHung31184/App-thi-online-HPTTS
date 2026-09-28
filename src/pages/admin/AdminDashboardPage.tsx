@@ -5,7 +5,7 @@ import {
   type AdminDashboardStats,
   type DashboardRecentAttemptRow,
 } from '../../services/dashboardService';
-import DashboardRecentAttemptsTable from '../../components/DashboardRecentAttemptsTable';
+import { LiveExamMonitor } from '../../modules/exam-monitoring/public';
 
 // ── Chart helpers (pure CSS, no library) ──────────────────────────────────────
 
@@ -224,6 +224,8 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
+          <LiveExamMonitor />
+
           {/* ── Row: attempts/day + violations ── */}
           <div className="grid gap-6 lg:grid-cols-3 mb-6">
             <div className="lg:col-span-2 rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
@@ -316,18 +318,6 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           )}
-
-          {/* ── Recent attempts table ── */}
-          <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-sm font-semibold text-slate-800">Bài làm gần đây (đã nộp)</p>
-              <span className="text-xs text-slate-400">{recentRows.length} bài</span>
-            </div>
-            <p className="text-xs text-slate-500 mb-3">
-              Đề thi, kỳ thi, thời gian làm, điểm, kết quả — bấm <strong>Xem</strong> để xem chi tiết từng câu.
-            </p>
-            <DashboardRecentAttemptsTable rows={recentRows} showAdminLinks />
-          </div>
         </>
       )}
     </div>

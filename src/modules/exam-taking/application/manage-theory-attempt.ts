@@ -8,3 +8,4 @@ export const getTheoryAttemptQuestions = repository.fetchAttemptQuestions;
 export const submitTheoryAttempt = repository.gradeTheoryAttempt;
 export const disqualifyTheoryAttempt = repository.disqualifyTheoryAttempt;
 export const recordTheoryAttemptAuditEvent = repository.writeAttemptAuditEvent;
+export const reportTheoryAttemptConnection = repository.touchAttempt;

@@ -4,6 +4,16 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-09-28 — Giám sát thi trực tuyến
+
+**Commit:** _(commit này, chưa push)_
+**Branch:** main
+
+Có migration `20260928120000_live_exam_monitoring.sql`. Rollback: revert code trước, rồi mới DROP hai hàm và cột; chi
+tiết ở `docs/rollback/2026-09-28-live-exam-monitoring.md`.
+
+---
+
 ## 2026-09-26 — Giao diện app thi theo nhận diện HPTTS
 
 **Commit:** _(commit này)_

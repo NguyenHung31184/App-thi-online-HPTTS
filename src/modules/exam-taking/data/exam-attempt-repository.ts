@@ -31,6 +31,12 @@ export async function saveAttemptAnswers(attemptId: string, answers: Record<stri
   if (error) throw error;
 }
 
+/** Báo trang làm bài còn mở: chỉ cập nhật last_seen_at của bài đang làm của chính người gọi. */
+export async function touchAttempt(attemptId: string): Promise<void> {
+  const { error } = await supabase.rpc('touch_attempt', { p_attempt_id: attemptId });
+  if (error) throw error;
+}
+
 export async function fetchAttemptQuestions(attemptId: string, examId: string): Promise<QuestionForStudent[]> {
   const { data: attempt, error: attemptError } = await supabase
     .from('attempts')

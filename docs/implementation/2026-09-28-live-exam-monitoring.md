@@ -1,6 +1,7 @@
 # Live exam monitoring on the admin dashboard
 
-- Status: code committed locally 2026-09-28; migration dry-run passed, waiting for the operator's approval to apply.
+- Status: migration applied 2026-09-28 after the operator's approval (CLI `db query --linked`, version recorded in
+  `supabase_migrations.schema_migrations`); code `8039e86` pushed the same day.
 - Date: 2026-09-28
 - Database: `supabase/migrations/20260928120000_live_exam_monitoring.sql` (shared project `vmtztbmlzszuxkglubro`), applied
   only after a dry run and the operator's approval.

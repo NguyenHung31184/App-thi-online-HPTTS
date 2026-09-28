@@ -6,7 +6,7 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ## 2026-09-28 — Giám sát thi trực tuyến
 
-**Commit:** _(commit này, chưa push)_
+**Commit:** `8039e86` (+ `8e8f87f` bỏ màn chấm tự luận), push 2026-09-28; migration đã chạy
 **Branch:** main
 
 Có migration `20260928120000_live_exam_monitoring.sql`. Rollback: revert code trước, rồi mới DROP hai hàm và cột; chi

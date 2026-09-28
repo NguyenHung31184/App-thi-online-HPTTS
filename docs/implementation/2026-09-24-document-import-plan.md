@@ -24,6 +24,7 @@ Upload a Word file (later PDF or a photo), let the system split it into question
    - an answer table or list at the end of the file (1-B, 2-A, …).
 3. Reviewing reuses the library question editor (`docs/implementation/2026-09-24-c2-question-editor.md`): each draft opens in the editor, and "Đưa vào ngân hàng" saves it as a question of the library.
 4. PDF and photos come later and need OCR: the Docling worker on the planned VPS, or an AI vision model called from the server. Decide when the Word path is done.
+5. Operator, 2026-09-28: Word files are read in the browser (`jszip` is already a dependency; parse `word/document.xml` and its relationships), not by a Python server. The Docling worker cannot run on Vercel and drops the underline, bold and color marks; it stays an option for PDF and photos on the VPS.
 
 ## Design notes for the Word path
 

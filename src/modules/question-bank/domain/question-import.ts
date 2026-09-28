@@ -34,6 +34,14 @@ export interface ImportRow {
   difficulty: string;
   points: string;
   imageFile: string;
+  /** How the preview names the row ("Câu 28" for a Word file); "Dòng <line>" when absent. */
+  label?: string;
+  /** Doubts found while reading the file; such a row is stored as a draft whatever the batch status. */
+  reviewNotes?: string[];
+}
+
+export function rowLabel(row: { line: number; label?: string }): string {
+  return row.label ?? `Dòng ${row.line}`;
 }
 
 export interface ImportSheet {
@@ -339,10 +347,14 @@ export interface ReadyRow {
   /** File name as written in the sheet; null when the question has no picture. */
   imageName: string | null;
   note: string | null;
+  label?: string;
+  /** Stored as a draft even when the batch is published. */
+  needsReview: boolean;
 }
 
 export interface SkippedRow {
   line: number;
+  label?: string;
   stem: string;
   reason: string;
 }
@@ -375,10 +387,10 @@ function imageError(name: string, imageSizes: Map<string, number> | null): strin
 export function planImport(sheet: ImportSheet, context: ImportContext): ImportPlan {
   const plan: ImportPlan = { ready: [], errors: [], duplicates: [], notices: [] };
   if (!sheet.headerRecognized) plan.notices.push(FIXED_COLUMNS_NOTICE);
-  const seen = new Map<string, number>();
+  const seen = new Map<string, string>();
 
   for (const row of sheet.rows) {
-    const skip = (reason: string) => ({ line: row.line, stem: row.stem, reason });
+    const skip = (reason: string) => ({ line: row.line, label: row.label, stem: row.stem, reason });
     const imageName = row.imageFile || null;
     const badImage = imageName ? imageError(imageName, context.imageSizes) : null;
     if (badImage) { plan.errors.push(skip(badImage)); continue; }
@@ -389,17 +401,20 @@ export function planImport(sheet: ImportSheet, context: ImportContext): ImportPl
     if (!built.ok) { plan.errors.push(skip(built.error)); continue; }
 
     const key = contentKey(built.payload.stem, built.payload.options);
-    const firstLine = seen.get(key);
-    if (firstLine !== undefined) { plan.duplicates.push(skip(`Trùng dòng ${firstLine} trong file.`)); continue; }
+    const first = seen.get(key);
+    if (first !== undefined) { plan.duplicates.push(skip(`Trùng ${first.charAt(0).toLowerCase()}${first.slice(1)} trong file.`)); continue; }
     if (context.existingKeys.has(key)) { plan.duplicates.push(skip('Đã có trong ngân hàng.')); continue; }
-    seen.set(key, row.line);
+    seen.set(key, rowLabel(row));
 
     const onImage = built.payload.question_type === 'drag_drop' && built.payload.rubric !== undefined;
+    const notes = [...(row.reviewNotes ?? []), ...(onImage ? ['Gắn nhãn lên ảnh: 4 ô đang ở vị trí mặc định, mở câu sau khi nhập để đặt lại.'] : [])];
     plan.ready.push({
       line: row.line,
+      label: row.label,
       payload: built.payload,
       imageName,
-      note: onImage ? 'Gắn nhãn lên ảnh: 4 ô đang ở vị trí mặc định, mở câu sau khi nhập để đặt lại.' : null,
+      note: notes.length > 0 ? notes.join(' ') : null,
+      needsReview: (row.reviewNotes ?? []).length > 0,
     });
   }
   return plan;

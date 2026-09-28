@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { buildImportTemplate, previewQuestionImport, runQuestionImport, type RunImportInput } from '../application/import-questions';
+import { buildImportTemplate, previewQuestionImport, runQuestionImport, type MarkingChoice, type RunImportInput } from '../application/import-questions';
 import { questionBankKeys } from './keys';
 
 export function useImportTemplate() {
@@ -8,7 +8,9 @@ export function useImportTemplate() {
 
 /** Reading a file is a user action with no cache to share, so it is a mutation rather than a query. */
 export function usePreviewQuestionImport(libraryId: string) {
-  return useMutation({ mutationFn: (file: File) => previewQuestionImport(libraryId, file) });
+  return useMutation({
+    mutationFn: ({ file, marking }: { file: File; marking?: MarkingChoice }) => previewQuestionImport(libraryId, file, marking),
+  });
 }
 
 export function useRunQuestionImport(libraryId: string) {

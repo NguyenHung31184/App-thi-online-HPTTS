@@ -4,6 +4,16 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-09-28 — Nhập câu hỏi từ file Word (.docx)
+
+**Commit:** _(commit này)_
+**Branch:** main
+
+Không có migration. Câu nhập từ Word có `source = 'word_import'`. Rollback: `git revert`; xem
+`docs/rollback/2026-09-28-word-import.md`.
+
+---
+
 ## 2026-09-28 — Giữ thứ tự phương án kiểu "Đáp án a, b đúng"
 
 **Commit:** _(commit này)_

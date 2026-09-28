@@ -2,7 +2,9 @@ import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
 import { validateMediaUrl } from '../../../utils/mediaUrlValidator';
 import { OPTION_IDS } from '../domain/question-draft';
+import { readDocxBlocks } from '../domain/docx-reader';
 import { IMAGE_EXTENSIONS, IMPORT_HEADER, IMPORT_TYPE_NAMES as TYPE, MAX_IMPORT_ROWS, contentKey, imageKey, planImport, readImportSheet, type ImportPlan, type ImportSheet } from '../domain/question-import';
+import { buildWordSheet, proposeMarking, readWordQuestions, type AnswerMarking } from '../domain/word-questions';
 import type { QuestionLibrary, QuestionStatus } from '../domain/question-library';
 import { insertQuestions, listLibraryQuestionContent, uploadQuestionImage } from '../data/question-repository';
 import { resolveLibraryCourse } from './library-course';
@@ -10,9 +12,14 @@ import { resolveLibraryCourse } from './library-course';
 export interface ImportPreview {
   fileName: string;
   plan: ImportPlan;
-  /** Pictures from a ZIP by `imageKey`; null for a plain spreadsheet. */
+  /** Pictures from a ZIP or a Word file by `imageKey`; null for a plain spreadsheet. */
   images: Map<string, Blob> | null;
+  /** Set for a Word file: the marking used to read answers and the one the file suggests. */
+  word: { marking: AnswerMarking | null; proposed: AnswerMarking | null } | null;
 }
+
+/** 'auto' reads a Word file with the marking most of its questions use. */
+export type MarkingChoice = AnswerMarking | 'auto';
 
 const SPREADSHEET = /\.(xlsx|xls|csv)$/i;
 const IMAGE_MIME: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
@@ -77,16 +84,57 @@ async function readZip(buffer: ArrayBuffer): Promise<{ sheet: ImportSheet; image
   return { sheet, images };
 }
 
+interface WordRead {
+  sheet: ImportSheet;
+  images: Map<string, Blob>;
+  errors: ImportPlan['errors'];
+  notices: string[];
+  marking: AnswerMarking | null;
+  proposed: AnswerMarking | null;
+}
+
+async function readWord(buffer: ArrayBuffer, choice: MarkingChoice): Promise<WordRead> {
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(buffer);
+  } catch {
+    throw new Error('Không mở được file Word. Mở bằng Word, lưu lại dạng .docx rồi chọn lại.');
+  }
+  const part = (name: string) => zip.file(name)?.async('string') ?? Promise.resolve(null);
+  const document = await part('word/document.xml');
+  if (!document) throw new Error('File không phải văn bản Word (.docx).');
+  const blocks = readDocxBlocks({ document, numbering: await part('word/numbering.xml'), relationships: await part('word/_rels/document.xml.rels') });
+  const questions = readWordQuestions(blocks);
+  const proposed = proposeMarking(questions);
+  const marking = choice === 'auto' ? proposed : choice;
+  const word = buildWordSheet(questions, marking);
+
+  const images = new Map<string, Blob>();
+  for (const path of new Set(word.rows.flatMap((row) => (row.imagePath ? [row.imagePath] : [])))) {
+    const entry = zip.file(path);
+    if (!entry) continue;
+    const blob = await entry.async('blob');
+    const extension = path.split('.').pop()?.toLowerCase() ?? '';
+    images.set(imageKey(path), blob.slice(0, blob.size, IMAGE_MIME[extension]));
+  }
+  return { sheet: { rows: word.rows, headerRecognized: true }, images, errors: word.errors, notices: word.notices, marking, proposed };
+}
+
 /** Reads the file and checks every row against the library; nothing is stored. */
-export async function previewQuestionImport(libraryId: string, file: File): Promise<ImportPreview> {
+export async function previewQuestionImport(libraryId: string, file: File, marking: MarkingChoice = 'auto'): Promise<ImportPreview> {
   const buffer = await file.arrayBuffer();
   let sheet: ImportSheet;
   let images: Map<string, Blob> | null = null;
+  let word: WordRead | null = null;
   if (/\.zip$/i.test(file.name)) ({ sheet, images } = await readZip(buffer));
   else if (SPREADSHEET.test(file.name)) sheet = readSpreadsheet(file.name, buffer);
-  else throw new Error('Chỉ nhận file .xlsx, .xls, .csv hoặc .zip.');
+  else if (/\.docx$/i.test(file.name)) ({ sheet, images } = word = await readWord(buffer, marking));
+  else if (/\.doc$/i.test(file.name)) throw new Error('File .doc là dạng Word cũ, trình duyệt không đọc được. Mở bằng Word, chọn File → Save As → Word Document (.docx) rồi chọn lại file mới.');
+  else throw new Error('Chỉ nhận file .xlsx, .xls, .csv, .zip hoặc Word .docx.');
 
-  if (sheet.rows.length === 0) throw new Error('Trang tính đầu tiên không có dòng câu hỏi nào dưới dòng tiêu đề.');
+  if (sheet.rows.length === 0 && word) {
+    if (word.errors.length === 0) throw new Error(word.notices[0] ?? 'Không thấy câu hỏi nào trong file Word.');
+  } else if (sheet.rows.length === 0) throw new Error('Trang tính đầu tiên không có dòng câu hỏi nào dưới dòng tiêu đề.');
   if (sheet.rows.length > MAX_IMPORT_ROWS) {
     throw new Error(`File có ${sheet.rows.length} dòng, mỗi lần nhập tối đa ${MAX_IMPORT_ROWS} dòng. Tách thành nhiều file.`);
   }
@@ -97,7 +145,11 @@ export async function previewQuestionImport(libraryId: string, file: File): Prom
     imageSizes: images && new Map([...images].map(([key, blob]) => [key, blob.size])),
     existingKeys: new Set(existing.map((question) => contentKey(question.stem, question.options))),
   });
-  return { fileName: file.name, plan, images };
+  if (word) {
+    plan.errors = [...word.errors, ...plan.errors].sort((a, b) => a.line - b.line);
+    plan.notices.push(...word.notices);
+  }
+  return { fileName: file.name, plan, images, word: word && { marking: word.marking, proposed: word.proposed } };
 }
 
 export type ImportProgress = { step: 'images'; done: number; total: number } | { step: 'saving' };
@@ -141,12 +193,13 @@ export async function runQuestionImport({ library, preview, status, createdBy, o
   onProgress?.({ step: 'saving' });
   return insertQuestions(ready.map((row) => ({
     ...row.payload,
-    status,
+    // A row the reader had doubts about waits in drafts until someone opens it.
+    status: row.needsReview ? 'draft' : status,
     image_url: row.imageName ? urls.get(imageKey(row.imageName)) ?? null : null,
     library_id: library.id,
     module_id: library.moduleId,
     occupation_id: course,
-    source: 'spreadsheet_import',
+    source: preview.word ? 'word_import' : 'spreadsheet_import',
     created_by: createdBy,
   })));
 }

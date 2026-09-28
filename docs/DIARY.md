@@ -16,6 +16,8 @@
   chạy thử trên production đạt; trang làm bài gửi tín hiệu 20 giây; module `exam-monitoring` (nhóm theo lớp, 8 học
   viên đầu, người cần chú ý lên đầu, tự làm mới 15 giây) thay "Bài làm gần đây" ở dashboard. Người dùng duyệt:
   chạy migration rồi push.
+- Bảng giám sát đổi sang thẻ theo ảnh mẫu người dùng gửi (tab theo lớp, lưới 3 cột, 6 thẻ/tab, bỏ "Nhận xét"); migration
+  `20260928150000` trả thêm điểm và lần thi (chạy thử rồi chạy thật). 45 test đạt.
 - Kết nối Supabase MCP mất giữa buổi; dùng `npx supabase db query --linked` thay thế.
 
 ---

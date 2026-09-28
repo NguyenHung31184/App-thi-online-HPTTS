@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatSecondsAgo, groupByClass, liveStatusOf, type LiveAttemptRow } from './live-status';
+import { formatDuration, formatSecondsAgo, groupByClass, initials, liveStatusOf, scoreOutOf10, tabCounter, type LiveAttemptRow } from './live-status';
 
 function row(overrides: Partial<LiveAttemptRow> = {}): LiveAttemptRow {
   return {
     windowId: 'w1', classId: 'c1', className: 'Lớp A', enrolled: 10, examTitle: 'Đề 1', isTrial: false,
     windowEndAt: 1000, attemptId: 'a1', studentCode: 'hv1', studentName: 'An', status: 'in_progress', startedAt: 1,
+    completedAt: null, score: null, attemptNumber: 1,
     answered: 3, totalQuestions: 50, violations: 0, lastViolation: null, disqualified: false,
     secondsSinceSeen: 10, secondsSinceViolation: null, ...overrides,
   };
@@ -56,6 +57,38 @@ describe('groupByClass', () => {
     expect(groups.map((g) => g.className)).toEqual(['Lớp B', 'Lớp A']);
     expect(groups[1].examTitles).toEqual(['Đề 1', 'Đề 2']);
     expect(groups[1].endsAt).toBe(2000);
+  });
+});
+
+describe('card values', () => {
+  it('builds avatar letters like the sample', () => {
+    expect(initials('DƯƠNG THỌ THANH LÊ')).toBe('DL');
+    expect(initials('Nguyễn Văn Thắng')).toBe('NT');
+    expect(initials('Tuấn')).toBe('T');
+    expect(initials('  đinh   công trường ')).toBe('ĐT');
+    expect(initials(null)).toBe('?');
+  });
+
+  it('shows the score on the 10-point scale', () => {
+    expect(scoreOutOf10(0.76)).toBe('7.6');
+    expect(scoreOutOf10(0.925)).toBe('9.3');
+    expect(scoreOutOf10(1)).toBe('10.0');
+    expect(scoreOutOf10(null)).toBeNull();
+  });
+
+  it('formats a duration', () => {
+    expect(formatDuration(2016000)).toBe('33 phút 36 giây');
+    expect(formatDuration(45000)).toBe('45 giây');
+    expect(formatDuration(3900000)).toBe('1 giờ 5 phút');
+  });
+
+  it('counts finished attempts over started ones for the tab', () => {
+    const [group] = groupByClass([
+      row({ attemptId: 'a1', studentCode: 'hv1', status: 'completed' }),
+      row({ attemptId: 'a2', studentCode: 'hv2', status: 'completed', disqualified: true }),
+      row({ attemptId: 'a3', studentCode: 'hv3' }),
+    ]);
+    expect(tabCounter(group)).toBe('2/3');
   });
 });
 

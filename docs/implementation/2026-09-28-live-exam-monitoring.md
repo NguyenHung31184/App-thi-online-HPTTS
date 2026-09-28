@@ -49,6 +49,25 @@ Dashboard: the monitor goes right below the stat cards (during a sitting it is t
 "Bài làm gần đây (đã nộp)" and its now unused component `DashboardRecentAttemptsTable` are removed. The charts built
 from recent attempts stay.
 
+## Card layout from the operator's sample (2026-09-28)
+
+The operator sent a screenshot (student cards in a 3-column grid under a tab "Tự do (9/9)"). Per DESIGN.md section 0 the
+"take / change / drop" list was confirmed first:
+
+- Take: 3-column card grid (1 column on phones), round avatar with initials (first and last word), name, one sub-line,
+  label–value rows; tabs with a counter.
+- Change: one tab per class, counter = finished/started, "· n cần chú ý" in amber; sub-line "Điểm: 7.6 (Lần thi: 1)" when
+  finished, "Đã trả lời 32/50 câu (Lần thi: 1)" while in progress; status under the name in the status colors (the sample
+  shows a normal "Đang Thi" in red, which the app reserves for errors); rows: Thời gian làm bài, Thời gian nộp bài, Vi phạm,
+  Tín hiệu cuối or "Xem bài"; white cards, border in the status color for students needing attention.
+- Drop: "Nhận xét" with its pen button (no comment feature exists).
+- 6 cards per tab before "Xem cả lớp" (operator's choice).
+- Migration `20260928150000_live_monitor_score.sql` (approved, dry run then applied): the function also returns `score`
+  and `attempt_number` (nth attempt of the student in the same window). Dry run: a retake showed 2 and its score 0.76;
+  grants unchanged.
+- Running "Thời gian làm bài" uses the time of the last refresh on the proctor's computer; it is display only, the
+  status still comes from server-side seconds.
+
 ## Checks (2026-09-28)
 
 - Migration dry run on production (Supabase CLI `db query --linked`, block that raises at the end, run 3 times, nothing

@@ -12,6 +12,9 @@ export interface LiveAttemptRow {
   studentName: string | null;
   status: string;
   startedAt: number;
+  completedAt: number | null;
+  score: number | null;
+  attemptNumber: number;
   answered: number;
   totalQuestions: number;
   violations: number;
@@ -115,6 +118,38 @@ export function groupByClass(rows: LiveAttemptRow[]): LiveClassGroup[] {
   }
 
   return groups.sort((a, b) => needsAttention(b) - needsAttention(a) || a.className.localeCompare(b.className, 'vi'));
+}
+
+/** Avatar letters as in the operator's sample: first letter of the first and last word ("Nguyễn Văn Thắng" → "NT"). */
+export function initials(name: string | null): string {
+  const words = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '?';
+  const first = words[0][0];
+  const last = words.length > 1 ? words[words.length - 1][0] : '';
+  return (first + last).toLocaleUpperCase('vi');
+}
+
+/** Score is stored as a 0–1 ratio; staff read it on the 10-point scale, one decimal, like the grade book. */
+export function scoreOutOf10(score: number | null): string | null {
+  if (score == null) return null;
+  return (Math.round(score * 100) / 10).toFixed(1);
+}
+
+/** "33 phút 36 giây", "1 giờ 5 phút", "45 giây". */
+export function formatDuration(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  if (hours > 0) return `${hours} giờ ${minutes} phút`;
+  if (minutes > 0) return `${minutes} phút ${seconds} giây`;
+  return `${seconds} giây`;
+}
+
+/** Tab counter "(submitted/started)": submitted includes disqualified attempts, which are finished too. */
+export function tabCounter(group: LiveClassGroup): string {
+  const finished = group.counts.submitted + group.counts.disqualified;
+  return `${finished}/${group.students.length}`;
 }
 
 /** "vừa xong", "45 giây trước", "3 phút trước". */

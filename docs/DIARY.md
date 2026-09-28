@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-09-28 | Bỏ 2 biểu đồ, giữ thứ tự phương án, nhập đề từ Word
+
+### Đã làm
+- Bỏ "Phân phối điểm số" và "Top đề thi" ở dashboard (`8fa4af0`).
+- Câu có phương án kiểu "Đáp án a, b đúng", "Tất cả các ý trên" không còn bị đảo; mọi phương án trắc nghiệm hiện chữ
+  a), b), c) (`cadcb58`). 105/1.194 câu trong ngân hàng được giữ thứ tự.
+- Nhập đề từ Word .docx ngay trên trình duyệt (`b8437de`): đáp án theo chữ đỏ / tô nền / in đậm / gạch chân (chọn theo
+  file, máy đề xuất), dòng "Đáp án:", bảng đáp án cuối file; ảnh tách khỏi file và gắn đúng câu, có ảnh thu nhỏ khi xem
+  trước; câu nghi ngờ lưu ở Bản nháp kèm ghi chú. Thử trên production với file ĐẾ (134 câu, 13 câu có ảnh) rồi xóa mềm.
+
+### Vấn đề gặp
+- File của trung tâm trình bày nhiều kiểu: cả câu trong một đoạn có xuống dòng mềm, "Câu 46" dính cuối phương án của
+  câu 45, gõ nhầm "Cây 13.", cùng câu hỏi khác đáp án (ĐẾ câu 28/40/76, 32/62). Bộ đọc báo lỗi hoặc đánh dấu xem lại.
+- Một số file không có đáp án (Forklift, NH Cont, Lái xe ô tô 3–4); 24 file .doc cũ phải lưu lại thành .docx.
+
+### Kế hoạch tiếp theo
+- Tạo thư viện cho cần trục chân đế và các nghề còn thiếu rồi nhập thật; sửa các câu lỗi trong file Word.
+- Tổng duyệt thi thử (còn dở từ trước), báo cáo thi thực hành, PDF/ảnh chụp sau.
+
+---
+
 ## 2026-09-28 | Thứ tự việc mới, bỏ màn chấm tự luận
 
 ### Đã làm

@@ -1,7 +1,6 @@
 # Import questions from a Word file (.docx), read in the browser
 
-- Status: committed 2026-09-28; not pushed. The Edge import check below waits for the operator's approval (it writes
-  draft rows to production).
+- Status: complete 2026-09-28; `b8437de` pushed after the operator's approval.
 - Date: 2026-09-28
 - Database: none. Stored rows use the existing `question_bank` columns; `source = 'word_import'`.
 - Rollback: `docs/rollback/2026-09-28-word-import.md`
@@ -92,5 +91,11 @@ Imported as a draft with a note even when the batch is published ("cần xem l�
     breaks were split).
   - Lái xe, Thợ hàn: 137/149 and 278/298 ready; the rest have no red option in the file.
   - Files without any marked answer (Forklift, NH Cont, Lái xe ô tô 3–4) are reported as such.
-- Pending, needs the operator's approval (writes to production): Edge, admin, import the ĐẾ file into a test library as
-  draft, check pictures in the editor, soft-delete the test rows.
+- Edge, admin, production, operator-approved write: the ĐẾ file into NLĐK-QC (no crane library exists yet). Preview:
+  red proposed and marked "(file đang dùng)", batch status defaulted to "Bản nháp", 134 ready, 3 to review, 6 reported,
+  10 duplicates inside the file (the same question in two levels), thumbnails on questions 2 and 7 matching the Word
+  pictures. Import: toast "Đã nhập 134 câu vào ngân hàng.", no page error, no Supabase 4xx. Stored: 134 drafts,
+  `source = 'word_import'`, module set, 13 with a picture (7 distinct files under `question-bank/<library>/import-*`).
+  Question 7 opened in the editor with answer B and its picture loaded.
+- The 134 test rows were soft-deleted the same day; NLĐK-QC is back to 150 published. The 7 test pictures stay in the
+  bucket (never cleaned by hand).

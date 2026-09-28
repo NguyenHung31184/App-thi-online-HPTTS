@@ -33,6 +33,7 @@ This ledger is the entry point for people and coding agents continuing the proje
 Document import from Word (item 4) is also later: every module has 150–200 questions.
 
 Removed 2026-09-28: the manual essay grading screen, `docs/implementation/2026-09-28-remove-essay-grading-screen.md`.
+Removed 2026-09-28: the "Phân phối điểm số" and "Top đề thi" dashboard charts, `docs/implementation/2026-09-28-remove-dashboard-charts.md`.
 
 ## Parked changes
 

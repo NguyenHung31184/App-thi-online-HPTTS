@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-09-28 — Bỏ biểu đồ "Phân phối điểm số" và "Top đề thi"
+
+**Commit:** _(commit này)_
+**Branch:** main
+
+Chỉ sửa giao diện dashboard, không có migration. Rollback: `git revert`; xem `docs/rollback/2026-09-28-remove-dashboard-charts.md`.
+
+---
+
 ## 2026-09-28 — Giám sát thi trực tuyến
 
 **Commit:** `8039e86` (+ `8e8f87f` bỏ màn chấm tự luận), push 2026-09-28; migration đã chạy

@@ -1,4 +1,8 @@
 {
+  "functions": {
+    "api/exam-maintenance.ts": { "maxDuration": 60 },
+    "api/sync-ttdt.ts": { "maxDuration": 60 }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }

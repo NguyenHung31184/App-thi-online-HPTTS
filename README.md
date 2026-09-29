@@ -1,5 +1,8 @@
 # App Thi Online HPTTS
 
+> Bản củng cố ca thi 2026-09-29: xem [thứ tự migration, triển khai và kiểm thử](docs/implementation/2026-09-29-exam-reliability.md).
+> Database dùng chung TTDT; hướng dẫn MVP phía dưới không đủ để dựng lại schema hiện hành.
+
 **Repo riêng** — ứng dụng thi trực tuyến, tích hợp với hệ thống **Quản lý TTDT-HPTTS** (điểm tự động đổ sang TTDT).  
 Tương tự cách **Chatbot tuyển sinh** là repo riêng (`Chatbot_HPTTS_2025`), app thi online nằm tại repo này, không nằm trong repo QuanlyTTDT-HPTTS.
 

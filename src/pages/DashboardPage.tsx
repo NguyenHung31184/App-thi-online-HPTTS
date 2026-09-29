@@ -252,7 +252,7 @@ function StudentDashboard() {
         setEnteringPracticalId(null);
         return;
       }
-      const attempt = await createPracticalAttempt(sessionId, user.id);
+      const attempt = await createPracticalAttempt(sessionId, code);
       navigate(`/practical/${attempt.id}`);
     } catch (e) {
       setEnterError(e instanceof Error ? e.message : 'Lỗi tạo bài làm.');

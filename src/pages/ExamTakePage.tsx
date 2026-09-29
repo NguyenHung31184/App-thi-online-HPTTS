@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAttempt, getAttemptWindowContext, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt, disqualifyAttempt, logAuditEvent } from '../services/attemptService';
+import { getAttempt, getAttemptWindowContext, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt, logAuditEvent } from '../services/attemptService';
 import { optionLetter, referencesOtherOptions, useAttemptHeartbeat } from '../modules/exam-taking/public';
 import { getExam } from '../services/examService';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
@@ -93,6 +93,8 @@ export default function ExamTakePage() {
   const autosaveInFlightRef = useRef(false);
   const lastSavedRef = useRef<Record<string, string>>({});
   const timeUpSubmittedRef = useRef(false);
+  const submitInFlightRef = useRef(false);
+  const nextSubmitRetryAtRef = useRef(0);
   const answersRef = useRef<Record<string, string>>({});
   answersRef.current = answers;
   const proctoringDoneRef = useRef(false);
@@ -403,9 +405,8 @@ export default function ExamTakePage() {
     const questionsList = await getQuestionsForAttempt(a.id, a.exam_id);
     setQuestions(questionsList);
     const personalEnd = a.started_at + e.duration_minutes * 60 * 1000;
-    let effEnd = personalEnd;
     const windowContext = await getAttemptWindowContext(a.id);
-    if (windowContext?.end_at && windowContext.end_at < personalEnd) effEnd = windowContext.end_at;
+    const effEnd = windowContext?.end_at ?? personalEnd;
     setEffectiveEndTime(effEnd);
     setRemainingMs(Math.max(0, effEnd - Date.now()));
   }, [attemptId, user?.id, navigate]);
@@ -419,9 +420,9 @@ export default function ExamTakePage() {
     const t = setInterval(() => {
       const r = Math.max(0, effectiveEndTime - Date.now());
       setRemainingMs(r);
-      if (r <= 0 && !timeUpSubmittedRef.current) {
-        timeUpSubmittedRef.current = true;
-        handleSubmitRef.current?.();
+      if (r <= 0 && !timeUpSubmittedRef.current && Date.now() >= nextSubmitRetryAtRef.current) {
+        nextSubmitRetryAtRef.current = Date.now() + 5000;
+        void handleSubmitRef.current?.();
       }
     }, 1000);
     return () => clearInterval(t);
@@ -430,25 +431,24 @@ export default function ExamTakePage() {
   const handleSubmit = async (opts?: { dueToViolations?: boolean }) => {
     const att = attemptRef.current;
     const ex = examRef.current;
-    if (!attemptId || !att) return;
+    if (!attemptId || !att || submitInFlightRef.current) return;
     if (att.status !== 'in_progress') {
       // Nếu trên server bài đã ở trạng thái completed (vd: auto-nộp do hết giờ / vi phạm)
       // thì chuyển thẳng sang trang kết quả để tránh việc nút "Nộp bài" không phản hồi.
       navigate(`/exam/${attemptId}/result`, { replace: true });
       return;
     }
+    submitInFlightRef.current = true;
     setShowSubmitConfirm(false);
     setSubmitting(true);
     setError('');
     const toSave = answersRef.current;
     try {
-      await updateAttemptAnswers(attemptId, toSave);
-      // Khi vi phạm: điểm 0, không tính — gọi disqualify thay vì grade_attempt
-      const result = opts?.dueToViolations
-        ? await disqualifyAttempt(attemptId)
-        : await submitAttempt(attemptId);
+      // Server locks the attempt, saves only before its deadline, then grades in one transaction.
+      const result = await submitAttempt(attemptId, toSave, opts?.dueToViolations === true);
       if (!result.ok) {
         if (result.error === 'already_completed') {
+          timeUpSubmittedRef.current = true;
           if (opts?.dueToViolations) {
             submittedDueToViolationRef.current = true;
           }
@@ -460,6 +460,7 @@ export default function ExamTakePage() {
         setSubmitting(false);
         return;
       }
+      timeUpSubmittedRef.current = true;
       if (opts?.dueToViolations) {
         submittedDueToViolationRef.current = true;
       }
@@ -482,12 +483,13 @@ export default function ExamTakePage() {
             const hasClassId = Boolean(windowContext?.class_id && String(windowContext.class_id).trim() !== '');
             const hasEnrollmentInfo = (hasStudentId && hasClassId) || undefined;
             if (hasModule && hasEnrollmentInfo) {
-              await syncAttemptToTtdt(updated, ex, {
+              const sync = await syncAttemptToTtdt(updated, ex, {
                 studentId: user?.student_id ?? studentSession?.student_id ?? undefined,
                 classId: windowContext?.class_id ?? undefined,
                 userEmail: user?.email ?? undefined,
                 userName: (studentSession?.student_name ?? (user as { student_name?: string } | null)?.student_name ?? user?.name) ?? undefined,
               });
+              syncSkipped = !sync.success;
             } else {
               syncSkipped = true;
               syncMissingModule = !hasModule;
@@ -517,6 +519,7 @@ export default function ExamTakePage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi nộp bài.');
     } finally {
+      submitInFlightRef.current = false;
       setSubmitting(false);
     }
   };
@@ -625,7 +628,7 @@ export default function ExamTakePage() {
   }, [violationsCapActive, photoVerified, scheduleViolationAutoSubmit]);
 
   const persistAnswers = useCallback(async () => {
-    if (!attemptId || autosaveInFlightRef.current) return;
+    if (!attemptId || autosaveInFlightRef.current || submitInFlightRef.current || timeUpSubmittedRef.current) return;
     if (JSON.stringify(answersRef.current) === JSON.stringify(lastSavedRef.current)) return;
 
     autosaveInFlightRef.current = true;
@@ -636,7 +639,7 @@ export default function ExamTakePage() {
         if (JSON.stringify(snapshot) === JSON.stringify(lastSavedRef.current)) break;
         await updateAttemptAnswers(attemptId, snapshot);
         lastSavedRef.current = snapshot;
-      } while (JSON.stringify(answersRef.current) !== JSON.stringify(lastSavedRef.current));
+      } while (!submitInFlightRef.current && !timeUpSubmittedRef.current && JSON.stringify(answersRef.current) !== JSON.stringify(lastSavedRef.current));
       setAutosaveStatus('idle');
     } catch (err) {
       console.error('[Autosave] Lưu bài thất bại:', err);
@@ -1296,7 +1299,7 @@ export default function ExamTakePage() {
         <button
           type="button"
           onClick={() => setShowSubmitConfirm(true)}
-          disabled={submitting || (remainingMs !== null && remainingMs <= 0)}
+          disabled={submitting}
           className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
         >
           {submitting ? 'Đang nộp...' : 'Nộp bài'}

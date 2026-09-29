@@ -10,17 +10,10 @@ const BUCKET_PHOTOS = 'exam-uploads';
 
 export async function createPracticalAttempt(
   sessionId: string,
-  userId: string
+  accessCode: string
 ): Promise<PracticalAttempt> {
   const { data, error } = await supabase
-    .from('practical_attempts')
-    .insert({
-      session_id: sessionId,
-      user_id: userId,
-      status: 'pending_upload',
-    })
-    .select()
-    .single();
+    .rpc('start_practical_attempt', { p_session_id: sessionId, p_access_code: accessCode });
   if (error) throw error;
   return data as PracticalAttempt;
 }
@@ -54,15 +47,7 @@ export async function listPracticalAttemptsBySession(
 
 export async function submitPracticalAttempt(attemptId: string): Promise<PracticalAttempt> {
   const { data, error } = await supabase
-    .from('practical_attempts')
-    .update({
-      status: 'submitted',
-      submitted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', attemptId)
-    .select()
-    .single();
+    .rpc('submit_practical_attempt', { p_attempt_id: attemptId });
   if (error) throw error;
   return data as PracticalAttempt;
 }

@@ -76,8 +76,12 @@ export async function fetchAttemptQuestions(attemptId: string, examId: string): 
   return (data ?? []) as QuestionForStudent[];
 }
 
-export async function gradeTheoryAttempt(attemptId: string) {
-  const { data, error } = await supabase.rpc('grade_attempt', { aid: attemptId });
+export async function gradeTheoryAttempt(attemptId: string, answers: Record<string, string>, disqualify = false) {
+  const { data, error } = await supabase.rpc('finalize_exam_attempt', {
+    p_attempt_id: attemptId,
+    p_answers: answers,
+    p_disqualify: disqualify,
+  });
   if (error) return { ok: false, error: error.message };
   return data as { ok: boolean; raw_score?: number; total_max?: number; score?: number; error?: string };
 }

@@ -107,9 +107,11 @@ export async function updateAttemptAnswers(
 
 /** Chấm bài server-side (RPC), trả về kết quả. */
 export async function submitAttempt(
-  attemptId: string
+  attemptId: string,
+  answers: Record<string, string>,
+  disqualify = false,
 ): Promise<{ ok: boolean; raw_score?: number; total_max?: number; score?: number; error?: string }> {
-  return submitTheoryAttempt(attemptId);
+  return submitTheoryAttempt(attemptId, answers, disqualify);
 }
 
 /** Đánh dấu bài thi bị hủy do vi phạm: score=0, disqualified=true, không tính điểm. */

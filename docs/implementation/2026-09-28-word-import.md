@@ -141,3 +141,14 @@ essay = one "Ý chấm: text | points" line per key.
   matching, drag_drop, essay keys; `word-template.test.ts` reads the template back: 7 questions, 6 types, no error, no
   note, picture on question 7). Reference check: no change against the approved result except the order of two notes
   on one question (accepted).
+
+## Cases the reader missed (2026-09-29)
+
+- Formatting through styles: `word/styles.xml` is read; a run's formatting is the paragraph style (or Normal), then its
+  character style (with `basedOn` applied first), then its own formatting, each overriding the one before ("auto"
+  colour on the text beats a red paragraph style).
+- Equations: the text of Word equations (`m:oMath`, `m:r/m:t`) is kept in the stem or option, with its own colour.
+- Not changed: a question keeps one picture (the bank has one image column; more are flagged), EMF/WMF pictures are
+  reported with the fix, text inside text boxes is not read (none of the center's multiple-choice files use them).
+- Checks: `npm test` word import 33 tests (2 new: red through a character style, a style based on it and a paragraph
+  style with an "auto" override; equation text). Reference check: no change against the approved result.

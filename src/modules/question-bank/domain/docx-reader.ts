@@ -105,6 +105,8 @@ export interface DocxParts {
   document: string;
   numbering?: string | null;
   relationships?: string | null;
+  /** word/styles.xml: red or bold set through a paragraph or character style rather than on the text itself. */
+  styles?: string | null;
 }
 
 type NumberingTable = Map<string, Map<string, LevelDefinition>>;
@@ -159,18 +161,59 @@ function isOn(node: XmlNode | undefined): boolean {
   return node !== undefined && !OFF.includes(node.attrs['w:val'] ?? '');
 }
 
-function runFormat(properties: XmlNode | undefined): Omit<DocRun, 'text'> & { hidden: boolean } {
-  const color = child(properties, 'w:color')?.attrs['w:val'] ?? '';
-  const highlight = child(properties, 'w:highlight')?.attrs['w:val'] ?? 'none';
-  const fill = (child(properties, 'w:shd')?.attrs['w:fill'] ?? 'auto').toUpperCase();
-  const underline = child(properties, 'w:u')?.attrs['w:val'] ?? 'none';
-  return {
-    color: /^[0-9a-f]{6}$/i.test(color) ? color.toUpperCase() : null,
-    highlight: highlight !== 'none' || !['AUTO', 'FFFFFF', ''].includes(fill),
-    bold: isOn(child(properties, 'w:b')),
-    underline: underline !== 'none',
-    hidden: isOn(child(properties, 'w:vanish')),
+type Format = Omit<DocRun, 'text'> & { hidden: boolean };
+/** Formatting one level sets (document default, style, the text itself); a property it does not mention is absent. */
+type FormatLayer = Partial<Format>;
+
+const PLAIN: Format = { color: null, highlight: false, bold: false, underline: false, hidden: false };
+
+function formatLayer(properties: XmlNode | undefined): FormatLayer {
+  const layer: FormatLayer = {};
+  if (!properties) return layer;
+  const color = child(properties, 'w:color');
+  if (color) {
+    const value = color.attrs['w:val'] ?? '';
+    layer.color = /^[0-9a-f]{6}$/i.test(value) ? value.toUpperCase() : null;
+  }
+  const highlight = child(properties, 'w:highlight');
+  const shading = child(properties, 'w:shd');
+  if (highlight || shading) {
+    const fill = (shading?.attrs['w:fill'] ?? 'auto').toUpperCase();
+    layer.highlight = (highlight !== undefined && highlight.attrs['w:val'] !== 'none') || !['AUTO', 'FFFFFF', ''].includes(fill);
+  }
+  const bold = child(properties, 'w:b');
+  if (bold) layer.bold = isOn(bold);
+  const underline = child(properties, 'w:u');
+  if (underline) layer.underline = (underline.attrs['w:val'] ?? 'single') !== 'none';
+  const hidden = child(properties, 'w:vanish');
+  if (hidden) layer.hidden = isOn(hidden);
+  return layer;
+}
+
+/** Style id → its run formatting, with the styles it is based on applied first. */
+function readStyles(xml: string | null | undefined): Map<string, FormatLayer> {
+  const resolved = new Map<string, FormatLayer>();
+  if (!xml) return resolved;
+  const root = find(parseXml(xml), 'w:styles');
+  const own = new Map<string, { basedOn: string | null; layer: FormatLayer }>();
+  for (const node of children(root, 'w:style')) {
+    own.set(node.attrs['w:styleId'] ?? '', {
+      basedOn: child(node, 'w:basedOn')?.attrs['w:val'] ?? null,
+      layer: formatLayer(child(node, 'w:rPr')),
+    });
+  }
+  const resolve = (id: string, seen: Set<string>): FormatLayer => {
+    const done = resolved.get(id);
+    if (done) return done;
+    const style = own.get(id);
+    if (!style || seen.has(id)) return {};
+    seen.add(id);
+    const layer = { ...(style.basedOn ? resolve(style.basedOn, seen) : {}), ...style.layer };
+    resolved.set(id, layer);
+    return layer;
   };
+  for (const id of own.keys()) resolve(id, new Set());
+  return resolved;
 }
 
 /** Pictures anywhere under `node`; `mc:Fallback` repeats the `mc:Choice` picture, so it is skipped. */
@@ -185,23 +228,54 @@ function collectImages(node: XmlNode, out: string[]): void {
 
 const RUN_CONTAINERS = new Set(['w:hyperlink', 'w:ins', 'w:smartTag', 'w:fldSimple', 'w:sdt', 'w:sdtContent', 'w:customXml', 'w:moveTo']);
 
-function readRuns(node: XmlNode, runs: DocRun[], images: string[]): void {
+interface RunContext {
+  styles: Map<string, FormatLayer>;
+  /** Formatting of the paragraph's style, under the character style and the text's own formatting. */
+  paragraph: FormatLayer;
+}
+
+function effectiveFormat(properties: XmlNode | undefined, context: RunContext): Format {
+  const characterStyle = context.styles.get(child(properties, 'w:rStyle')?.attrs['w:val'] ?? '') ?? {};
+  return { ...PLAIN, ...context.paragraph, ...characterStyle, ...formatLayer(properties) };
+}
+
+function pushRun(runs: DocRun[], text: string, format: Format): void {
+  const { hidden, ...shown } = format;
+  if (text && !hidden) runs.push({ text, ...shown });
+}
+
+/** Equation text (Word's equation editor keeps it in m:r/m:t), so "220 V" in a formula is not lost. */
+function readMath(node: XmlNode, runs: DocRun[], context: RunContext): void {
+  for (const item of node.children) {
+    if (item.name === 'm:r') {
+      const text = item.children.filter((part) => part.name === 'm:t').map((part) => part.children.map((leaf) => leaf.text).join('')).join('');
+      pushRun(runs, text, effectiveFormat(child(item, 'w:rPr'), context));
+    } else {
+      readMath(item, runs, context);
+    }
+  }
+}
+
+function readRuns(node: XmlNode, runs: DocRun[], images: string[], context: RunContext): void {
   for (const item of node.children) {
     if (RUN_CONTAINERS.has(item.name)) {
-      readRuns(item, runs, images);
+      readRuns(item, runs, images, context);
+      continue;
+    }
+    if (item.name === 'm:oMath' || item.name === 'm:oMathPara') {
+      readMath(item, runs, context);
       continue;
     }
     if (item.name !== 'w:r') continue;
-    const { hidden, ...format } = runFormat(child(item, 'w:rPr'));
     let text = '';
     for (const part of item.children) {
-      if (part.name === 'w:t') text += part.children.map((node) => node.text).join('');
+      if (part.name === 'w:t') text += part.children.map((leaf) => leaf.text).join('');
       else if (part.name === 'w:tab') text += '\t';
       else if (part.name === 'w:br' || part.name === 'w:cr') text += '\n';
       else if (part.name === 'w:noBreakHyphen') text += '-';
       else if (['w:drawing', 'w:pict', 'w:object', 'mc:AlternateContent'].includes(part.name)) collectImages(part, images);
     }
-    if (text && !hidden) runs.push({ text, ...format });
+    pushRun(runs, text, effectiveFormat(child(item, 'w:rPr'), context));
   }
 }
 
@@ -209,6 +283,8 @@ function readRuns(node: XmlNode, runs: DocRun[], images: string[]): void {
 export function readDocxBlocks(parts: DocxParts): DocBlock[] {
   const numbering = readNumbering(parts.numbering);
   const relationships = readRelationships(parts.relationships);
+  const styles = readStyles(parts.styles);
+  const defaultParagraph = styles.get('Normal') ?? {};
   const body = find(parseXml(parts.document), 'w:body');
   const blocks: DocBlock[] = [];
   let rowCounter = 0;
@@ -229,7 +305,8 @@ export function readDocxBlocks(parts: DocxParts): DocBlock[] {
   const paragraph = (node: XmlNode, position: TablePosition) => {
     const runs: DocRun[] = [];
     const imageIds: string[] = [];
-    readRuns(node, runs, imageIds);
+    const paragraphStyle = child(child(node, 'w:pPr'), 'w:pStyle')?.attrs['w:val'];
+    readRuns(node, runs, imageIds, { styles, paragraph: (paragraphStyle && styles.get(paragraphStyle)) || defaultParagraph });
     const numberProperties = child(child(node, 'w:pPr'), 'w:numPr');
     const numId = child(numberProperties, 'w:numId')?.attrs['w:val'];
     const level = child(numberProperties, 'w:ilvl')?.attrs['w:val'] ?? '0';

@@ -103,7 +103,12 @@ async function readWord(buffer: ArrayBuffer, choice: MarkingChoice): Promise<Wor
   const part = (name: string) => zip.file(name)?.async('string') ?? Promise.resolve(null);
   const document = await part('word/document.xml');
   if (!document) throw new Error('File không phải văn bản Word (.docx).');
-  const blocks = readDocxBlocks({ document, numbering: await part('word/numbering.xml'), relationships: await part('word/_rels/document.xml.rels') });
+  const blocks = readDocxBlocks({
+    document,
+    numbering: await part('word/numbering.xml'),
+    relationships: await part('word/_rels/document.xml.rels'),
+    styles: await part('word/styles.xml'),
+  });
   const questions = readWordQuestions(blocks);
   const proposed = proposeMarking(questions);
   const marking = choice === 'auto' ? proposed : choice;

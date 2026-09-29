@@ -386,3 +386,39 @@ describe('question type tags', () => {
     expect(result.errors[0].reason).toMatch(/^Không hiểu nhãn \[Video\]\. Nhãn dùng được:/);
   });
 });
+
+describe('formatting from styles and equations', () => {
+  const STYLES = `<w:styles>
+    <w:style w:type="paragraph" w:styleId="Normal"><w:rPr><w:sz w:val="26"/></w:rPr></w:style>
+    <w:style w:type="character" w:styleId="DapAn"><w:rPr><w:color w:val="FF0000"/></w:rPr></w:style>
+    <w:style w:type="character" w:styleId="DapAnDam"><w:basedOn w:val="DapAn"/><w:rPr><w:b/></w:rPr></w:style>
+    <w:style w:type="paragraph" w:styleId="PhuongAnDung"><w:rPr><w:color w:val="C00000"/></w:rPr></w:style>
+  </w:styles>`;
+  const withStyles = (body: string) => {
+    const document = readWordQuestions(readDocxBlocks({ document: `<w:document><w:body>${body}</w:body></w:document>`, numbering: NUMBERING, relationships: RELS, styles: STYLES }));
+    return buildWordSheet(document, 'color');
+  };
+
+  it('reads red set by a character style, a style based on it, or a paragraph style', () => {
+    const result = withStyles([
+      p('Câu 1. Một?'), '<w:p><w:r><w:t>Sai</w:t></w:r></w:p>'.replace('<w:p>', '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'),
+      '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:rPr><w:rStyle w:val="DapAn"/></w:rPr><w:t>Đúng</w:t></w:r></w:p>',
+      p('Câu 2. Hai?'),
+      '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr><w:r><w:rPr><w:rStyle w:val="DapAnDam"/></w:rPr><w:t>Đúng</w:t></w:r></w:p>',
+      '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr><w:r><w:t>Sai</w:t></w:r></w:p>',
+      p('Câu 3. Ba?'),
+      '<w:p><w:pPr><w:pStyle w:val="PhuongAnDung"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="3"/></w:numPr></w:pPr><w:r><w:rPr><w:color w:val="auto"/></w:rPr><w:t>Đen trên nền style đỏ</w:t></w:r></w:p>',
+      '<w:p><w:pPr><w:pStyle w:val="PhuongAnDung"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="3"/></w:numPr></w:pPr><w:r><w:t>Đỏ theo style đoạn</w:t></w:r></w:p>',
+    ].join(''));
+    expect(result.rows.map((row) => row.answer)).toEqual(['B', 'A', 'B']);
+  });
+
+  it('keeps the text of an equation', () => {
+    const math = '<m:oMath><m:r><m:t>U = 220</m:t></m:r><m:r><w:rPr><w:color w:val="FF0000"/></w:rPr><m:t> V</m:t></m:r></m:oMath>';
+    const result = withStyles([
+      `<w:p><w:r><w:t xml:space="preserve">Câu 1. Điện áp pha của lưới là </w:t></w:r>${math}</w:p>`,
+      numbered([{ text: '220 V', red: true }, '380 V']),
+    ].join(''));
+    expect(result.rows[0].stem).toBe('Điện áp pha của lưới là U = 220 V');
+  });
+});

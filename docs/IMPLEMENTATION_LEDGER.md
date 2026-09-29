@@ -61,6 +61,18 @@ Local work set aside so it does not conflict with the active sequence. Each item
 
 ## Open issues
 
+### Remove data taken from the center's Word files when the app is finished (operator, 2026-09-29)
+
+- The Word import was built and tested on the center's own question files (`D:\Du lieu\Trung tam Đào tạo\`), read
+  only. The operator allows this for testing on condition that, when the app is complete, everything derived from them
+  is removed:
+  - real question wording in `src/modules/question-bank/domain/word-questions.test.ts` and in
+    `docs/implementation/2026-09-28-word-import.md` (replace with neutral text);
+  - the 134 soft-deleted test rows (`source = 'word_import'`, library NLĐK-QC, created 2026-09-28 16:23 UTC) and their
+    7 pictures under `exam-uploads/question-bank/aebff545-…/import-*` (hard delete and bucket cleanup need the
+    operator's explicit go-ahead, since `question-bank/` is otherwise never cleaned by hand).
+- Status: open until the app is declared finished.
+
 ### No exam is locked, and the QC exam cannot be locked from the UI (found 2026-09-26, blocks exams)
 
 - `start_exam_attempt` rejects an exam whose `locked_at` is null (`exam_not_locked`, P0 since 2026-09-20). On

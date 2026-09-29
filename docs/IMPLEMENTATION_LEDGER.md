@@ -68,6 +68,7 @@ Local work set aside so it does not conflict with the active sequence. Each item
   is removed:
   - real question wording in `src/modules/question-bank/domain/word-questions.test.ts` and in
     `docs/implementation/2026-09-28-word-import.md` (replace with neutral text);
+  - the reference-check folder `D:\Data\App-thi-online-HPTTS-bao-cao\word-import-doi-chung\` (outside Git);
   - the 134 soft-deleted test rows (`source = 'word_import'`, library NLĐK-QC, created 2026-09-28 16:23 UTC) and their
     7 pictures under `exam-uploads/question-bank/aebff545-…/import-*` (hard delete and bucket cleanup need the
     operator's explicit go-ahead, since `question-bank/` is otherwise never cleaned by hand).

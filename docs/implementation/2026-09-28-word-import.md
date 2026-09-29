@@ -99,3 +99,23 @@ Imported as a draft with a note even when the batch is published ("cần xem l�
   Question 7 opened in the editor with answer B and its picture loaded.
 - The 134 test rows were soft-deleted the same day; NLĐK-QC is back to 150 published. The 7 test pictures stay in the
   bucket (never cleaned by hand).
+
+## Accuracy pass (2026-09-29)
+
+Operator asked for more accurate reading; chosen: reference check, Word template with question-type tags, the cases
+still missed, and editing in the preview. This section covers the reference check and the reader fixes it found.
+
+- Reference check outside Git in `D:\Data\App-thi-online-HPTTS-bao-cao\word-import-doi-chung\` (operator allows
+  the center's files for testing; the folder is deleted when the app is finished, see ledger Open issues): the app's
+  reader on 11 files (1,732 questions) against an independent python-docx reading (stem, options, red answer,
+  picture), plus a stored approved result to compare every later change against.
+- Fixes found by it:
+  - two-column options: a Word-numbered option with a typed one after tabs ("Nhảy khỏi xe ⇥ c) Giảm ga"), typed
+    columns "A. … ⇥ C. …" (also after "tab space tab"), then options ordered by letter when every letter is known once;
+  - repeated letters in columns ("B. … B. …") now split and flagged instead of merged;
+  - "Giải thích:" paragraphs and what follows up to the next question are skipped (notice with the count);
+  - an answer marked on only part of its letters and digits gets a review note (a black full stop does not count).
+- Result: python-docx agrees on every question except 3 answers that the author coloured only in part (app reads them
+  by the majority rule and flags them). 1,371 questions importable (40 flagged), 361 reported, of which 343 are in the
+  three files without any marked answer.
+- `npm test` word import 24 tests (5 new).

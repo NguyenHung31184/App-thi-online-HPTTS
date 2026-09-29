@@ -257,3 +257,67 @@ describe('flags', () => {
     expect(plan.duplicates).toEqual([{ line: 3, label: 'Câu 3', stem: 'Một?', reason: 'Trùng câu 1 trong file.' }]);
   });
 });
+
+describe('two-column options and explanations', () => {
+  it('reads a Word-numbered option followed by a typed one and orders them by letter', () => {
+    const result = sheet([
+      p('Câu 3. Hỏng phanh giữa đường thì làm gì?'),
+      p(['Nhảy khỏi xe                 ', { text: 'c) Giảm ga, về số thấp', red: true }], { num: '1' }),
+      p('Tắt máy ngay                 d) Bấm còi liên tục', { num: '1' }),
+    ].join(''), 'color');
+    expect(result.rows[0].optionTexts).toEqual(['Nhảy khỏi xe', 'Tắt máy ngay', 'Giảm ga, về số thấp', 'Bấm còi liên tục']);
+    expect(result.rows[0].answer).toBe('C');
+    expect(result.rows[0].reviewNotes).toEqual([]);
+  });
+
+  it('reads typed columns "A. …⇥ ⇥ C. …" and keeps "đáp án a, c. đúng" as one option', () => {
+    const result = sheet([
+      p('Câu 175. Khối điều khiển nào?'),
+      p([{ text: 'A. KDU Trước', red: true }, ' 	 	 C. KDU Sau']),
+      p('B. KDU khung chụp		D. đáp án a, c. đúng'),
+    ].join(''), 'color');
+    expect(result.rows[0].optionTexts).toEqual(['KDU Trước', 'KDU khung chụp', 'KDU Sau', 'đáp án a, c. đúng']);
+    expect(result.rows[0].answer).toBe('A');
+  });
+
+  it('splits repeated letters in columns and flags the question', () => {
+    const result = sheet([
+      p('Câu 148. Phát hiện cháy thì làm gì đầu tiên?'),
+      p(['\tB. Gọi cứu hỏa\t\tB. Rời khỏi trạm\nC. Dùng nước\t\t', { text: 'C. Cắt điện khu vực cháy', red: true }]),
+    ].join(''), 'color');
+    expect(result.rows[0].optionTexts).toEqual(['Gọi cứu hỏa', 'Rời khỏi trạm', 'Dùng nước', 'Cắt điện khu vực cháy']);
+    expect(result.rows[0].answer).toBe('D');
+    expect(result.rows[0].reviewNotes[0]).toMatch(/^Phương án đầu tiên ghi "b\)"/);
+  });
+
+  it('skips a "Giải thích:" paragraph and what follows it up to the next question', () => {
+    const result = sheet([
+      p('Câu 94. Mạch sao – tam giác cần mấy contactor?'),
+      p(['2		', { text: 'b. 3', red: true }], { num: '1' }),
+      p('c. 4		d. 1'),
+      p('Giải thích: Mạch gồm 3 contactor:'),
+      p('KM1 (chính), KM2 (sao), KM3 (tam giác).'),
+      p('Câu 95. Câu sau?'),
+      numbered([{ text: 'Có', red: true }, 'Không'], '2'),
+    ].join(''), 'color');
+    expect(result.rows[0].optionTexts).toEqual(['2', '3', '4', '1']);
+    expect(result.rows[0].answer).toBe('B');
+    expect(result.rows[0].reviewNotes).toEqual([]);
+    expect(result.notices).toContain('Bỏ qua phần "Giải thích" ở 1 câu: ngân hàng câu hỏi chưa có chỗ lưu lời giải thích.');
+  });
+
+  it('notes an answer marked on only part of its words, but not for a black full stop', () => {
+    const partly = sheet([
+      p('Câu 8. Tủ điện ngoài trời cần gì?'),
+      p('Đặt trên nền', { num: '1' }),
+      p(['Có ', { text: 'mái che, khoá tủ và nối đất', red: true }], { num: '1' }),
+      p('Câu 9. Hai?'),
+      p('Sai', { num: '2' }),
+      p([{ text: 'Tất cả vấn đề trên', red: true }, '.'], { num: '2' }),
+    ].join(''), 'color');
+    expect(partly.rows.map((row) => [row.answer, row.reviewNotes])).toEqual([
+      ['B', ['Đáp án B chỉ có một phần chữ được đánh dấu (chữ màu đỏ): kiểm tra lại đáp án.']],
+      ['B', []],
+    ]);
+  });
+});

@@ -16,6 +16,8 @@ interface WordOption {
   /** Letter shown before the option: typed ("b" for "b) …") or from Word letter numbering; null when unknown. */
   letter: string | null;
   marks: Marks;
+  /** Marked, but some letters or digits of the option are not ("Có mái che…" with "Có" left black). */
+  partial: Marks;
 }
 
 export interface WordQuestion {
@@ -30,7 +32,9 @@ export interface WordQuestion {
   /** Letters from a "Đáp án: B" line under the question. */
   answerLine: string[] | null;
   /** Paragraphs after an option that were neither an option nor an answer line, joined to the option above. */
-  joinedText: { text: string; option: string }[];
+  joinedText: { text: string; option: WordOption }[];
+  /** True once a "Giải thích:" paragraph was met: what follows up to the next question is not part of it. */
+  explained: boolean;
 }
 
 export interface WordDocument {
@@ -47,6 +51,8 @@ const FOOTER = /^\s*(Nơi nhận|Hải Phòng,?\s*ngày)|^\s*(TRƯỞNG|PHÓ GI�
 const ANSWER_HEADING = /^\s*(BẢNG\s+)?ĐÁP\s+ÁN(\s+(ĐÚNG|TRẮC NGHIỆM|CÂU HỎI))?\s*[:.]?\s*$/u;
 const ANSWER_LINE = /^\s*(Đáp\s*án(\s*đúng)?|ĐA)\s*[:：]\s*([a-j](\s*(,|;|và|&)\s*[a-j])*)\s*\.?\s*$/iu;
 const TYPED_OPTION = /(^|\s)([a-jA-J])\s*[.)]\s+/gu;
+// An explanation under the options ("Giải thích: …"); the bank has no field for it.
+const EXPLANATION = /^\s*(Giải\s*thích|Hướng\s*dẫn\s*giải)\s*[:：]/iu;
 
 function clean(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
@@ -66,37 +72,60 @@ function markedChars(runs: DocRun[]): { char: string; marks: Marks }[] {
   });
 }
 
-/** An option counts as marked when most of its visible characters carry the mark. */
-function marksOf(chars: { char: string; marks: Marks }[]): Marks {
+/** An option counts as marked when most of its letters and digits carry the mark; punctuation is not counted. */
+function marksOf(chars: { char: string; marks: Marks }[]): Pick<WordOption, 'marks' | 'partial'> {
   const visible = chars.filter((item) => /[\p{L}\p{N}]/u.test(item.char));
-  const result = { color: false, highlight: false, bold: false, underline: false };
-  if (visible.length === 0) return result;
+  const marks = { color: false, highlight: false, bold: false, underline: false };
+  const partial = { ...marks };
+  if (visible.length === 0) return { marks, partial };
   for (const marking of ANSWER_MARKINGS) {
-    result[marking] = visible.filter((item) => item.marks[marking]).length * 2 > visible.length;
+    const count = visible.filter((item) => item.marks[marking]).length;
+    marks[marking] = count * 2 > visible.length;
+    partial[marking] = marks[marking] && count < visible.length;
   }
-  return result;
+  return { marks, partial };
 }
 
-/** Splits "a. 5 vòng  b. 4 vòng  c. 3 vòng" into options; a single "b) …" gives one option. */
-function typedOptions(block: DocBlock): WordOption[] | null {
+/**
+ * Options on one line. Typed: "a. 5 vòng  b. 4 vòng  c. 3 vòng". Two columns: a Word-numbered option followed by a typed
+ * one ("Nhảy khỏi xe        c) Giảm ga …", Word shows "a)" in front), or "A. HMI        C. SCADA". `lead` is the
+ * numbering letter of the paragraph (null when it has none or is not numbered).
+ */
+function lineOptions(block: DocBlock, numbered: boolean, lead: string | null): WordOption[] | null {
   const chars = markedChars(block.runs);
   const text = chars.map((item) => item.char).join('');
-  const starts: { at: number; body: number; letter: string }[] = [];
+  const starts: { at: number; body: number; letter: string | null }[] = numbered ? [{ at: 0, body: 0, letter: lead }] : [];
   for (const match of text.matchAll(TYPED_OPTION)) {
     const letter = match[2].toLowerCase();
     const at = (match.index ?? 0) + match[1].length;
-    if (starts.length === 0) {
-      if (text.slice(0, at).trim() !== '') return null;
-    } else if (letter.charCodeAt(0) !== starts[starts.length - 1].letter.charCodeAt(0) + 1) {
+    const body = (match.index ?? 0) + match[0].length;
+    const before = text.slice(0, at);
+    if (before.trim() === '') {
+      // The letter opens the line (typed, or typed again after Word's own numbering): it names this option.
+      starts.splice(0, starts.length, { at, body, letter });
       continue;
     }
-    starts.push({ at, body: (match.index ?? 0) + match[0].length, letter });
+    const previous = starts[starts.length - 1];
+    if (!previous) return null;
+    // A second column is set off by a tab or several spaces and starts an option whatever its letter (a file may
+    // repeat one, "B. … B. …"; the letter check below then flags the question). On a plain line only the next letter
+    // counts, so "đáp án a, c. đúng" stays one option.
+    const column = /(\t| {2})[ \t]*$/.test(before);
+    const next = previous.letter !== null && letter.charCodeAt(0) === previous.letter.charCodeAt(0) + 1;
+    if (next || column) starts.push({ at, body, letter });
   }
   if (starts.length === 0) return null;
   return starts.map((start, index) => {
     const slice = chars.slice(start.body, starts[index + 1]?.at ?? chars.length);
-    return { text: clean(slice.map((item) => item.char).join('')), letter: start.letter, marks: marksOf(slice) };
+    return { text: clean(slice.map((item) => item.char).join('')), letter: start.letter, ...marksOf(slice) };
   });
+}
+
+/** Options in the order of their letters when every letter is known and used once (two-column layouts read a, c, b, d). */
+function orderOptions(options: WordOption[]): WordOption[] {
+  const letters = options.map((option) => option.letter);
+  if (letters.some((letter) => letter === null) || new Set(letters).size !== letters.length) return options;
+  return [...options].sort((a, b) => (a.letter ?? '').localeCompare(b.letter ?? ''));
 }
 
 function letters(raw: string): string[] {
@@ -209,6 +238,7 @@ export function readWordQuestions(input: DocBlock[]): WordDocument {
         topic,
         answerLine: null,
         joinedText: [],
+        explained: false,
       };
       questions.push(current);
       continue;
@@ -223,14 +253,14 @@ export function readWordQuestions(input: DocBlock[]): WordDocument {
       current.answerLine = letters(answerLine[3]);
       continue;
     }
+    if (EXPLANATION.test(text)) current.explained = true;
+    if (current.explained) continue;
 
-    const typed = typedOptions(block);
-    if (typed) {
-      current.options.push(...typed);
-    } else if (block.numbering && block.numbering.format !== 'bullet') {
-      const { format, value } = block.numbering;
-      const letter = /letter/i.test(format) ? String.fromCharCode(96 + value) : null;
-      current.options.push({ text, letter, marks: marksOf(markedChars(block.runs)) });
+    const numbered = block.numbering !== null && block.numbering.format !== 'bullet';
+    const lead = numbered && block.numbering && /letter/i.test(block.numbering.format) ? String.fromCharCode(96 + block.numbering.value) : null;
+    const options = lineOptions(block, numbered, lead);
+    if (options) {
+      current.options.push(...options);
     } else if (current.options.length === 0) {
       // Stem continued on the next line, or beside a picture in a table.
       current.stem = clean(`${current.stem} ${text}`);
@@ -238,7 +268,7 @@ export function readWordQuestions(input: DocBlock[]): WordDocument {
       // Usually the wrapped end of the option above (a manual line break turned into a paragraph).
       const last = current.options[current.options.length - 1];
       last.text = clean(`${last.text} ${text}`);
-      current.joinedText.push({ text, option: OPTION_IDS[current.options.length - 1] });
+      current.joinedText.push({ text, option: last });
     }
   }
 
@@ -300,17 +330,21 @@ export function buildWordSheet(document: WordDocument, marking: AnswerMarking | 
     sheet.notices.push('File không có đáp án: không phương án nào được tô màu, tô nền, in đậm hay gạch chân, không có dòng "Đáp án:" và không có bảng đáp án cuối file.');
   }
 
+  const explained = document.questions.filter((question) => question.explained).length;
+  if (explained > 0) sheet.notices.push(`Bỏ qua phần "Giải thích" ở ${explained} câu: ngân hàng câu hỏi chưa có chỗ lưu lời giải thích.`);
+
   for (const question of document.questions) {
     const fail = (reason: string) => sheet.errors.push({ line: question.index, label: question.label, stem: question.stem, reason });
     const notes: string[] = [];
+    const options = orderOptions(question.options);
 
-    if (question.options.length > OPTION_IDS.length) {
-      fail(`Có ${question.options.length} phương án, tối đa ${OPTION_IDS.length}. Thường là thiếu dòng "Câu …" giữa hai câu.`);
+    if (options.length > OPTION_IDS.length) {
+      fail(`Có ${options.length} phương án, tối đa ${OPTION_IDS.length}. Thường là thiếu dòng "Câu …" giữa hai câu.`);
       continue;
     }
 
     const marked = marking
-      ? question.options.flatMap((option, index) => (option.marks[marking] ? [OPTION_IDS[index] as string] : []))
+      ? options.flatMap((option, index) => (option.marks[marking] ? [OPTION_IDS[index] as string] : []))
       : [];
     const sources: [string, string[]][] = [];
     if (marked.length > 0) sources.push([markingName ?? '', marked]);
@@ -328,9 +362,11 @@ export function buildWordSheet(document: WordDocument, marking: AnswerMarking | 
       fail(`Đáp án theo ${firstSource} là ${describe(answer)}, theo ${disagree[0]} là ${describe(disagree[1])}.`);
       continue;
     }
+    const partly = marking ? options.flatMap((option, index) => (option.partial[marking] ? [OPTION_IDS[index] as string] : [])) : [];
+    if (partly.length > 0) notes.push(`Đáp án ${describe(partly)} chỉ có một phần chữ được đánh dấu (${markingName}): kiểm tra lại đáp án.`);
     if (answer.length > 1) notes.push(`${answer.length} phương án được đánh dấu (${describe(answer)}), nên nhập thành câu nhiều đáp án.`);
 
-    const shownLetters = question.options.map((option) => option.letter);
+    const shownLetters = options.map((option) => option.letter);
     // Back to "a" after a full run of options means the next question's "Câu" line is missing or mistyped
     // ("Cây 13."); an "a" right after the first option is a list-level slip and only needs a look.
     const restart = shownLetters.findIndex((letter, index) => index > 1 && letter === 'a');
@@ -352,13 +388,13 @@ export function buildWordSheet(document: WordDocument, marking: AnswerMarking | 
       continue;
     }
     if (images.length > 1) notes.push(`Câu có ${images.length} ảnh, chỉ lấy ảnh đầu tiên.`);
-    for (const joined of question.joinedText) notes.push(`Đoạn "${joined.text.slice(0, 80)}" được nối vào cuối phương án ${joined.option}.`);
+    for (const joined of question.joinedText) notes.push(`Đoạn "${joined.text.slice(0, 80)}" được nối vào cuối phương án ${OPTION_IDS[options.indexOf(joined.option)]}.`);
 
     sheet.rows.push({
       line: question.index,
       label: question.label,
       stem: question.stem,
-      optionTexts: question.options.map((option) => option.text),
+      optionTexts: options.map((option) => option.text),
       answer: answer.join(';'),
       questionType: answer.length > 1 ? IMPORT_TYPE_NAMES.multiple_choice : IMPORT_TYPE_NAMES.single_choice,
       keys: '',

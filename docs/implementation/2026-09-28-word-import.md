@@ -119,3 +119,25 @@ still missed, and editing in the preview. This section covers the reference chec
   by the majority rule and flags them). 1,371 questions importable (40 flagged), 361 reported, of which 343 are in the
   three files without any marked answer.
 - `npm test` word import 24 tests (5 new).
+
+## Word template and question-type tags (2026-09-29)
+
+Operator decisions: true/false = red statements are true; matching = a two-column table, one correct pair per row;
+essay = one "Ý chấm: text | points" line per key.
+
+- Tags right after "Câu N.": `[Nhiều đáp án]`, `[Đúng/Sai]`, `[Nối cột]`, `[Sắp xếp]`, `[Tự luận]` (also
+  `[Trắc nghiệm]`), `[Dễ]`/`[Trung bình]`/`[Khó]`, `[3 điểm]`. No tag = single choice (multiple when several options
+  are marked, with a note). An unknown tag is reported with the list of known ones.
+- `[Trắc nghiệm]` with two marks is reported; `[Nhiều đáp án]` with one mark is kept without a note.
+- `[Sắp xếp]`: options in the file order are the right order (stored as drag_drop; the exam screen shuffles).
+- `[Nối cột]`: table rows under the question; a row missing a side is reported. `[Tự luận]`: keys without points count
+  2, as in the Excel import. ";" inside a matching or key text becomes "," with a note (the import format splits on
+  ";").
+- The reader now records the table cell of each paragraph (`tableCell`).
+- Template `public/templates/Mau_soan_de_Word.docx`, built by `scripts/build-word-template.py` (python-docx; example
+  questions written for the template, a drawn warning-sign picture): guidance before "Câu 1" (ignored by the reader) and
+  one example per type. "Tải file mẫu Word" on the import screen; a "Nhãn dạng câu trong file Word" help list.
+- Checks: `npm test` 80/80 (7 tag tests go through `planImport` to the stored encodings: true/false `["T","F","T"]`,
+  matching, drag_drop, essay keys; `word-template.test.ts` reads the template back: 7 questions, 6 types, no error, no
+  note, picture on question 7). Reference check: no change against the approved result except the order of two notes
+  on one question (accepted).

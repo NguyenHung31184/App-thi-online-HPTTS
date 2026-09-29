@@ -1,3 +1,4 @@
+import type { QuestionType } from '../../../types';
 import type { DocBlock, DocRun } from './docx-reader';
 import { contentKey, IMPORT_TYPE_NAMES, type ImportRow, type SkippedRow } from './question-import';
 import { OPTION_IDS } from './question-draft';
@@ -20,6 +21,14 @@ interface WordOption {
   partial: Marks;
 }
 
+/** Tags written at the start of a question, "[Nối cột] [Khó] [3 điểm] …" (Word template, 2026-09-29). */
+export interface QuestionTags {
+  type: Exclude<QuestionType, 'video_paragraph'> | null;
+  difficulty: string;
+  points: string;
+  unknown: string[];
+}
+
 export interface WordQuestion {
   /** 1-based position in the file, unique even when the file repeats a number. */
   index: number;
@@ -35,6 +44,11 @@ export interface WordQuestion {
   joinedText: { text: string; option: WordOption }[];
   /** True once a "Giải thích:" paragraph was met: what follows up to the next question is not part of it. */
   explained: boolean;
+  tags: QuestionTags;
+  /** Matching: table rows of the question as [left, right]. */
+  pairs: Map<number, [string, string]>;
+  /** Essay: "Ý chấm: text | points" lines, as written after "Ý chấm:". */
+  essayKeys: string[];
 }
 
 export interface WordDocument {
@@ -51,11 +65,45 @@ const FOOTER = /^\s*(Nơi nhận|Hải Phòng,?\s*ngày)|^\s*(TRƯỞNG|PHÓ GI�
 const ANSWER_HEADING = /^\s*(BẢNG\s+)?ĐÁP\s+ÁN(\s+(ĐÚNG|TRẮC NGHIỆM|CÂU HỎI))?\s*[:.]?\s*$/u;
 const ANSWER_LINE = /^\s*(Đáp\s*án(\s*đúng)?|ĐA)\s*[:：]\s*([a-j](\s*(,|;|và|&)\s*[a-j])*)\s*\.?\s*$/iu;
 const TYPED_OPTION = /(^|\s)([a-jA-J])\s*[.)]\s+/gu;
+const ESSAY_KEY = /^\s*Ý\s*chấm\s*[:：]\s*(.+)$/iu;
+const TAG = /^\s*\[([^\]]{1,30})\]\s*/u;
 // An explanation under the options ("Giải thích: …"); the bank has no field for it.
 const EXPLANATION = /^\s*(Giải\s*thích|Hướng\s*dẫn\s*giải)\s*[:：]/iu;
 
 function clean(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
+}
+
+/** Lower case without diacritics, letters and digits only: "Đúng/Sai" → "dungsai". */
+function tagKey(value: string): string {
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9.,]/g, '');
+}
+
+const TYPE_TAGS: Record<string, QuestionTags['type']> = {
+  tracnghiem: 'single_choice', motdapan: 'single_choice',
+  nhieudapan: 'multiple_choice',
+  dungsai: 'true_false_multi',
+  noicot: 'matching', noidoi: 'matching', ghepnoi: 'matching',
+  sapxep: 'drag_drop', thutu: 'drag_drop',
+  tuluan: 'main_idea',
+};
+const DIFFICULTY_TAGS: Record<string, string> = { de: 'easy', trungbinh: 'medium', kho: 'hard' };
+export const TAG_NAMES = '[Nhiều đáp án], [Đúng/Sai], [Nối cột], [Sắp xếp], [Tự luận], [Dễ], [Trung bình], [Khó], [2 điểm]';
+
+/** Takes the tags off the start of a stem. */
+function readTags(stem: string): { stem: string; tags: QuestionTags } {
+  const tags: QuestionTags = { type: null, difficulty: '', points: '', unknown: [] };
+  let rest = stem;
+  for (let match = TAG.exec(rest); match; match = TAG.exec(rest)) {
+    const key = tagKey(match[1]);
+    const points = /^(\d+(?:[.,]\d+)?)diem$/.exec(key);
+    if (key in TYPE_TAGS) tags.type = TYPE_TAGS[key];
+    else if (key in DIFFICULTY_TAGS) tags.difficulty = DIFFICULTY_TAGS[key];
+    else if (points) tags.points = points[1].replace(',', '.');
+    else tags.unknown.push(`[${match[1]}]`);
+    rest = rest.slice(match[0].length);
+  }
+  return { stem: rest.trim(), tags };
 }
 
 function isRed(color: string | null): boolean {
@@ -228,11 +276,15 @@ export function readWordQuestions(input: DocBlock[]): WordDocument {
     if (start) {
       const stemChars = markedChars(block.runs);
       const offset = [...block.text].length - [...block.text.replace(QUESTION_START, '')].length;
+      const { stem, tags } = readTags(clean(stemChars.slice(offset).map((item) => item.char).join('')));
       current = {
         index: questions.length + 1,
         label: `Câu ${start[1]}`,
         number: Number(start[1]),
-        stem: clean(stemChars.slice(offset).map((item) => item.char).join('')),
+        stem,
+        tags,
+        pairs: new Map(),
+        essayKeys: [],
         options: [],
         images: [...block.images],
         topic,
@@ -247,6 +299,19 @@ export function readWordQuestions(input: DocBlock[]): WordDocument {
 
     current.images.push(...block.images);
     if (!text) continue;
+
+    if (current.tags.type === 'matching' && block.tableRow !== null && block.tableCell !== null) {
+      const pair = current.pairs.get(block.tableRow) ?? ['', ''];
+      const side = Math.min(block.tableCell, 1);
+      pair[side] = clean(`${pair[side]} ${text}`);
+      current.pairs.set(block.tableRow, pair);
+      continue;
+    }
+    const essayKey = ESSAY_KEY.exec(text);
+    if (essayKey) {
+      current.essayKeys.push(essayKey[1]);
+      continue;
+    }
 
     const answerLine = ANSWER_LINE.exec(text);
     if (answerLine) {
@@ -337,9 +402,104 @@ export function buildWordSheet(document: WordDocument, marking: AnswerMarking | 
     const fail = (reason: string) => sheet.errors.push({ line: question.index, label: question.label, stem: question.stem, reason });
     const notes: string[] = [];
     const options = orderOptions(question.options);
+    const type = question.tags.type;
 
+    if (question.tags.unknown.length > 0) {
+      fail(`Không hiểu nhãn ${question.tags.unknown.join(', ')}. Nhãn dùng được: ${TAG_NAMES}.`);
+      continue;
+    }
     if (options.length > OPTION_IDS.length) {
       fail(`Có ${options.length} phương án, tối đa ${OPTION_IDS.length}. Thường là thiếu dòng "Câu …" giữa hai câu.`);
+      continue;
+    }
+
+    const images = [...new Set(question.images)];
+    const image = images[0] ?? null;
+    if (image && !BROWSER_IMAGE.test(image)) {
+      fail(`Ảnh của câu ở dạng ${image.split('.').pop()?.toUpperCase()}, trình duyệt không hiển thị được. Trong Word, bấm chuột phải vào ảnh, "Save as Picture…" dạng PNG rồi chèn lại.`);
+      continue;
+    }
+    if (images.length > 1) notes.push(`Câu có ${images.length} ảnh, chỉ lấy ảnh đầu tiên.`);
+
+    const row = (fields: Pick<WordRow, 'optionTexts' | 'answer' | 'questionType' | 'keys'>) => sheet.rows.push({
+      line: question.index,
+      label: question.label,
+      stem: question.stem,
+      topic: question.topic,
+      difficulty: question.tags.difficulty,
+      points: question.tags.points,
+      imageFile: image ? image.split('/').pop() ?? '' : '',
+      imagePath: image,
+      reviewNotes: notes,
+      ...fields,
+    });
+    // The import format separates list items with ";".
+    const noSemicolon = (text: string) => {
+      if (!text.includes(';')) return text;
+      notes.push(`Dấu ";" trong "${text.slice(0, 60)}" được đổi thành ",".`);
+      return text.replace(/;/g, ',');
+    };
+
+    if (type === 'matching') {
+      const pairs = [...question.pairs.values()];
+      if (pairs.length < 2) {
+        fail('Câu nối cột cần một bảng 2 cột ngay dưới đề bài, mỗi hàng là một cặp đúng, ít nhất 2 hàng.');
+        continue;
+      }
+      const incomplete = pairs.findIndex(([left, right]) => !left || !right);
+      if (incomplete !== -1) {
+        fail(`Hàng ${incomplete + 1} của bảng nối cột thiếu ${pairs[incomplete][0] ? 'cột phải' : 'cột trái'}.`);
+        continue;
+      }
+      row({ optionTexts: pairs.map(([left]) => left), answer: '', questionType: IMPORT_TYPE_NAMES.matching, keys: pairs.map(([, right]) => noSemicolon(right)).join(';') });
+      continue;
+    }
+
+    if (type === 'main_idea') {
+      if (options.length > 0) notes.push('Câu tự luận có phương án: các phương án được bỏ qua.');
+      if (question.essayKeys.length === 0) notes.push('Chưa có dòng "Ý chấm:", câu sẽ chấm tay.');
+      const keys = question.essayKeys.map((raw) => {
+        const bar = raw.lastIndexOf('|');
+        const text = noSemicolon(clean(bar === -1 ? raw : raw.slice(0, bar)));
+        const points = bar === -1 ? '' : clean(raw.slice(bar + 1)).replace(',', '.');
+        return `${text}|${points || 2}`;
+      });
+      row({ optionTexts: [], answer: '', questionType: IMPORT_TYPE_NAMES.main_idea, keys: keys.join(';') });
+      continue;
+    }
+
+    const shownLetters = options.map((option) => option.letter);
+    // Back to "a" after a full run of options means the next question's "Câu" line is missing or mistyped
+    // ("Cây 13."); an "a" right after the first option is a list-level slip and only needs a look.
+    const restart = shownLetters.findIndex((letter, index) => index > 1 && letter === 'a');
+    if (restart > 1) {
+      fail(`Phương án thứ ${restart + 1} lại bắt đầu từ a: có thể thiếu hoặc gõ sai dòng "Câu …" của câu sau.`);
+      continue;
+    }
+    if (shownLetters.some((letter, index) => letter !== null && letter !== String.fromCharCode(97 + index))) {
+      const first = shownLetters.find((letter) => letter !== null);
+      notes.push(first && first !== 'a'
+        ? `Phương án đầu tiên ghi "${first})": có thể phương án a nằm lẫn trong đề bài.`
+        : 'Chữ cái của các phương án không liền nhau (thiếu hoặc lặp chữ).');
+    }
+    for (const joined of question.joinedText) notes.push(`Đoạn "${joined.text.slice(0, 80)}" được nối vào cuối phương án ${OPTION_IDS[options.indexOf(joined.option)]}.`);
+    const optionTexts = options.map((option) => option.text);
+
+    if (type === 'drag_drop') {
+      // The file lists the steps in the right order; the exam screen shuffles them.
+      row({ optionTexts, answer: OPTION_IDS.slice(0, options.length).join(';'), questionType: IMPORT_TYPE_NAMES.drag_drop, keys: '' });
+      continue;
+    }
+
+    const partly = marking ? options.flatMap((option, index) => (option.partial[marking] ? [OPTION_IDS[index] as string] : [])) : [];
+    if (partly.length > 0) notes.push(`Đáp án ${describe(partly)} chỉ có một phần chữ được đánh dấu (${markingName}): kiểm tra lại đáp án.`);
+
+    if (type === 'true_false_multi') {
+      if (!marking) {
+        fail('Câu Đúng/Sai cần tô ý Đúng (theo cách đánh dấu của file); không thấy ý nào được đánh dấu.');
+        continue;
+      }
+      row({ optionTexts, answer: options.map((option) => (option.marks[marking] ? 'Đ' : 'S')).join(';'), questionType: IMPORT_TYPE_NAMES.true_false_multi, keys: '' });
       continue;
     }
 
@@ -362,49 +522,13 @@ export function buildWordSheet(document: WordDocument, marking: AnswerMarking | 
       fail(`Đáp án theo ${firstSource} là ${describe(answer)}, theo ${disagree[0]} là ${describe(disagree[1])}.`);
       continue;
     }
-    const partly = marking ? options.flatMap((option, index) => (option.partial[marking] ? [OPTION_IDS[index] as string] : [])) : [];
-    if (partly.length > 0) notes.push(`Đáp án ${describe(partly)} chỉ có một phần chữ được đánh dấu (${markingName}): kiểm tra lại đáp án.`);
-    if (answer.length > 1) notes.push(`${answer.length} phương án được đánh dấu (${describe(answer)}), nên nhập thành câu nhiều đáp án.`);
-
-    const shownLetters = options.map((option) => option.letter);
-    // Back to "a" after a full run of options means the next question's "Câu" line is missing or mistyped
-    // ("Cây 13."); an "a" right after the first option is a list-level slip and only needs a look.
-    const restart = shownLetters.findIndex((letter, index) => index > 1 && letter === 'a');
-    if (restart > 1) {
-      fail(`Phương án thứ ${restart + 1} lại bắt đầu từ a: có thể thiếu hoặc gõ sai dòng "Câu …" của câu sau.`);
+    if (type === 'single_choice' && answer.length > 1) {
+      fail(`Nhãn [Trắc nghiệm] nhưng có ${answer.length} phương án được đánh dấu (${describe(answer)}).`);
       continue;
     }
-    if (shownLetters.some((letter, index) => letter !== null && letter !== String.fromCharCode(97 + index))) {
-      const first = shownLetters.find((letter) => letter !== null);
-      notes.push(first && first !== 'a'
-        ? `Phương án đầu tiên ghi "${first})": có thể phương án a nằm lẫn trong đề bài.`
-        : 'Chữ cái của các phương án không liền nhau (thiếu hoặc lặp chữ).');
-    }
-
-    const images = [...new Set(question.images)];
-    const image = images[0] ?? null;
-    if (image && !BROWSER_IMAGE.test(image)) {
-      fail(`Ảnh của câu ở dạng ${image.split('.').pop()?.toUpperCase()}, trình duyệt không hiển thị được. Trong Word, bấm chuột phải vào ảnh, "Save as Picture…" dạng PNG rồi chèn lại.`);
-      continue;
-    }
-    if (images.length > 1) notes.push(`Câu có ${images.length} ảnh, chỉ lấy ảnh đầu tiên.`);
-    for (const joined of question.joinedText) notes.push(`Đoạn "${joined.text.slice(0, 80)}" được nối vào cuối phương án ${OPTION_IDS[options.indexOf(joined.option)]}.`);
-
-    sheet.rows.push({
-      line: question.index,
-      label: question.label,
-      stem: question.stem,
-      optionTexts: options.map((option) => option.text),
-      answer: answer.join(';'),
-      questionType: answer.length > 1 ? IMPORT_TYPE_NAMES.multiple_choice : IMPORT_TYPE_NAMES.single_choice,
-      keys: '',
-      topic: question.topic,
-      difficulty: '',
-      points: '',
-      imageFile: image ? image.split('/').pop() ?? '' : '',
-      imagePath: image,
-      reviewNotes: notes,
-    });
+    const multiple = type === 'multiple_choice' || answer.length > 1;
+    if (answer.length > 1 && type !== 'multiple_choice') notes.push(`${answer.length} phương án được đánh dấu (${describe(answer)}), nên nhập thành câu nhiều đáp án.`);
+    row({ optionTexts, answer: answer.join(';'), questionType: multiple ? IMPORT_TYPE_NAMES.multiple_choice : IMPORT_TYPE_NAMES.single_choice, keys: '' });
   }
 
   // Same stem and options with different answers: neither can be trusted.

@@ -24,6 +24,14 @@ const answerRules = [
   ['Tự luận', 'để trống; cột Keys ghi các ý chấm dạng ý|điểm;ý|điểm.'],
 ];
 
+const wordTagRules = [
+  ['[Nhiều đáp án]', 'tô đỏ mọi phương án đúng.'],
+  ['[Đúng/Sai]', 'tô đỏ các ý Đúng, ý để đen là Sai.'],
+  ['[Nối cột]', 'bảng 2 cột ngay dưới đề bài, mỗi hàng là một cặp đúng.'],
+  ['[Sắp xếp]', 'ghi các bước theo đúng thứ tự; khi thi app tự xáo.'],
+  ['[Tự luận]', 'mỗi ý chấm một dòng "Ý chấm: nội dung | điểm".'],
+];
+
 function parsed(value: string): unknown {
   try { return JSON.parse(value); } catch { return null; }
 }
@@ -139,12 +147,20 @@ export default function QuestionSpreadsheetImportPage() {
       <section aria-labelledby="import-file-heading" className="max-w-3xl space-y-3 rounded-xl border border-slate-200 bg-white p-4">
         <h3 id="import-file-heading" className="font-semibold text-slate-900">Chọn file</h3>
         <p className="text-sm text-slate-700">
-          File Word (.docx): mỗi câu bắt đầu bằng "Câu 1.", "Câu 2:"…, phương án a), b), c)… và đáp án đúng được tô đỏ, tô nền, in đậm hoặc gạch chân. Ảnh trong file được tách ra và gắn vào đúng câu.
+          File Word (.docx): mỗi câu bắt đầu bằng "Câu 1.", "Câu 2:"…, phương án a), b), c)… và đáp án đúng được tô đỏ, tô nền, in đậm hoặc gạch chân. Ảnh trong file được tách ra và gắn vào đúng câu. Soạn theo file mẫu Word thì máy đọc chính xác nhất.
         </p>
+        <details className="text-sm text-slate-700">
+          <summary className={`inline-flex min-h-11 cursor-pointer items-center rounded font-medium text-indigo-700 hover:text-indigo-900 ${focusRing}`}>Nhãn dạng câu trong file Word</summary>
+          <ul className="mt-1 space-y-1">
+            {wordTagRules.map(([tag, rule]) => <li key={tag}><span className="font-medium text-slate-900">{tag}</span> {rule}</li>)}
+          </ul>
+          <p className="mt-2">Ghi nhãn ngay sau "Câu N.". Không ghi nhãn là trắc nghiệm một đáp án. Nhãn thêm: [Dễ], [Trung bình], [Khó], [3 điểm].</p>
+        </details>
         <p className="text-sm text-slate-700">
           Excel: mỗi dòng ở trang tính đầu tiên là một câu. Muốn kèm ảnh, để ảnh trong thư mục <code className="rounded bg-slate-100 px-1">images/</code>, ghi tên ảnh ở cột "Tên file ảnh", rồi nén cả thư mục và file Excel thành một file ZIP.
         </p>
         <div className="flex flex-wrap gap-2">
+          <a href="/templates/Mau_soan_de_Word.docx" download className={secondaryButton}>Tải file mẫu Word</a>
           <button type="button" onClick={() => void downloadTemplate('spreadsheet')} disabled={template.isPending} className={secondaryButton}>Tải file mẫu Excel</button>
           <button type="button" onClick={() => void downloadTemplate('zip')} disabled={template.isPending} className={secondaryButton}>Tải file mẫu ZIP</button>
         </div>

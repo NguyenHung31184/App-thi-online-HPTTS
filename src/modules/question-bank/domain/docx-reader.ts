@@ -95,7 +95,11 @@ export interface DocBlock {
   numbering: DocNumbering | null;
   /** Position of the table row (counted across the document) for a paragraph inside a table; null outside tables. */
   tableRow: number | null;
+  /** Column of the cell within its row, from 0; null outside tables. */
+  tableCell: number | null;
 }
+
+type TablePosition = { row: number; cell: number } | null;
 
 export interface DocxParts {
   document: string;
@@ -222,7 +226,7 @@ export function readDocxBlocks(parts: DocxParts): DocBlock[] {
     return { format: definition.format, levelText: definition.levelText, value };
   };
 
-  const paragraph = (node: XmlNode, tableRow: number | null) => {
+  const paragraph = (node: XmlNode, position: TablePosition) => {
     const runs: DocRun[] = [];
     const imageIds: string[] = [];
     readRuns(node, runs, imageIds);
@@ -234,19 +238,20 @@ export function readDocxBlocks(parts: DocxParts): DocBlock[] {
       text: runs.map((run) => run.text).join(''),
       images: imageIds.map((id) => relationships.get(id)).filter((path): path is string => Boolean(path)),
       numbering: numId && numId !== '0' ? numberFor(numId, level) : null,
-      tableRow,
+      tableRow: position?.row ?? null,
+      tableCell: position?.cell ?? null,
     });
   };
 
-  const walk = (node: XmlNode, tableRow: number | null) => {
+  const walk = (node: XmlNode, position: TablePosition) => {
     for (const item of node.children) {
-      if (item.name === 'w:p') paragraph(item, tableRow);
+      if (item.name === 'w:p') paragraph(item, position);
       else if (item.name === 'w:tbl') {
         for (const row of children(item, 'w:tr')) {
           const current = rowCounter++;
-          for (const cell of children(row, 'w:tc')) walk(cell, current);
+          children(row, 'w:tc').forEach((cell, index) => walk(cell, { row: current, cell: index }));
         }
-      } else if (['w:sdt', 'w:sdtContent', 'w:customXml'].includes(item.name)) walk(item, tableRow);
+      } else if (['w:sdt', 'w:sdtContent', 'w:customXml'].includes(item.name)) walk(item, position);
     }
   };
   if (body) walk(body, null);

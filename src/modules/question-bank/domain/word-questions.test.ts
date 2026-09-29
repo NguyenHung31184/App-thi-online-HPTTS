@@ -321,3 +321,68 @@ describe('two-column options and explanations', () => {
     ]);
   });
 });
+
+describe('question type tags', () => {
+  const plan = (rows: ReturnType<typeof sheet>['rows']) => planImport({ rows, headerRecognized: true }, {
+    validateMediaUrl: () => ({ valid: true }),
+    imageSizes: new Map(),
+    existingKeys: new Set(),
+  });
+
+  it('reads [Đúng/Sai] with red statements as true', () => {
+    const result = sheet([
+      p('Câu 5. [Đúng/Sai] [Khó] [4 điểm] Về an toàn vận hành cẩu:'),
+      numbered([{ text: 'Kiểm tra khu vực trước khi nâng.', red: true }, 'Được nâng vượt tải 20%.', { text: 'Hạn vị hoạt động trước mỗi ca.', red: true }]),
+    ].join(''), 'color');
+    expect(result.rows[0]).toMatchObject({ stem: 'Về an toàn vận hành cẩu:', answer: 'Đ;S;Đ', questionType: 'Đúng/Sai', difficulty: 'hard', points: '4' });
+    const [ready] = plan(result.rows).ready;
+    expect(ready.payload).toMatchObject({ question_type: 'true_false_multi', points: 4, difficulty: 'hard' });
+    expect(JSON.parse(ready.payload.answer_key)).toEqual(['T', 'F', 'T']);
+  });
+
+  it('reads [Nối cột] from a two-column table, one right pair per row', () => {
+    const result = sheet([
+      p('Câu 6. [Nối cột] Nối thiết bị với chức năng:'),
+      table([[p('Bộ chống lắc'), p('Hãm lắc container')], [p('Công tắc hành trình'), p('Ngắt mạch; báo lỗi')], [p('Thiết bị đo tải'), p('Ngắt tời khi quá tải')]]),
+    ].join(''), 'color');
+    expect(result.rows[0]).toMatchObject({ optionTexts: ['Bộ chống lắc', 'Công tắc hành trình', 'Thiết bị đo tải'], keys: 'Hãm lắc container;Ngắt mạch, báo lỗi;Ngắt tời khi quá tải', questionType: 'Nối đôi' });
+    expect(result.rows[0].reviewNotes).toEqual(['Dấu ";" trong "Ngắt mạch; báo lỗi" được đổi thành ",".']);
+    const [ready] = plan(result.rows).ready;
+    expect(ready.payload.question_type).toBe('matching');
+  });
+
+  it('reports a [Nối cột] question without a full table', () => {
+    const result = sheet([p('Câu 6. [Nối cột] Nối:'), table([[p('Trái'), p('Phải')], [p('Chỉ trái'), p('')]])].join(''), 'color');
+    expect(result.errors[0].reason).toBe('Hàng 2 của bảng nối cột thiếu cột phải.');
+  });
+
+  it('reads [Sắp xếp] with the steps in the right order', () => {
+    const result = sheet([p('Câu 7. [Sắp xếp] Thứ tự nâng hàng:'), numbered(['Kiểm tra tải trọng', 'Móc cẩu', 'Ra lệnh nâng'])].join(''), 'color');
+    expect(result.rows[0]).toMatchObject({ answer: 'A;B;C', questionType: 'Kéo thả' });
+    expect(plan(result.rows).ready[0].payload.question_type).toBe('drag_drop');
+  });
+
+  it('reads [Tự luận] with "Ý chấm:" lines, 2 points when missing', () => {
+    const result = sheet([
+      p('Câu 8. [Tự luận] Nêu nguyên nhân tai nạn lao động tại cảng.'),
+      p('Ý chấm: sai quy trình | 3'),
+      p('Ý chấm: thiếu bảo hộ'),
+    ].join(''), 'color');
+    expect(result.rows[0]).toMatchObject({ optionTexts: [], keys: 'sai quy trình|3;thiếu bảo hộ|2', questionType: 'Tự luận' });
+    const [ready] = plan(result.rows).ready;
+    expect(ready.payload.question_type).toBe('main_idea');
+    expect(JSON.parse(ready.payload.answer_key)).toEqual([{ text: 'sai quy trình', points: 3 }, { text: 'thiếu bảo hộ', points: 2 }]);
+  });
+
+  it('keeps [Nhiều đáp án] with one mark and refuses [Trắc nghiệm] with two', () => {
+    const multi = sheet([p('Câu 1. [Nhiều đáp án] Một?'), numbered([{ text: 'A', red: true }, 'B'])].join(''), 'color');
+    expect(multi.rows[0]).toMatchObject({ answer: 'A', questionType: 'Nhiều đáp án', reviewNotes: [] });
+    const single = sheet([p('Câu 1. [Trắc nghiệm] Một?'), numbered([{ text: 'A', red: true }, { text: 'B', red: true }])].join(''), 'color');
+    expect(single.errors[0].reason).toBe('Nhãn [Trắc nghiệm] nhưng có 2 phương án được đánh dấu (A, B).');
+  });
+
+  it('reports an unknown tag', () => {
+    const result = sheet([p('Câu 1. [Video] Một?'), numbered([{ text: 'A', red: true }, 'B'])].join(''), 'color');
+    expect(result.errors[0].reason).toMatch(/^Không hiểu nhãn \[Video\]\. Nhãn dùng được:/);
+  });
+});

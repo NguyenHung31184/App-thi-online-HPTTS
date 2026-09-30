@@ -1,16 +1,16 @@
 # Chốt bài, giữ nguyên đề đã phát và đồng bộ điểm
 
-Trạng thái ngày 2026-09-29: đã áp dụng migration và triển khai production; lịch nền tạm ngưng vì biến `SUPABASE_SERVICE_ROLE_KEY` trên Vercel chứa khóa `anon`.
+Trạng thái ngày 2026-09-30: đã áp dụng migration, triển khai production và bật lịch xử lý nền mỗi phút.
 
 ## Kết quả triển khai production
 
-- Commit ứng dụng: `e9a0b8a62cbfafc9bec1735e509e44c17aa79a16`. Vercel deployment `dpl_HZxydet9GZowLus3k5aE72EQ82b7` Ready tại https://app-thi-online-hptts.vercel.app.
+- Commit ứng dụng: `e9a0b8a62cbfafc9bec1735e509e44c17aa79a16`. Vercel deployment nhận cấu hình khóa đã sửa `dpl_G1ysy7FEmptx4PCx2x1yKGcpUeKN` Ready tại https://app-thi-online-hptts.vercel.app.
 - Bản phát hành tách khỏi hai file Word đang sửa dở: 111/111 test đạt, build đạt. [GitHub CI](https://github.com/NguyenHung31184/App-thi-online-HPTTS/actions/runs/36546643434) đạt.
 - Supabase `vmtztbmlzszuxkglubro` đã áp dụng `atomic_exam_submission` (`20260929090233`), `secure_practical_submission` (`20260929090247`) và `exam_sync_outbox` (`20260929090304`). MCP cấp timestamp thực tế khác tên file cục bộ; không áp dụng lại ba migration chỉ vì tên timestamp khác nhau.
 - Đã cài pg_cron/pg_net, tạo job `exam-maintenance` mỗi phút, cấu hình URL và khóa riêng trong Vault, lưu `CRON_SECRET` dạng Secret ở Vercel Production. Không lưu giá trị khóa trong repo.
 - Kiểm tra quyền trên database thật: authenticated không có quyền đọc schema/bảng bản chụp đáp án, không gọi được worker hoặc claim queue; service_role có quyền gọi worker.
-- Lần cron đầu lúc 09:05 UTC xác thực endpoint thành công nhưng nhận HTTP 500: `permission denied for function finalize_expired_exam_attempts`. Log gateway Supabase xác nhận cả API key và Authorization đều có role `anon`. Vì vậy cấu hình hiện tại mang tên `SUPABASE_SERVICE_ROLE_KEY` chưa phải khóa service_role. Job đã được tạm ngưng để tránh lặp lỗi.
-- Cần quản trị viên thay khóa đúng trong Vercel Production, redeploy, bật lại job rồi xác minh `net._http_response` trả HTTP 200. Chưa xác nhận đồng bộ điểm thật thành công.
+- Lần cron đầu lúc 09:05 UTC nhận HTTP 500 vì giá trị `SUPABASE_SERVICE_ROLE_KEY` khi đó mang role `anon`; job được tạm ngưng để tránh lặp lỗi. Sau khi thay khóa và redeploy, lần gọi kiểm tra ngày 2026-09-30 trả HTTP 200 với `finalized: 0`, `processed: 0`, `failed: 0`; gateway xác nhận cả API key và Authorization đều có role `service_role`.
+- Job đã bật lại. Lần chạy tự động lúc 08:38 UTC có trạng thái `succeeded`; `net._http_response` trả HTTP 200 với `finalized: 0`, `processed: 0`, `failed: 0`. Hàng đợi và số lượt mới quá hạn đều bằng 0 tại thời điểm xác minh, nên chưa phát sinh gửi điểm thật trong lần kiểm tra này.
 - Trước triển khai không có lượt lý thuyết còn hạn hoặc thực hành pending_upload. Có 335 lượt lý thuyết cũ in_progress nhưng đã quá hạn; không sửa hay tự chốt các lượt này.
 - Security advisor có thông báo về bảng bản chụp bật RLS không có policy (cố ý từ chối truy cập client), metadata queue có thể hiện trong GraphQL và RPC SECURITY DEFINER dành cho authenticated (có kiểm tra quyền trong hàm). Không mở quyền để xử lý lỗi khóa anon.
 

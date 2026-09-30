@@ -152,3 +152,14 @@ essay = one "Ý chấm: text | points" line per key.
   reported with the fix, text inside text boxes is not read (none of the center's multiple-choice files use them).
 - Checks: `npm test` word import 33 tests (2 new: red through a character style, a style based on it and a paragraph
   style with an "auto" override; equation text). Reference check: no change against the approved result.
+
+## Preview fixes after the operator's edit feature (2026-09-30)
+
+- Review rows come first in "Câu sẽ nhập", and "Hiện thêm N câu" shows the rest 100 at a time. Before, only the first
+  100 rows were shown, so a question to review past row 100 (ĐẾ question 133) could not be opened or confirmed.
+- A single-choice question without an answer now says "Chọn đáp án đúng." instead of "Đáp án đúng phải nằm trong danh
+  sách đáp án đã nhập." (the latter stays for an answer pointing at an empty option). The editor shares this message.
+- Checks: `npm test` 113/113, `tsc -b`, lint 0 errors, boundaries, build. Edge on a local build with the admin session,
+  preview only (no import, no database write): ĐẾ lists 39, 133, 137 first, 100 rows then "Hiện thêm 34 câu" to 134;
+  Forklift question confirmed without an answer shows "Chọn đáp án đúng."; no page error. Reference check on 11 files:
+  350 questions moved from "no answer" errors to answerable in the preview, nothing else changed.

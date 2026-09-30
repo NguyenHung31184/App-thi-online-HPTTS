@@ -92,6 +92,12 @@ export default function QuestionSpreadsheetImportPage() {
   const word = preview.data?.word ?? null;
   const unit = word ? 'câu' : 'dòng';
   const reviewCount = plan?.ready.filter((row) => row.needsReview).length ?? 0;
+  const [shownCount, setShownCount] = useState(READY_SHOWN);
+  // Rows to review come first so none is hidden past the first page of a long file.
+  const readyRows = useMemo(
+    () => (plan ? [...plan.ready.filter((row) => row.needsReview), ...plan.ready.filter((row) => !row.needsReview)] : []),
+    [plan],
+  );
   const candidatesByLine = useMemo(
     () => new Map(word?.candidates.map((candidate) => [candidate.source.line, candidate]) ?? []),
     [word],
@@ -119,6 +125,7 @@ export default function QuestionSpreadsheetImportPage() {
     run.reset();
     setEdits(new Map());
     setEditingLine(null);
+    setShownCount(READY_SHOWN);
     preview.mutate({ file: chosen, marking });
   };
 
@@ -312,7 +319,7 @@ export default function QuestionSpreadsheetImportPage() {
             <div className="rounded-xl border border-slate-200 bg-white">
               <h4 className="border-b border-slate-100 px-4 py-3 font-semibold text-slate-900">Câu sẽ nhập</h4>
               <ol className="divide-y divide-slate-100">
-                {plan.ready.slice(0, READY_SHOWN).map((row) => {
+                {readyRows.slice(0, shownCount).map((row) => {
                   const candidate = candidatesByLine.get(row.line);
                   const imageSrc = row.imageName ? thumbnails.get(imageKey(row.imageName)) ?? null : null;
                   return (
@@ -358,8 +365,17 @@ export default function QuestionSpreadsheetImportPage() {
                   );
                 })}
               </ol>
-              {plan.ready.length > READY_SHOWN && (
-                <p className="border-t border-slate-100 px-4 py-3 text-sm text-slate-600">Còn {plan.ready.length - READY_SHOWN} câu nữa, cũng sẵn sàng nhập.</p>
+              {readyRows.length > shownCount && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-3 text-sm text-slate-600">
+                  <span>Còn {readyRows.length - shownCount} câu nữa, cũng sẵn sàng nhập.</span>
+                  <button
+                    type="button"
+                    onClick={() => setShownCount((count) => count + READY_SHOWN)}
+                    className={`min-h-11 rounded-lg border border-slate-300 bg-white px-3 font-medium text-indigo-800 hover:bg-indigo-50 ${focusRing}`}
+                  >
+                    Hiện thêm {Math.min(READY_SHOWN, readyRows.length - shownCount)} câu
+                  </button>
+                </div>
               )}
             </div>
           )}

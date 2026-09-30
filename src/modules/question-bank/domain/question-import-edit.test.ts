@@ -52,7 +52,7 @@ describe('editable Word import drafts', () => {
 
     const before = planDraftImport([{ source: row, draft: parsed.draft }], context);
     expect(before.ready).toEqual([]);
-    expect(before.errors[0].reason).toBe('Đáp án đúng phải nằm trong danh sách đáp án đã nhập.');
+    expect(before.errors[0].reason).toBe('Chọn đáp án đúng.');
 
     const edited = { ...parsed.draft, singleAnswer: 'B' };
     const after = planDraftImport([{ source: row, draft: edited, confirmed: true }], context);

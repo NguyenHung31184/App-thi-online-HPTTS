@@ -235,6 +235,7 @@ export function buildQuestionPayload(
   switch (type) {
     case 'single_choice':
       if (filled.length < 2) return fail('Cần ít nhất 2 đáp án.');
+      if (!draft.singleAnswer) return fail('Chọn đáp án đúng.');
       if (!filledIds.includes(draft.singleAnswer)) return fail('Đáp án đúng phải nằm trong danh sách đáp án đã nhập.');
       answerKey = draft.singleAnswer;
       break;

@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-09-30 — Vào lại kỳ thi thì làm tiếp lượt đang mở
+
+**Commit:** _(commit này)_
+**Branch:** main
+
+Migration `20260930160000_resume_in_progress_attempt.sql` thay `start_exam_attempt`. Rollback: migration tiến trả lại thân hàm cũ; xem `docs/rollback/2026-10-01-resume-in-progress-attempt.md`.
+
+---
+
 ## 2026-09-28 — Nhập câu hỏi từ file Word (.docx)
 
 **Commit:** _(commit này)_

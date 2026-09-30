@@ -59,3 +59,10 @@ Không tự bật lịch bằng migration chính: URL và secret phải khớp d
 - Chưa thay đổi thời điểm bắt đầu tính giờ, lưu nháp offline, cơ chế AI hoặc phần nhập Word đang làm dở. Đây là các hạng mục tiếp theo, không thuộc đợt củng cố năm ưu tiên này.
 
 Tham khảo: [Supabase scheduling](https://supabase.com/docs/guides/functions/schedule-functions), [Vercel duration](https://vercel.com/docs/functions/configuring-functions/duration).
+
+## Thi thử trên production (2026-09-30)
+
+- Học viên thử (lớp FL-K103, kỳ thi thử đề QC). Lượt `ca581262…` bị đóng trình duyệt khi chưa lưu đáp án, hạn nộp 23:04:05; lần chạy lịch 23:05:00 trả `finalized: 1`, lượt chuyển `completed`, điểm 0 (không có đáp án), không bị hủy. Kỳ thi thử không tạo việc trong `exam_sync_jobs`. Đây là bằng chứng worker tự chốt bài quá giờ trên production.
+- Cả hai lượt đều có bản chụp đề trong `exam_private.attempt_papers`.
+- Phát hiện: vào lại kỳ thi bằng mã truy cập tạo lượt mới thay vì làm tiếp; sửa ở `docs/implementation/2026-10-01-resume-in-progress-attempt.md`.
+- Phát hiện: bản đang chạy hủy bài sau 16 lần "không thấy mặt" trong 35 giây (lượt `26b2d6f6…`, bị hủy lúc 22:44:00); người vận hành đang sửa chính sách giám sát AI.

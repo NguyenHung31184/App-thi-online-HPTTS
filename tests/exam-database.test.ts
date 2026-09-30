@@ -60,6 +60,12 @@ beforeAll(async () => {
     GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated,service_role;
     CREATE POLICY attempts_own ON attempts FOR SELECT TO authenticated USING(user_id=auth.uid());`);
   for (const file of ['20260929090000_atomic_exam_submission.sql','20260929091000_secure_practical_submission.sql','20260929092000_exam_sync_outbox.sql']) await db.exec(await migration(file));
+  // Columns and tables start_exam_attempt reads in production (class ids are text there).
+  await db.exec(`ALTER TABLE exam_windows ALTER class_id TYPE text, ADD exam_ids uuid[], ADD max_attempts int;
+    ALTER TABLE exams ADD locked_at timestamptz, ADD is_deleted boolean DEFAULT false;
+    ALTER TABLE question_bank ADD module_id uuid, ADD status text DEFAULT 'published';
+    CREATE TABLE exam_access_failures(user_id uuid,window_id uuid,failure_count int,last_failed_at timestamptz,PRIMARY KEY(user_id,window_id));`);
+  await db.exec(await migration('20260930160000_resume_in_progress_attempt.sql'));
   await sql('INSERT INTO profiles VALUES($1,$1,\'student\',NULL),($2,$2,\'student\',NULL),($3,NULL,\'teacher\',\'teacher\')',[student,other,teacher]);
   await sql('INSERT INTO enrollments(student_id,class_id) VALUES($1,$2)',[student,classId]);
   await sql("INSERT INTO exams(id,title,duration_minutes,module_id) VALUES($1,'Exam',1,$2)",[exam,moduleId]);
@@ -201,5 +207,52 @@ describe('durable sync queue', () => {
   it('does not expose claims to student callers', async () => {
     await login(student);
     await expect(sql('SELECT * FROM claim_exam_sync_job()')).rejects.toThrow('permission denied');
+  });
+});
+
+describe('entering an exam window again', () => {
+  async function start(code = '123') {
+    const [row] = await sql<{ id: string | null }>('SELECT (start_exam_attempt($1,$2)).id id', [windowId, code]);
+    return row.id;
+  }
+  async function ready(maxAttempts = 2) {
+    await db.exec('RESET ROLE');
+    await sql(`UPDATE exams SET locked_at=now(), blueprint='[{"count":1,"topic":"*","difficulty":"*"}]' WHERE id=$1`, [exam]);
+    await sql('UPDATE question_bank SET module_id=$2 WHERE id=$1', [question, moduleId]);
+    await sql('UPDATE exam_windows SET max_attempts=$2 WHERE id=$1', [windowId, maxAttempts]);
+    await login(student);
+  }
+
+  it('returns the open attempt with its paper and saved answers', async () => {
+    await ready();
+    const first = await start();
+    await sql('SELECT save_attempt_answers($1,$2::jsonb)', [first, JSON.stringify({ [question]: 'B' })]);
+    expect(await start()).toBe(first);
+    await db.exec('RESET ROLE');
+    expect(await sql('SELECT count(*)::int n FROM attempts WHERE user_id=$1', [student])).toEqual([{ n: 1 }]);
+    expect(await sql('SELECT count(*)::int n FROM exam_private.attempt_papers WHERE attempt_id=$1', [first])).toEqual([{ n: 1 }]);
+    expect(await sql('SELECT answers FROM attempts WHERE id=$1', [first])).toEqual([{ answers: { [question]: 'B' } }]);
+  });
+
+  it('grades an open attempt past its deadline, then starts a new one', async () => {
+    const old = await attempt(true);
+    await ready();
+    const next = await start();
+    expect(next).not.toBe(old);
+    await db.exec('RESET ROLE');
+    expect(await sql('SELECT status, score::float FROM attempts WHERE id=$1', [old])).toEqual([{ status: 'completed', score: 1 }]);
+  });
+
+  it('still applies the attempt limit after grading an expired attempt', async () => {
+    await attempt(true);
+    await ready(1);
+    await expect(start()).rejects.toThrow('attempt_limit_reached');
+  });
+
+  it('refuses a wrong access code even with an open attempt', async () => {
+    await ready();
+    const first = await start();
+    expect(first).toBeTruthy();
+    expect(await start('999')).toBeNull();
   });
 });

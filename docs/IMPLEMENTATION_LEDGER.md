@@ -30,6 +30,8 @@ This ledger is the entry point for people and coding agents continuing the proje
    `attempts.last_seen_at` column (migration needs operator approval), refresh every 15 s.
 6. Add practical examination reporting: later (operator, 2026-09-28; grading happens in Sổ chuyên cần).
 
+Found in the 2026-09-30 trial exam: entering again created a new attempt; fix `docs/implementation/2026-10-01-resume-in-progress-attempt.md` (migration waits for approval).
+
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.
 
 Removed 2026-09-28: the manual essay grading screen, `docs/implementation/2026-09-28-remove-essay-grading-screen.md`.

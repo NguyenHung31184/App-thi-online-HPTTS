@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
-import type { ImportProgress, MarkingChoice } from '../application/import-questions';
-import type { QuestionPayload } from '../domain/question-draft';
+import { planWordImport, type ImportProgress, type MarkingChoice } from '../application/import-questions';
+import type { QuestionDraft, QuestionPayload } from '../domain/question-draft';
 import { imageKey, rowLabel, type SkippedRow } from '../domain/question-import';
 import { ANSWER_MARKINGS, MARKING_LABELS } from '../domain/word-questions';
 import { useImportTemplate, usePreviewQuestionImport, useRunQuestionImport } from '../queries/use-question-import';
@@ -11,6 +11,7 @@ import { saveFile } from './download';
 import { useLibraryContext } from './library-context';
 import { difficultyLabels, errorMessage, fieldClass, focusRing, questionTypeLabels } from './labels';
 import { BackLink, ErrorState, LoadingState } from './states';
+import { WordImportQuestionEditor } from './editor/WordImportQuestionEditor';
 
 const READY_SHOWN = 100;
 const secondaryButton = `inline-flex min-h-11 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 ${focusRing}`;
@@ -81,11 +82,28 @@ export default function QuestionSpreadsheetImportPage() {
   const [status, setStatus] = useState<'published' | 'draft'>('published');
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [edits, setEdits] = useState<Map<number, QuestionDraft>>(() => new Map());
+  const [editingLine, setEditingLine] = useState<number | null>(null);
   const listUrl = `/admin/question-libraries/${library.id}/questions`;
-  const plan = preview.data?.plan;
+  const plan = useMemo(() => {
+    if (!preview.data) return undefined;
+    return preview.data.word ? planWordImport(preview.data, edits) : preview.data.plan;
+  }, [edits, preview.data]);
   const word = preview.data?.word ?? null;
   const unit = word ? 'câu' : 'dòng';
   const reviewCount = plan?.ready.filter((row) => row.needsReview).length ?? 0;
+  const candidatesByLine = useMemo(
+    () => new Map(word?.candidates.map((candidate) => [candidate.source.line, candidate]) ?? []),
+    [word],
+  );
+  const editableIssues = useMemo(() => {
+    if (!plan || !word) return [];
+    return [...plan.errors, ...plan.duplicates]
+      .filter((row) => candidatesByLine.has(row.line))
+      .sort((a, b) => a.line - b.line);
+  }, [candidatesByLine, plan, word]);
+  const blockedErrors = plan?.errors.filter((row) => !candidatesByLine.has(row.line)) ?? [];
+  const blockedDuplicates = plan?.duplicates.filter((row) => !candidatesByLine.has(row.line)) ?? [];
 
   // Thumbnails let the operator check that each picture landed on the right question before saving.
   const thumbnails = useMemo(() => {
@@ -99,6 +117,8 @@ export default function QuestionSpreadsheetImportPage() {
 
   const read = (chosen: File, marking: MarkingChoice) => {
     run.reset();
+    setEdits(new Map());
+    setEditingLine(null);
     preview.mutate({ file: chosen, marking });
   };
 
@@ -122,9 +142,9 @@ export default function QuestionSpreadsheetImportPage() {
   };
 
   const submit = async () => {
-    if (!preview.data) return;
+    if (!preview.data || !plan) return;
     try {
-      const count = await run.mutateAsync({ library, preview: preview.data, status, createdBy: user?.id ?? null, onProgress: setProgress });
+      const count = await run.mutateAsync({ library, preview: { ...preview.data, plan }, status, createdBy: user?.id ?? null, onProgress: setProgress });
       toast.success(`Đã nhập ${count} câu vào ngân hàng.`);
       navigate(status === 'draft' ? `${listUrl}?status=draft` : listUrl);
     } catch {
@@ -132,6 +152,15 @@ export default function QuestionSpreadsheetImportPage() {
     } finally {
       setProgress(null);
     }
+  };
+
+  const saveEdit = (line: number, draft: QuestionDraft) => {
+    setEdits((current) => {
+      const next = new Map(current);
+      next.set(line, draft);
+      return next;
+    });
+    setEditingLine(null);
   };
 
   return (
@@ -220,20 +249,62 @@ export default function QuestionSpreadsheetImportPage() {
             <p key={notice} role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>
           ))}
 
-          {plan.errors.length > 0 && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">
-              <h4 className="font-semibold">{word ? 'Câu không nhập được' : 'Dòng lỗi, sẽ không được nhập'}</h4>
-              <p className="mt-1 text-sm">Sửa trong file rồi chọn lại file để nhập cả những dòng này.</p>
-              <SkippedList rows={plan.errors} />
+          {editableIssues.length > 0 && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+              <h4 className="font-semibold">Câu cần hoàn thiện trên màn hình</h4>
+              <p className="mt-1 text-sm">Mở từng câu để chọn đáp án, đổi loại câu hỏi hoặc sửa nội dung. Câu hợp lệ sẽ tự chuyển sang danh sách sẵn sàng nhập.</p>
+              <ul className="mt-3 space-y-3">
+                {editableIssues.map((row) => {
+                  const candidate = candidatesByLine.get(row.line);
+                  if (!candidate) return null;
+                  const imageSrc = candidate.source.imageFile ? thumbnails.get(imageKey(candidate.source.imageFile)) ?? null : null;
+                  return (
+                    <li key={row.line} className="rounded-lg border border-amber-200 bg-white p-3 text-sm text-slate-800">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="break-words"><span className="font-semibold">{rowLabel(row)}.</span>{row.stem && ` ${row.stem}`}</p>
+                          <p className="mt-1 text-amber-950">{row.reason}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingLine((current) => current === row.line ? null : row.line)}
+                          disabled={run.isPending}
+                          aria-expanded={editingLine === row.line}
+                          className={`min-h-11 rounded-lg border border-indigo-300 bg-white px-3 font-medium text-indigo-800 hover:bg-indigo-50 disabled:opacity-60 ${focusRing}`}
+                        >
+                          {editingLine === row.line ? 'Đóng' : 'Sửa câu này'}
+                        </button>
+                      </div>
+                      {editingLine === row.line && (
+                        <WordImportQuestionEditor
+                          candidate={edits.has(row.line) ? { ...candidate, reason: null } : candidate}
+                          initialDraft={edits.get(row.line) ?? candidate.draft}
+                          imageSrc={imageSrc}
+                          onSave={(draft) => saveEdit(row.line, draft)}
+                          onCancel={() => setEditingLine(null)}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
 
-          {plan.duplicates.length > 0 && (
+          {blockedErrors.length > 0 && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">
+              <h4 className="font-semibold">{word ? 'Câu không nhập được' : 'Dòng lỗi, sẽ không được nhập'}</h4>
+              <p className="mt-1 text-sm">Sửa trong file rồi chọn lại file để nhập cả những dòng này.</p>
+              <SkippedList rows={blockedErrors} />
+            </div>
+          )}
+
+          {blockedDuplicates.length > 0 && (
             <details className="rounded-xl border border-slate-200 bg-white px-4 py-1 text-slate-800">
               <summary className={`inline-flex min-h-11 cursor-pointer items-center rounded font-medium ${focusRing}`}>
-                {plan.duplicates.length} {unit} trùng câu đã có, sẽ bỏ qua
+                {blockedDuplicates.length} {unit} trùng câu đã có, sẽ bỏ qua
               </summary>
-              <div className="pb-3"><SkippedList rows={plan.duplicates} /></div>
+              <div className="pb-3"><SkippedList rows={blockedDuplicates} /></div>
             </details>
           )}
 
@@ -241,25 +312,51 @@ export default function QuestionSpreadsheetImportPage() {
             <div className="rounded-xl border border-slate-200 bg-white">
               <h4 className="border-b border-slate-100 px-4 py-3 font-semibold text-slate-900">Câu sẽ nhập</h4>
               <ol className="divide-y divide-slate-100">
-                {plan.ready.slice(0, READY_SHOWN).map((row) => (
-                  <li key={row.line} className="flex gap-3 px-4 py-3 text-sm">
-                    {row.imageName && thumbnails.has(imageKey(row.imageName)) && (
-                      <img src={thumbnails.get(imageKey(row.imageName))} alt={`Ảnh của ${rowLabel(row).toLowerCase()}`} className="h-16 w-16 flex-shrink-0 rounded border border-slate-200 object-contain" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                    <p className="line-clamp-2 break-words text-slate-900"><span className="font-semibold">{rowLabel(row)}.</span> {row.payload.stem}</p>
-                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
-                      <span>{questionTypeLabels[row.payload.question_type]}</span>
-                      <span>{answerSummary(row.payload)}</span>
-                      <span>{row.payload.points} điểm</span>
-                      <span>{difficultyLabels[row.payload.difficulty] ?? row.payload.difficulty}</span>
-                      {row.payload.topic && <span>{row.payload.topic}</span>}
-                      {row.imageName && <span>Ảnh {row.imageName}</span>}
-                    </p>
-                    {row.note && <p className="mt-1 text-xs text-amber-900">{row.needsReview && <span className="font-semibold">Cần xem lại: </span>}{row.note}</p>}
-                    </div>
-                  </li>
-                ))}
+                {plan.ready.slice(0, READY_SHOWN).map((row) => {
+                  const candidate = candidatesByLine.get(row.line);
+                  const imageSrc = row.imageName ? thumbnails.get(imageKey(row.imageName)) ?? null : null;
+                  return (
+                    <li key={row.line} className="px-4 py-3 text-sm">
+                      <div className="flex gap-3">
+                        {imageSrc && (
+                          <img src={imageSrc} alt={`Ảnh của ${rowLabel(row).toLowerCase()}`} className="h-16 w-16 flex-shrink-0 rounded border border-slate-200 object-contain" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-2 break-words text-slate-900"><span className="font-semibold">{rowLabel(row)}.</span> {row.payload.stem}</p>
+                          <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+                            <span>{questionTypeLabels[row.payload.question_type]}</span>
+                            <span>{answerSummary(row.payload)}</span>
+                            <span>{row.payload.points} điểm</span>
+                            <span>{difficultyLabels[row.payload.difficulty] ?? row.payload.difficulty}</span>
+                            {row.payload.topic && <span>{row.payload.topic}</span>}
+                            {row.imageName && <span>Ảnh {row.imageName}</span>}
+                          </p>
+                          {row.note && <p className="mt-1 text-xs text-amber-900">{row.needsReview && <span className="font-semibold">Cần xem lại: </span>}{row.note}</p>}
+                        </div>
+                        {candidate && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingLine((current) => current === row.line ? null : row.line)}
+                            disabled={run.isPending}
+                            aria-expanded={editingLine === row.line}
+                            className={`min-h-11 flex-shrink-0 rounded-lg border border-slate-300 bg-white px-3 font-medium text-indigo-800 hover:bg-indigo-50 disabled:opacity-60 ${focusRing}`}
+                          >
+                            {editingLine === row.line ? 'Đóng' : 'Sửa'}
+                          </button>
+                        )}
+                      </div>
+                      {candidate && editingLine === row.line && (
+                        <WordImportQuestionEditor
+                          candidate={edits.has(row.line) ? { ...candidate, reason: null } : candidate}
+                          initialDraft={edits.get(row.line) ?? row.draft}
+                          imageSrc={imageSrc}
+                          onSave={(draft) => saveEdit(row.line, draft)}
+                          onCancel={() => setEditingLine(null)}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
               </ol>
               {plan.ready.length > READY_SHOWN && (
                 <p className="border-t border-slate-100 px-4 py-3 text-sm text-slate-600">Còn {plan.ready.length - READY_SHOWN} câu nữa, cũng sẵn sàng nhập.</p>

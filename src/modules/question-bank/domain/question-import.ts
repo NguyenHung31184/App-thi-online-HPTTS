@@ -199,9 +199,9 @@ export function parseEssayKeys(raw: string): EssayKey[] {
     .filter((key) => key.text !== '');
 }
 
-type DraftResult = { ok: true; draft: QuestionDraft } | { ok: false; error: string };
+export type DraftResult = { ok: true; draft: QuestionDraft } | { ok: false; error: string };
 
-function draftFromImportRow(row: ImportRow): DraftResult {
+export function draftFromImportRow(row: ImportRow, allowMissingChoiceAnswer = false): DraftResult {
   const fail = (error: string): DraftResult => ({ ok: false, error });
   if (!row.stem) return fail('Thiếu nội dung câu hỏi.');
 
@@ -222,6 +222,7 @@ function draftFromImportRow(row: ImportRow): DraftResult {
 
   switch (type) {
     case 'single_choice': {
+      if (row.answer === '' && allowMissingChoiceAnswer) { draft.singleAnswer = ''; break; }
       if (row.answer === '') return fail('Thiếu đáp án đúng.');
       const id = optionId(row.answer);
       if (!id) return fail(`Đáp án đúng "${row.answer}" không đọc được. Ghi một chữ A–J hoặc số 1–10.`);
@@ -230,6 +231,7 @@ function draftFromImportRow(row: ImportRow): DraftResult {
     }
     case 'multiple_choice': {
       const parts = splitList(row.answer);
+      if (parts.length === 0 && allowMissingChoiceAnswer) { draft.multipleAnswers = []; break; }
       if (parts.length === 0) return fail('Ghi các đáp án đúng, ví dụ A;C.');
       const ids = parts.map(optionId);
       const bad = parts.find((_, index) => !ids[index] || !filledIds.includes(ids[index] as string));
@@ -350,6 +352,10 @@ export interface ReadyRow {
   label?: string;
   /** Stored as a draft even when the batch is published. */
   needsReview: boolean;
+  /** The row as read, so the preview can edit it. */
+  source: ImportRow;
+  /** The normalized editor state used to produce the payload. */
+  draft: QuestionDraft;
 }
 
 export interface SkippedRow {
@@ -374,6 +380,13 @@ export interface ImportContext {
   existingKeys: Set<string>;
 }
 
+export interface ImportDraftRow {
+  source: ImportRow;
+  draft: QuestionDraft;
+  /** The operator opened and accepted this row in the preview. */
+  confirmed?: boolean;
+}
+
 function imageError(name: string, imageSizes: Map<string, number> | null): string | null {
   if (!imageSizes) return `Có tên ảnh "${name}" nhưng file không phải ZIP. Nén file Excel cùng thư mục images/ thành một file ZIP.`;
   const extension = name.split('.').pop()?.toLowerCase() ?? '';
@@ -384,20 +397,18 @@ function imageError(name: string, imageSizes: Map<string, number> | null): strin
   return null;
 }
 
-export function planImport(sheet: ImportSheet, context: ImportContext): ImportPlan {
+export function planDraftImport(rows: ImportDraftRow[], context: ImportContext): ImportPlan {
   const plan: ImportPlan = { ready: [], errors: [], duplicates: [], notices: [] };
-  if (!sheet.headerRecognized) plan.notices.push(FIXED_COLUMNS_NOTICE);
   const seen = new Map<string, string>();
 
-  for (const row of sheet.rows) {
+  for (const item of rows) {
+    const row = item.source;
     const skip = (reason: string) => ({ line: row.line, label: row.label, stem: row.stem, reason });
     const imageName = row.imageFile || null;
     const badImage = imageName ? imageError(imageName, context.imageSizes) : null;
     if (badImage) { plan.errors.push(skip(badImage)); continue; }
 
-    const drafted = draftFromImportRow(row);
-    if (!drafted.ok) { plan.errors.push(skip(drafted.error)); continue; }
-    const built = buildQuestionPayload(drafted.draft, context.validateMediaUrl, imageName !== null);
+    const built = buildQuestionPayload(item.draft, context.validateMediaUrl, imageName !== null);
     if (!built.ok) { plan.errors.push(skip(built.error)); continue; }
 
     const key = contentKey(built.payload.stem, built.payload.options);
@@ -407,15 +418,39 @@ export function planImport(sheet: ImportSheet, context: ImportContext): ImportPl
     seen.set(key, rowLabel(row));
 
     const onImage = built.payload.question_type === 'drag_drop' && built.payload.rubric !== undefined;
-    const notes = [...(row.reviewNotes ?? []), ...(onImage ? ['Gắn nhãn lên ảnh: 4 ô đang ở vị trí mặc định, mở câu sau khi nhập để đặt lại.'] : [])];
+    const reviewNotes = item.confirmed ? [] : (row.reviewNotes ?? []);
+    const defaultZones = onImage && !item.confirmed;
+    const notes = [...reviewNotes, ...(defaultZones ? ['Gắn nhãn lên ảnh: kiểm tra vị trí 4 ô trước khi nhập.'] : [])];
     plan.ready.push({
       line: row.line,
       label: row.label,
       payload: built.payload,
       imageName,
       note: notes.length > 0 ? notes.join(' ') : null,
-      needsReview: (row.reviewNotes ?? []).length > 0,
+      needsReview: reviewNotes.length > 0 || defaultZones,
+      source: row,
+      draft: item.draft,
     });
   }
   return plan;
+}
+
+export function planImport(sheet: ImportSheet, context: ImportContext): ImportPlan {
+  const parsed: ImportDraftRow[] = [];
+  const errors: SkippedRow[] = [];
+  for (const row of sheet.rows) {
+    const drafted = draftFromImportRow(row);
+    if (drafted.ok) parsed.push({ source: row, draft: drafted.draft });
+    else errors.push({ line: row.line, label: row.label, stem: row.stem, reason: drafted.error });
+  }
+  const plan = planDraftImport(parsed, context);
+  plan.errors = [...errors, ...plan.errors].sort((a, b) => a.line - b.line);
+  if (!sheet.headerRecognized) plan.notices.push(FIXED_COLUMNS_NOTICE);
+  return plan;
+}
+
+/** A question read from a file without a correct answer; the preview can pick one. */
+export interface UnansweredRow {
+  row: ImportRow;
+  reason: string;
 }

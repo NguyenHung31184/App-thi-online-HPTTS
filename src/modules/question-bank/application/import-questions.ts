@@ -3,8 +3,9 @@ import * as XLSX from 'xlsx';
 import { validateMediaUrl } from '../../../utils/mediaUrlValidator';
 import { OPTION_IDS } from '../domain/question-draft';
 import { readDocxBlocks } from '../domain/docx-reader';
-import { IMAGE_EXTENSIONS, IMPORT_HEADER, IMPORT_TYPE_NAMES as TYPE, MAX_IMPORT_ROWS, contentKey, imageKey, planImport, readImportSheet, type ImportPlan, type ImportSheet } from '../domain/question-import';
-import { buildWordSheet, proposeMarking, readWordQuestions, type AnswerMarking } from '../domain/word-questions';
+import { IMAGE_EXTENSIONS, IMPORT_HEADER, IMPORT_TYPE_NAMES as TYPE, MAX_IMPORT_ROWS, contentKey, draftFromImportRow, imageKey, planDraftImport, planImport, readImportSheet, type ImportPlan, type ImportRow, type ImportSheet, type SkippedRow } from '../domain/question-import';
+import { buildWordSheet, proposeMarking, readWordQuestions, type AnswerMarking, type WordRow } from '../domain/word-questions';
+import type { QuestionDraft } from '../domain/question-draft';
 import type { QuestionLibrary, QuestionStatus } from '../domain/question-library';
 import { insertQuestions, listLibraryQuestionContent, uploadQuestionImage } from '../data/question-repository';
 import { resolveLibraryCourse } from './library-course';
@@ -14,8 +15,24 @@ export interface ImportPreview {
   plan: ImportPlan;
   /** Pictures from a ZIP or a Word file by `imageKey`; null for a plain spreadsheet. */
   images: Map<string, Blob> | null;
-  /** Set for a Word file: the marking used to read answers and the one the file suggests. */
-  word: { marking: AnswerMarking | null; proposed: AnswerMarking | null } | null;
+  /** Set for a Word file: editable questions plus the data needed to validate edits locally. */
+  word: WordImportPreview | null;
+}
+
+export interface WordImportCandidate {
+  source: ImportRow;
+  draft: QuestionDraft;
+  /** Why the reader could not finish this question without the operator. */
+  reason: string | null;
+}
+
+export interface WordImportPreview {
+  marking: AnswerMarking | null;
+  proposed: AnswerMarking | null;
+  candidates: WordImportCandidate[];
+  blocked: SkippedRow[];
+  notices: string[];
+  existingKeys: Set<string>;
 }
 
 /** 'auto' reads a Word file with the marking most of its questions use. */
@@ -87,7 +104,8 @@ async function readZip(buffer: ArrayBuffer): Promise<{ sheet: ImportSheet; image
 interface WordRead {
   sheet: ImportSheet;
   images: Map<string, Blob>;
-  errors: ImportPlan['errors'];
+  candidates: WordImportCandidate[];
+  errors: SkippedRow[];
   notices: string[];
   marking: AnswerMarking | null;
   proposed: AnswerMarking | null;
@@ -114,15 +132,46 @@ async function readWord(buffer: ArrayBuffer, choice: MarkingChoice): Promise<Wor
   const marking = choice === 'auto' ? proposed : choice;
   const word = buildWordSheet(questions, marking);
 
+  const errors = [...word.errors];
+  const candidates: WordImportCandidate[] = [];
+  const candidateRows = [
+    ...word.rows.map((row) => ({ row, reason: null })),
+    ...word.unanswered,
+  ].sort((a, b) => a.row.line - b.row.line);
+  for (const item of candidateRows) {
+    const parsed = draftFromImportRow(item.row, item.reason !== null);
+    if (parsed.ok) candidates.push({ source: item.row, draft: parsed.draft, reason: item.reason });
+    else errors.push({ line: item.row.line, label: item.row.label, stem: item.row.stem, reason: parsed.error });
+  }
+
   const images = new Map<string, Blob>();
-  for (const path of new Set(word.rows.flatMap((row) => (row.imagePath ? [row.imagePath] : [])))) {
+  for (const path of new Set(candidates.flatMap(({ source }) => {
+    const imagePath = (source as WordRow).imagePath;
+    return imagePath ? [imagePath] : [];
+  }))) {
     const entry = zip.file(path);
     if (!entry) continue;
     const blob = await entry.async('blob');
     const extension = path.split('.').pop()?.toLowerCase() ?? '';
     images.set(imageKey(path), blob.slice(0, blob.size, IMAGE_MIME[extension]));
   }
-  return { sheet: { rows: word.rows, headerRecognized: true }, images, errors: word.errors, notices: word.notices, marking, proposed };
+  return { sheet: { rows: word.rows, headerRecognized: true }, images, candidates, errors, notices: word.notices, marking, proposed };
+}
+
+export function planWordImport(preview: ImportPreview, edits: ReadonlyMap<number, QuestionDraft>): ImportPlan {
+  if (!preview.word) return preview.plan;
+  const plan = planDraftImport(preview.word.candidates.map((candidate) => ({
+    source: candidate.source,
+    draft: edits.get(candidate.source.line) ?? candidate.draft,
+    confirmed: edits.has(candidate.source.line),
+  })), {
+    validateMediaUrl,
+    imageSizes: preview.images && new Map([...preview.images].map(([key, blob]) => [key, blob.size])),
+    existingKeys: preview.word.existingKeys,
+  });
+  plan.errors = [...preview.word.blocked, ...plan.errors].sort((a, b) => a.line - b.line);
+  plan.notices.push(...preview.word.notices);
+  return plan;
 }
 
 /** Reads the file and checks every row against the library; nothing is stored. */
@@ -137,24 +186,39 @@ export async function previewQuestionImport(libraryId: string, file: File, marki
   else if (/\.doc$/i.test(file.name)) throw new Error('File .doc là dạng Word cũ, trình duyệt không đọc được. Mở bằng Word, chọn File → Save As → Word Document (.docx) rồi chọn lại file mới.');
   else throw new Error('Chỉ nhận file .xlsx, .xls, .csv, .zip hoặc Word .docx.');
 
-  if (sheet.rows.length === 0 && word) {
-    if (word.errors.length === 0) throw new Error(word.notices[0] ?? 'Không thấy câu hỏi nào trong file Word.');
-  } else if (sheet.rows.length === 0) throw new Error('Trang tính đầu tiên không có dòng câu hỏi nào dưới dòng tiêu đề.');
-  if (sheet.rows.length > MAX_IMPORT_ROWS) {
-    throw new Error(`File có ${sheet.rows.length} dòng, mỗi lần nhập tối đa ${MAX_IMPORT_ROWS} dòng. Tách thành nhiều file.`);
+  const rowCount = word ? word.candidates.length + word.errors.length : sheet.rows.length;
+  if (rowCount === 0 && word) {
+    throw new Error(word.notices[0] ?? 'Không thấy câu hỏi nào trong file Word.');
+  } else if (!word && sheet.rows.length === 0) throw new Error('Trang tính đầu tiên không có dòng câu hỏi nào dưới dòng tiêu đề.');
+  if (rowCount > MAX_IMPORT_ROWS) {
+    throw new Error(`File có ${rowCount} dòng, mỗi lần nhập tối đa ${MAX_IMPORT_ROWS} dòng. Tách thành nhiều file.`);
   }
 
   const existing = await listLibraryQuestionContent(libraryId);
-  const plan = planImport(sheet, {
-    validateMediaUrl,
-    imageSizes: images && new Map([...images].map(([key, blob]) => [key, blob.size])),
-    existingKeys: new Set(existing.map((question) => contentKey(question.stem, question.options))),
-  });
-  if (word) {
-    plan.errors = [...word.errors, ...plan.errors].sort((a, b) => a.line - b.line);
-    plan.notices.push(...word.notices);
+  const existingKeys = new Set(existing.map((question) => contentKey(question.stem, question.options)));
+  if (!word) {
+    const plan = planImport(sheet, {
+      validateMediaUrl,
+      imageSizes: images && new Map([...images].map(([key, blob]) => [key, blob.size])),
+      existingKeys,
+    });
+    return { fileName: file.name, plan, images, word: null };
   }
-  return { fileName: file.name, plan, images, word: word && { marking: word.marking, proposed: word.proposed } };
+  const result: ImportPreview = {
+    fileName: file.name,
+    plan: { ready: [], errors: [], duplicates: [], notices: [] },
+    images,
+    word: {
+      marking: word.marking,
+      proposed: word.proposed,
+      candidates: word.candidates,
+      blocked: word.errors,
+      notices: word.notices,
+      existingKeys,
+    },
+  };
+  result.plan = planWordImport(result, new Map());
+  return result;
 }
 
 export type ImportProgress = { step: 'images'; done: number; total: number } | { step: 'saving' };

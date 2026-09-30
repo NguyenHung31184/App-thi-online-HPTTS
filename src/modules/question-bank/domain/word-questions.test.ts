@@ -161,7 +161,7 @@ describe('answers', () => {
     expect(proposeMarking(read(body))).toBe('highlight');
     const byColor = sheet(body, 'color');
     expect(byColor.rows.map((row) => row.label)).toEqual(['Câu 3']);
-    expect(byColor.errors.map((error) => error.label)).toEqual(['Câu 1', 'Câu 2']);
+    expect(byColor.unanswered.map(({ row }) => row.label)).toEqual(['Câu 1', 'Câu 2']);
   });
 
   it('does not take bold emphasis for an answer when red is the marking', () => {
@@ -189,7 +189,8 @@ describe('answers', () => {
 
   it('reports questions without an answer and a file without any', () => {
     const result = sheet([p('Câu 1. Một?'), numbered(['A', 'B'])].join(''));
-    expect(result.errors[0].reason).toBe('Không thấy đáp án đúng.');
+    expect(result.errors).toEqual([]);
+    expect(result.unanswered[0]).toMatchObject({ reason: 'Không thấy đáp án đúng.', row: { label: 'Câu 1', answer: '' } });
     expect(result.notices[0]).toMatch(/^File không có đáp án/);
   });
 

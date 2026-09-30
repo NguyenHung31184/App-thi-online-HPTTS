@@ -1,6 +1,6 @@
 import type { QuestionType } from '../../../types';
 import type { DocBlock, DocRun } from './docx-reader';
-import { contentKey, IMPORT_TYPE_NAMES, type ImportRow, type SkippedRow } from './question-import';
+import { contentKey, IMPORT_TYPE_NAMES, type ImportRow, type SkippedRow, type UnansweredRow } from './question-import';
 import { OPTION_IDS } from './question-draft';
 
 // Turns the paragraphs of a center question file into import rows. Rules come from the center's own files
@@ -374,6 +374,8 @@ export interface WordRow extends ImportRow {
 export interface WordSheet {
   rows: WordRow[];
   errors: SkippedRow[];
+  /** Choice questions read in full but with no answer marked: the preview lets the operator pick it. */
+  unanswered: UnansweredRow[];
   notices: string[];
 }
 
@@ -385,14 +387,14 @@ function describe(ids: string[]): string {
 
 /** Import rows for the chosen marking, plus the questions that cannot be imported and why. */
 export function buildWordSheet(document: WordDocument, marking: AnswerMarking | null): WordSheet {
-  const sheet: WordSheet = { rows: [], errors: [], notices: [] };
+  const sheet: WordSheet = { rows: [], errors: [], unanswered: [], notices: [] };
   const markingName = marking ? MARKING_LABELS[marking].toLowerCase() : null;
   if (document.questions.length === 0) {
     sheet.notices.push('Không thấy câu nào bắt đầu bằng "Câu 1", "Câu 2"… trong file.');
     return sheet;
   }
   if (!marking && document.answerList.size === 0 && !document.questions.some((question) => question.answerLine)) {
-    sheet.notices.push('File không có đáp án: không phương án nào được tô màu, tô nền, in đậm hay gạch chân, không có dòng "Đáp án:" và không có bảng đáp án cuối file.');
+    sheet.notices.push('File không có đáp án: không phương án nào được tô màu, tô nền, in đậm hay gạch chân, không có dòng "Đáp án:" và không có bảng đáp án cuối file. Chọn đáp án cho từng câu ở mục "Câu cần hoàn thiện trên màn hình", hoặc tô đáp án trong file rồi chọn lại file.');
   }
 
   const explained = document.questions.filter((question) => question.explained).length;
@@ -513,7 +515,29 @@ export function buildWordSheet(document: WordDocument, marking: AnswerMarking | 
     if (listed) sources.push(['bảng đáp án cuối file', listed]);
 
     if (sources.length === 0) {
-      fail(marking ? `Không có phương án nào ${markingName} và không có dòng "Đáp án:".` : 'Không thấy đáp án đúng.');
+      const reason = marking ? `Không có phương án nào ${markingName} và không có dòng "Đáp án:".` : 'Không thấy đáp án đúng.';
+      if (options.length < 2) {
+        fail(reason);
+        continue;
+      }
+      sheet.unanswered.push({
+        reason,
+        row: {
+          line: question.index,
+          label: question.label,
+          stem: question.stem,
+          topic: question.topic,
+          difficulty: question.tags.difficulty,
+          points: question.tags.points,
+          imageFile: image ? image.split('/').pop() ?? '' : '',
+          optionTexts,
+          answer: '',
+          questionType: type === 'multiple_choice' ? IMPORT_TYPE_NAMES.multiple_choice : IMPORT_TYPE_NAMES.single_choice,
+          keys: '',
+          reviewNotes: notes,
+          imagePath: image,
+        } as WordRow,
+      });
       continue;
     }
     const [firstSource, answer] = sources[0];

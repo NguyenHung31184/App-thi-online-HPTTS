@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-10-01 | Thi thử trên production, sửa lỗi vào lại tạo lượt mới
+
+### Đã làm
+- Thi thử (30/09) với học viên thử `hv100228`, lớp FL-K103, đề QC (đã khóa theo đồng ý của người dùng), kỳ thi thử TD30.
+  Luồng: đăng nhập → xác thực CCCD nhập tay → vào thi → chụp bàn làm việc, khuôn mặt (người dùng trước webcam).
+- Worker `exam-maintenance` tự chốt lượt quá giờ trên production (lần chạy 23:05:00, `finalized: 1`); thi thử không tạo
+  việc đồng bộ.
+- Bảng giám sát hiện đúng thẻ học viên (đã hủy bài, lần thi, vi phạm).
+- Sửa: vào lại kỳ thi bằng mã giờ làm tiếp lượt đang mở (`8b32bfb`, migration `20260930160000` đã áp dụng sau chạy thử);
+  thử lại 01/10 với kỳ thi thử TD01: hai lần vào cùng lượt `2a50b880…`, chỉ 1 lượt.
+- Dọn: xóa mềm học viên thử và ghi danh, đóng kỳ thi thử TD01 (TD30 đã hết giờ), xóa file mật khẩu tạm.
+
+### Vấn đề gặp
+- Camera laptop bị tắt quyền riêng tư (hình ổ khóa) → không thấy mặt; bật lại thì chạy.
+- Bản đang chạy hủy bài sau 16 lần "không thấy mặt" trong 35 giây; người dùng đang sửa chính sách giám sát AI (chưa commit).
+- Tài khoản thi `hv100228` vẫn còn (học viên đã xóa mềm, file mật khẩu đã xóa).
+
+### Kế hoạch tiếp theo
+- Người dùng hoàn thiện giám sát AI; sau đó bảng giám sát ưu tiên lượt đang làm khi một học viên có nhiều lượt.
+- Thi thử lại khi giám sát AI mới đã lên production.
+
+---
+
 ## 2026-09-28 | Bỏ 2 biểu đồ, giữ thứ tự phương án, nhập đề từ Word
 
 ### Đã làm

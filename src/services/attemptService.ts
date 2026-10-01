@@ -2,13 +2,18 @@ import { supabase } from '../lib/supabaseClient';
 import type { Attempt, QuestionForStudent } from '../types';
 import {
   getTheoryAttemptWindowContext,
+  getTheoryAiProctoringState,
   getTheoryAttemptQuestions,
   disqualifyTheoryAttempt,
   recordTheoryAttemptAuditEvent,
+  recordTheoryAiProctoringIncident,
   saveTheoryAttemptAnswers,
   startTheoryAttempt,
   submitTheoryAttempt,
   type AttemptWindowContext,
+  type AiProctoringState,
+  type AiViolationKind,
+  type RecordAiProctoringIncidentResult,
 } from '../modules/exam-taking/public';
 
 export async function startExamAttempt(
@@ -31,6 +36,18 @@ export type { AttemptWindowContext };
 
 export async function getAttemptWindowContext(attemptId: string): Promise<AttemptWindowContext | null> {
   return getTheoryAttemptWindowContext(attemptId);
+}
+
+export async function getAiProctoringState(attemptId: string): Promise<AiProctoringState> {
+  return getTheoryAiProctoringState(attemptId);
+}
+
+export async function recordAiProctoringIncident(
+  attemptId: string,
+  event: AiViolationKind,
+  metadata: Record<string, unknown>,
+): Promise<RecordAiProctoringIncidentResult> {
+  return recordTheoryAiProctoringIncident(attemptId, event, metadata);
 }
 
 const EXAM_UPLOADS_BUCKET = 'exam-uploads';

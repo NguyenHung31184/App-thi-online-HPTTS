@@ -8,6 +8,7 @@ import {
   listViolationsForReport,
   exportReportToExcel,
   exportViolationsToExcel,
+  reviewAiProctoringIncident,
   type AttemptReportRow,
   type ViolationReportRow,
   type ReportFilters,
@@ -31,6 +32,8 @@ export default function AdminReportPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [resultSearch, setResultSearch] = useState('');
   const [violationSearch, setViolationSearch] = useState('');
+  const [reviewingIncidentId, setReviewingIncidentId] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState('');
   const [classNames, setClassNames] = useState<Record<string, { name: string; code?: string }>>({});
 
   useEffect(() => {
@@ -113,7 +116,7 @@ export default function AdminReportPage() {
       finally { setLoading(false); }
     };
     run();
-  }, [selectedExamId, selectedWindowId, activeTab, reloadKey]);
+  }, [selectedExamId, selectedWindowId, activeTab, hasSelection, reloadKey]);
 
   useEffect(() => {
     const filters: ReportFilters = {};
@@ -128,26 +131,30 @@ export default function AdminReportPage() {
       finally { setLoadingViolations(false); }
     };
     run();
-  }, [selectedExamId, selectedWindowId, activeTab, reloadKey]);
+  }, [selectedExamId, selectedWindowId, activeTab, hasSelection, reloadKey]);
 
   const handleExportExcel = useCallback(() => exportReportToExcel(rows), [rows]);
   const handleReload = useCallback(() => { if (hasSelection) setReloadKey((k) => k + 1); }, [hasSelection]);
 
   const aggregatedViolationRows = useMemo(() => {
     type AggRow = {
-      id: string; user_id: string; user_name: string; user_email: string;
+      id: string; attempt_id: string; user_id: string; user_name: string; user_email: string;
       focusLostCount: number; visibilityHiddenCount: number;
       fullscreenExitedCount: number; copyPasteBlockedCount: number; photoTakenCount: number;
+      aiNoFaceCount: number; aiMultipleFaceCount: number; aiCellPhoneCount: number;
+      aiProhibitedObjectCount: number; aiRiskScore: number;
     };
     const map = new Map<string, AggRow>();
     for (const r of violationRows) {
-      const key = r.user_id || r.user_email;
+      const key = r.attempt_id;
       if (!key) continue;
       if (!map.has(key)) {
         map.set(key, {
-          id: key, user_id: r.user_id, user_name: r.user_name, user_email: r.user_email,
+          id: key, attempt_id: r.attempt_id, user_id: r.user_id, user_name: r.user_name, user_email: r.user_email,
           focusLostCount: 0, visibilityHiddenCount: 0, fullscreenExitedCount: 0,
           copyPasteBlockedCount: 0, photoTakenCount: 0,
+          aiNoFaceCount: 0, aiMultipleFaceCount: 0, aiCellPhoneCount: 0,
+          aiProhibitedObjectCount: 0, aiRiskScore: 0,
         });
       }
       const row = map.get(key)!;
@@ -156,6 +163,11 @@ export default function AdminReportPage() {
       else if (r.event === 'fullscreen_exited') row.fullscreenExitedCount += 1;
       else if (r.event === 'copy_paste_blocked') row.copyPasteBlockedCount += 1;
       else if (r.event === 'photo_taken') row.photoTakenCount += 1;
+      else if (r.event === 'ai_no_face') row.aiNoFaceCount += 1;
+      else if (r.event === 'ai_multiple_face') row.aiMultipleFaceCount += 1;
+      else if (r.event === 'ai_cell_phone') row.aiCellPhoneCount += 1;
+      else if (r.event === 'ai_prohibited_object') row.aiProhibitedObjectCount += 1;
+      if (r.event.startsWith('ai_') && r.review_status !== 'rejected') row.aiRiskScore += r.risk_points;
     }
     const list = Array.from(map.values());
     if (!violationSearch.trim()) return list;
@@ -165,6 +177,24 @@ export default function AdminReportPage() {
       (row.user_email?.toLowerCase() ?? '').includes(q),
     );
   }, [violationRows, violationSearch]);
+
+  const aiViolationRows = useMemo(
+    () => violationRows.filter((row) => row.event.startsWith('ai_')),
+    [violationRows],
+  );
+
+  const handleReviewIncident = useCallback(async (id: string, decision: 'confirmed' | 'rejected') => {
+    setReviewError('');
+    setReviewingIncidentId(id);
+    try {
+      await reviewAiProctoringIncident(id, decision);
+      setReloadKey((key) => key + 1);
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : 'Không cập nhật được kết quả kiểm tra.');
+    } finally {
+      setReviewingIncidentId(null);
+    }
+  }, []);
 
   const handleExportViolationsExcel = useCallback(
     () => exportViolationsToExcel(aggregatedViolationRows),
@@ -299,7 +329,7 @@ export default function AdminReportPage() {
         </button>
         <button type="button" onClick={() => setActiveTab('violations')}
           className={`px-3 py-1.5 text-sm font-medium rounded-full border ${activeTab === 'violations' ? 'bg-rose-700 text-white border-rose-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}>
-          Vi phạm
+          Tín hiệu giám sát
         </button>
       </div>
 
@@ -412,7 +442,7 @@ export default function AdminReportPage() {
           </div>
           <div className="flex flex-col gap-2 mb-3">
             <p className="text-slate-600 text-sm">
-              Số log vi phạm: <strong>{violationRows.length}</strong>
+              Số tín hiệu đã ghi: <strong>{violationRows.length}</strong>
             </p>
             <div className="max-w-md">
               <input type="text" value={violationSearch} onChange={(e) => setViolationSearch(e.target.value)}
@@ -426,6 +456,7 @@ export default function AdminReportPage() {
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
                   <th className="px-3 py-2 w-10 text-center">STT</th>
+                  <th className="px-3 py-2">Lượt thi</th>
                   <th className="px-3 py-2">Học viên</th>
                   <th className="px-3 py-2">Email</th>
                   <th className="px-3 py-2 text-center">Mất focus</th>
@@ -433,12 +464,18 @@ export default function AdminReportPage() {
                   <th className="px-3 py-2 text-center">Thoát fullscreen</th>
                   <th className="px-3 py-2 text-center">Copy/Paste bị chặn</th>
                   <th className="px-3 py-2 text-center">Ảnh webcam</th>
+                  <th className="px-3 py-2 text-center">Không mặt</th>
+                  <th className="px-3 py-2 text-center">Nhiều mặt</th>
+                  <th className="px-3 py-2 text-center">Điện thoại</th>
+                  <th className="px-3 py-2 text-center">Sách/vật cấm</th>
+                  <th className="px-3 py-2 text-center">Điểm AI</th>
                 </tr>
               </thead>
               <tbody>
                 {aggregatedViolationRows.map((r, idx) => (
                   <tr key={r.id} className="border-t border-slate-100">
                     <td className="px-3 py-2 text-center text-xs text-slate-500">{idx + 1}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-slate-500" title={r.attempt_id}>{r.attempt_id.slice(0, 8)}</td>
                     <td className="px-3 py-2">
                       <div className="text-sm font-medium text-slate-800">{r.user_name || r.user_email || '—'}</div>
                     </td>
@@ -448,18 +485,107 @@ export default function AdminReportPage() {
                     <td className="px-3 py-2 text-center font-mono text-xs">{r.fullscreenExitedCount}</td>
                     <td className="px-3 py-2 text-center font-mono text-xs">{r.copyPasteBlockedCount}</td>
                     <td className="px-3 py-2 text-center font-mono text-xs">{r.photoTakenCount}</td>
+                    <td className="px-3 py-2 text-center font-mono text-xs">{r.aiNoFaceCount}</td>
+                    <td className="px-3 py-2 text-center font-mono text-xs">{r.aiMultipleFaceCount}</td>
+                    <td className="px-3 py-2 text-center font-mono text-xs">{r.aiCellPhoneCount}</td>
+                    <td className="px-3 py-2 text-center font-mono text-xs">{r.aiProhibitedObjectCount}</td>
+                    <td className="px-3 py-2 text-center font-semibold text-amber-800">{r.aiRiskScore}</td>
                   </tr>
                 ))}
                 {aggregatedViolationRows.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-4 text-center text-sm text-slate-500">
-                      Chưa có log vi phạm nào phù hợp với bộ lọc đã chọn.
+                    <td colSpan={14} className="px-3 py-4 text-center text-sm text-slate-500">
+                      Chưa có tín hiệu giám sát nào phù hợp với bộ lọc đã chọn.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+
+          {reviewError && <p className="mt-4 text-sm text-red-700" role="alert">{reviewError}</p>}
+
+          {aiViolationRows.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-base font-semibold text-slate-800">Sự việc AI và bằng chứng</h2>
+              <p className="mt-1 text-sm text-slate-600">Giám thị có thể xác nhận hoặc loại các trường hợp AI nhận diện nhầm.</p>
+              <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-100 text-slate-700">
+                    <tr>
+                      <th className="px-3 py-2">Thời gian</th>
+                      <th className="px-3 py-2">Học viên</th>
+                      <th className="px-3 py-2">Tín hiệu</th>
+                      <th className="px-3 py-2 text-center">Điểm</th>
+                      <th className="px-3 py-2">Bằng chứng</th>
+                      <th className="px-3 py-2">Kết quả kiểm tra</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aiViolationRows.map((row) => (
+                      <tr key={row.id} className="border-t border-slate-100 align-top">
+                        <td className="whitespace-nowrap px-3 py-2 text-slate-600">{row.created_at}</td>
+                        <td className="px-3 py-2 font-medium text-slate-800">{row.user_name || row.user_email || '—'}</td>
+                        <td className="px-3 py-2 text-slate-700">
+                          {row.event === 'ai_no_face' && 'Không thấy khuôn mặt'}
+                          {row.event === 'ai_multiple_face' && 'Nhiều khuôn mặt'}
+                          {row.event === 'ai_cell_phone' && 'Điện thoại'}
+                          {row.event === 'ai_prohibited_object' && 'Sách hoặc vật cấm'}
+                        </td>
+                        <td className="px-3 py-2 text-center font-semibold text-amber-800">{row.risk_points}</td>
+                        <td className="px-3 py-2">
+                          {row.evidence.length > 0 ? (
+                            <span className="flex flex-wrap gap-2">
+                              {row.evidence.map((frame) => (
+                                <a
+                                  key={`${row.id}-${frame.phase}`}
+                                  href={frame.publicUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-medium text-indigo-700 hover:underline"
+                                >
+                                  {frame.phase === 'before' ? 'Trước' : frame.phase === 'during' ? 'Phát hiện' : frame.phase === 'after' ? 'Sau' : 'Ảnh'}
+                                </a>
+                              ))}
+                            </span>
+                          ) : row.evidence_url ? (
+                            <a href={row.evidence_url} target="_blank" rel="noreferrer" className="font-medium text-indigo-700 hover:underline">
+                              Mở ảnh
+                            </a>
+                          ) : <span className="text-slate-400">Không có ảnh</span>}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs text-slate-600">
+                              {row.review_status === 'confirmed' && 'Đã xác nhận'}
+                              {row.review_status === 'rejected' && 'Nhận diện nhầm'}
+                              {(row.review_status === 'pending' || row.review_status === 'unreviewed' || !row.review_status) && 'Chưa kiểm tra'}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={reviewingIncidentId === row.id}
+                              onClick={() => void handleReviewIncident(row.id, 'confirmed')}
+                              className="min-h-9 rounded-md border border-emerald-300 px-2 text-xs font-medium text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
+                            >
+                              Xác nhận
+                            </button>
+                            <button
+                              type="button"
+                              disabled={reviewingIncidentId === row.id}
+                              onClick={() => void handleReviewIncident(row.id, 'rejected')}
+                              className="min-h-9 rounded-md border border-slate-300 px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              Nhận diện nhầm
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

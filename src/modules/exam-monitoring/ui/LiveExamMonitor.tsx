@@ -88,7 +88,7 @@ function StudentCard({ student, now }: { student: LiveStudent; now: number }) {
       <dl className="border-t border-slate-100 px-4 py-2 text-sm">
         <CardRow label="Thời gian làm bài">{formatDuration(endedAt - student.startedAt)}</CardRow>
         <CardRow label="Thời gian nộp bài">{student.completedAt ? formatDateTime(student.completedAt) : '—'}</CardRow>
-        <CardRow label="Vi phạm">
+        <CardRow label="Tín hiệu giám sát">
           {student.violations > 0 ? (
             <span className="text-amber-800">
               {student.violations}

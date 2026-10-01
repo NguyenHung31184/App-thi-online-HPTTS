@@ -1,33 +1,38 @@
 /**
  * ViolationAlertModal — Hiển thị cảnh báo vi phạm cho học viên trong lúc làm bài.
- * - Tự đóng sau 10 giây (học viên không thể ngồi đợi mãi mà không đọc)
- * - Hiển thị số vi phạm còn lại cho tất cả loại (kể cả AI)
+ * - Tự đóng sau vài giây để không chặn bài làm quá lâu.
+ * - Chỉ tín hiệu rời trang mới hiển thị số lần còn lại trước khi tự nộp.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { aiRiskPoints, type AiViolationKind, type ProctoringMode } from '../../modules/exam-taking/public';
 import type { EvidenceKind } from './ProctoringEvidenceCapture';
 
 interface ViolationConfig {
   title: string;
   subtitle: string;
+  countsTowardAutoSubmit: boolean;
 }
 
 const VIOLATION_CONFIG: Record<EvidenceKind, ViolationConfig> = {
-  ai_cell_phone:        { title: 'Phát hiện điện thoại',          subtitle: 'Hành động đã được ghi lại. Tích lũy vi phạm sẽ dẫn đến nộp bài tự động.' },
-  ai_prohibited_object: { title: 'Phát hiện vật cấm',             subtitle: 'Hành động đã được ghi lại. Tích lũy vi phạm sẽ dẫn đến nộp bài tự động.' },
-  ai_no_face:           { title: 'Không thấy khuôn mặt',          subtitle: 'Che camera liên tục sẽ bị tính vi phạm và tự động nộp bài.' },
-  ai_multiple_face:     { title: 'Phát hiện nhiều người',         subtitle: 'Hành động đã được ghi lại. Cứ 3 lần phát hiện sẽ tính 1 vi phạm chính.' },
-  visibility_hidden:    { title: 'Rời khỏi trang thi',            subtitle: 'Hành động đã được ghi lại.' },
-  focus_lost:           { title: 'Rời khỏi cửa sổ thi',           subtitle: 'Hành động đã được ghi lại.' },
-  fullscreen_exited:    { title: 'Thoát toàn màn hình',           subtitle: 'Hành động đã được ghi lại.' },
+  ai_cell_phone:        { title: 'Phát hiện điện thoại',  subtitle: 'Tín hiệu đã được lưu để giám thị kiểm tra lại.', countsTowardAutoSubmit: false },
+  ai_prohibited_object: { title: 'Phát hiện vật cấm',     subtitle: 'Tín hiệu đã được lưu để giám thị kiểm tra lại.', countsTowardAutoSubmit: false },
+  ai_no_face:           { title: 'Không thấy khuôn mặt',  subtitle: 'Hãy điều chỉnh camera. Tín hiệu đã được lưu để giám thị kiểm tra lại.', countsTowardAutoSubmit: false },
+  ai_multiple_face:     { title: 'Phát hiện nhiều người', subtitle: 'Hãy bảo đảm chỉ một người trong khung hình. Giám thị sẽ kiểm tra lại tín hiệu này.', countsTowardAutoSubmit: false },
+  visibility_hidden:    { title: 'Rời khỏi trang thi',    subtitle: 'Hành động đã được ghi lại.', countsTowardAutoSubmit: true },
+  focus_lost:           { title: 'Rời khỏi cửa sổ thi',   subtitle: 'Hành động đã được ghi lại.', countsTowardAutoSubmit: true },
+  fullscreen_exited:    { title: 'Thoát toàn màn hình',   subtitle: 'Hành động đã được ghi lại.', countsTowardAutoSubmit: true },
 };
 
 /** Thời gian tự đóng modal (giây). */
-const AUTO_CLOSE_SECONDS = 10;
+const AUTO_CLOSE_SECONDS = 5;
 
 interface ViolationAlertModalProps {
   kind: EvidenceKind | null;
   violationCount?: number;
   maxViolations?: number;
+  aiRiskScore?: number;
+  aiRiskThreshold?: number;
+  proctoringMode?: ProctoringMode;
   onClose: () => void;
 }
 
@@ -35,6 +40,9 @@ export function ViolationAlertModal({
   kind,
   violationCount,
   maxViolations,
+  aiRiskScore = 0,
+  aiRiskThreshold = 6,
+  proctoringMode = 'standard',
   onClose,
 }: ViolationAlertModalProps) {
   const [countdown, setCountdown] = useState(AUTO_CLOSE_SECONDS);
@@ -61,9 +69,10 @@ export function ViolationAlertModal({
   if (!kind) return null;
 
   const config = VIOLATION_CONFIG[kind];
+  const isAiSignal = kind.startsWith('ai_');
 
   const remaining =
-    violationCount != null && maxViolations != null
+    config.countsTowardAutoSubmit && violationCount != null && maxViolations != null
       ? maxViolations - violationCount
       : null;
 
@@ -98,6 +107,22 @@ export function ViolationAlertModal({
         </h2>
 
         <p className="text-slate-500 text-sm mb-1">{config.subtitle}</p>
+
+        {isAiSignal && proctoringMode === 'strict' && (
+          <p className="mt-2 text-sm font-medium text-amber-700">
+            Sự việc được xác nhận sẽ cộng {aiRiskPoints(kind as AiViolationKind)} điểm. Điểm AI hiện tại: {aiRiskScore}/{aiRiskThreshold}.
+          </p>
+        )}
+        {isAiSignal && proctoringMode === 'supervised' && (
+          <p className="mt-2 text-sm font-medium text-slate-700">
+            Bằng chứng đang được gửi để giám thị xác nhận.
+          </p>
+        )}
+        {isAiSignal && proctoringMode === 'standard' && (
+          <p className="mt-2 text-sm text-slate-600">
+            Tín hiệu AI không tự động nộp bài trong chế độ này.
+          </p>
+        )}
 
         {/* Đếm lùi vi phạm — hiện cho tất cả loại */}
         {remaining != null && (

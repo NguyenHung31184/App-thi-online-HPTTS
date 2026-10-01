@@ -31,7 +31,7 @@ export const LIVE_STATUS_ORDER: LiveStatus[] = ['disconnected', 'violation', 'wo
 
 export const LIVE_STATUS_LABELS: Record<LiveStatus, string> = {
   disconnected: 'Mất kết nối',
-  violation: 'Có vi phạm',
+  violation: 'Cần kiểm tra',
   working: 'Đang làm',
   disqualified: 'Đã hủy bài',
   submitted: 'Đã nộp',

@@ -5,6 +5,9 @@ import { supabase } from '../lib/supabaseClient';
 import * as XLSX from 'xlsx';
 import type { AuditEvent } from '../types';
 
+const EXAM_UPLOADS_BUCKET = 'exam-uploads';
+const EVIDENCE_SIGNED_SECONDS = 7_200;
+
 export interface AttemptReportRow {
   id: string;
   user_id: string;
@@ -36,11 +39,45 @@ export interface ViolationReportRow {
   class_name: string;
   event: AuditEvent;
   created_at: string;
+  metadata: Record<string, unknown> | null;
+  risk_points: number;
+  review_status: 'pending' | 'confirmed' | 'rejected' | 'unreviewed' | '';
+  evidence_url: string;
+  evidence: { phase: string; publicUrl: string }[];
 }
 
 export interface ReportFilters {
   exam_id?: string;
   window_id?: string;
+}
+
+async function createEvidenceSignedUrlMap(paths: string[]): Promise<Map<string, string>> {
+  const uniquePaths = [...new Set(paths.map((path) => path.trim()).filter(Boolean))];
+  const result = new Map<string, string>();
+  const batches: string[][] = [];
+  for (let index = 0; index < uniquePaths.length; index += 100) {
+    batches.push(uniquePaths.slice(index, index + 100));
+  }
+  await Promise.all(batches.map(async (batch) => {
+    const { data, error } = await supabase.storage
+      .from(EXAM_UPLOADS_BUCKET)
+      .createSignedUrls(batch, EVIDENCE_SIGNED_SECONDS);
+    if (error) return;
+    (data ?? []).forEach((item, index) => {
+      const path = item.path || batch[index];
+      if (path && item.signedUrl) result.set(path, item.signedUrl);
+    });
+  }));
+  return result;
+}
+
+function aiRiskPointsForReport(event: string, metadata: Record<string, unknown> | null | undefined): number {
+  if (metadata?.machine_confirmed !== true && metadata?.machine_confirmed !== 'true') return 0;
+  if (event === 'ai_no_face') return 1;
+  if (event === 'ai_multiple_face') return 2;
+  if (event === 'ai_cell_phone') return 3;
+  if (event === 'ai_prohibited_object') return 2;
+  return 0;
 }
 
 /** Danh sách bài làm đã hoàn thành để báo cáo (có join đề thi + kỳ thi). Không join profiles trong query để tránh lỗi/trống khi FK hoặc RLS khác schema.
@@ -216,6 +253,7 @@ export async function listViolationsForReport(
       id,
       attempt_id,
       event,
+      metadata,
       created_at,
       attempts (
         user_id,
@@ -238,6 +276,7 @@ export async function listViolationsForReport(
     id: string;
     attempt_id: string;
     event: string;
+    metadata?: Record<string, unknown> | null;
     created_at: string | null;
     attempts?: {
       user_id?: string | null;
@@ -249,15 +288,30 @@ export async function listViolationsForReport(
   };
   const rows = (data ?? []) as ViolationRow[];
 
+  const evidencePaths = rows.flatMap((row) => {
+    const metadata = row.metadata;
+    const paths: string[] = [];
+    if (typeof metadata?.evidence_path === 'string') paths.push(metadata.evidence_path);
+    if (Array.isArray(metadata?.evidence)) {
+      for (const item of metadata.evidence) {
+        if (!item || typeof item !== 'object') continue;
+        const path = (item as Record<string, unknown>).path;
+        if (typeof path === 'string') paths.push(path);
+      }
+    }
+    return paths;
+  });
+
   const userIds = [...new Set(rows.map((r) => r.attempts?.user_id).filter((id): id is string => Boolean(id)))];
   const classIds = [...new Set(rows.map((r) => r.attempts?.exam_windows?.class_id).filter((id): id is string => Boolean(id)))];
   const profileByUserId = await fetchProfilesById(userIds);
   const studentIds = [...new Set(Array.from(profileByUserId.values()).map((p) => p.student_id).filter(Boolean))] as string[];
   const emails = [...new Set(Array.from(profileByUserId.values()).map((p) => p.email).filter(Boolean))] as string[];
-  const [classNamesById, studentNamesById, studentNamesByExamEmail] = await Promise.all([
+  const [classNamesById, studentNamesById, studentNamesByExamEmail, signedEvidenceUrls] = await Promise.all([
     fetchClassNamesById(classIds),
     fetchStudentNamesById(studentIds),
     fetchStudentNamesByExamEmail(emails),
+    createEvidenceSignedUrlMap(evidencePaths),
   ]);
 
   return rows.map((r) => {
@@ -286,8 +340,41 @@ export async function listViolationsForReport(
       class_name: (classNamesById.get(classId) ?? classId) || '',
       event: r.event as AuditEvent,
       created_at: r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : '',
+      metadata: r.metadata ?? null,
+      risk_points: aiRiskPointsForReport(r.event, r.metadata),
+      review_status: typeof r.metadata?.review_status === 'string'
+        ? r.metadata.review_status as ViolationReportRow['review_status']
+        : '',
+      evidence_url: typeof r.metadata?.evidence_path === 'string'
+        ? signedEvidenceUrls.get(r.metadata.evidence_path) ?? ''
+        : typeof r.metadata?.evidence_url === 'string' ? r.metadata.evidence_url : '',
+      evidence: Array.isArray(r.metadata?.evidence)
+        ? r.metadata.evidence.flatMap((item) => {
+            if (!item || typeof item !== 'object') return [];
+            const frame = item as Record<string, unknown>;
+            const path = typeof frame.path === 'string' ? frame.path : '';
+            const publicUrl = (path ? signedEvidenceUrls.get(path) : undefined)
+              ?? (typeof frame.publicUrl === 'string' ? frame.publicUrl : '');
+            if (!publicUrl) return [];
+            return [{
+              phase: typeof frame.phase === 'string' ? frame.phase : 'frame',
+              publicUrl,
+            }];
+          })
+        : [],
     } as ViolationReportRow;
   });
+}
+
+export async function reviewAiProctoringIncident(
+  logId: string,
+  decision: 'confirmed' | 'rejected',
+): Promise<void> {
+  const { error } = await supabase.rpc('review_ai_proctoring_incident', {
+    p_log_id: logId,
+    p_decision: decision,
+  });
+  if (error) throw error;
 }
 
 /** Lấy map student_id -> { name, code } từ bảng students (TTDT). */
@@ -373,6 +460,7 @@ export function exportReportToExcel(rows: AttemptReportRow[], filename?: string)
 /** Xuất danh sách vi phạm ra Excel (xlsx). */
 export function exportViolationsToExcel(
   rows: {
+    attempt_id: string;
     user_name: string;
     user_email: string;
     focusLostCount: number;
@@ -380,11 +468,17 @@ export function exportViolationsToExcel(
     fullscreenExitedCount: number;
     copyPasteBlockedCount: number;
     photoTakenCount: number;
+    aiNoFaceCount: number;
+    aiMultipleFaceCount: number;
+    aiCellPhoneCount: number;
+    aiProhibitedObjectCount: number;
+    aiRiskScore: number;
   }[],
   filename?: string
 ): void {
   const wsData = [
     [
+      'Lượt thi',
       'Họ tên',
       'Email',
       'Mất focus',
@@ -392,8 +486,14 @@ export function exportViolationsToExcel(
       'Thoát fullscreen',
       'Copy/Paste bị chặn',
       'Ảnh webcam',
+      'Không thấy mặt',
+      'Nhiều khuôn mặt',
+      'Điện thoại',
+      'Sách / vật cấm',
+      'Điểm AI',
     ],
     ...rows.map((r) => [
+      r.attempt_id,
       r.user_name,
       r.user_email,
       r.focusLostCount,
@@ -401,6 +501,11 @@ export function exportViolationsToExcel(
       r.fullscreenExitedCount,
       r.copyPasteBlockedCount,
       r.photoTakenCount,
+      r.aiNoFaceCount,
+      r.aiMultipleFaceCount,
+      r.aiCellPhoneCount,
+      r.aiProhibitedObjectCount,
+      r.aiRiskScore,
     ]),
   ];
   const wb = XLSX.utils.book_new();

@@ -15,11 +15,13 @@ export interface CaptureEvidenceResult {
   ok: boolean;
   path?: string;
   publicUrl?: string;
+  evidence?: { phase: string; path?: string; publicUrl?: string }[];
   error?: string;
 }
 
 export interface ProctoringEvidenceCaptureRef {
   captureAndUpload: (kind: EvidenceKind, opts?: { toastOnceKey?: string }) => Promise<CaptureEvidenceResult>;
+  captureSequenceAndUpload: (kind: EvidenceKind, opts?: { toastOnceKey?: string }) => Promise<CaptureEvidenceResult>;
   /** Trả về video element nội bộ để AiObjectProctorBurst tái dụng, tránh mở 2 luồng camera */
   getVideoElement: () => HTMLVideoElement | null;
 }
@@ -66,9 +68,11 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
     const sessionTokenRef = useRef(0);
     /** Chỉ một lần khởi động camera tại một thời điểm — tránh play() bị cắt bởi gán srcObject mới. */
     const startPromiseRef = useRef<Promise<void> | null>(null);
+    const preEventBlobRef = useRef<Blob | null>(null);
 
     const stop = useCallback(() => {
       sessionTokenRef.current += 1;
+      preEventBlobRef.current = null;
       const s = streamRef.current;
       if (s) s.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -131,37 +135,29 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
       await p;
     }, []);
 
-    const captureAndUpload = useCallback(
-      async (kind: EvidenceKind, opts?: { toastOnceKey?: string }): Promise<CaptureEvidenceResult> => {
-        if (!enabled) return { ok: false, error: 'disabled' };
-        await ensureStarted();
-        const video = videoRef.current;
-        if (
-          !video ||
-          !streamRef.current ||
-          !readySyncRef.current ||
-          video.videoWidth === 0 ||
-          video.videoHeight === 0
-        ) {
-          if (opts?.toastOnceKey && !toastOnceRef.current.has(opts.toastOnceKey)) {
-            toastOnceRef.current.add(opts.toastOnceKey);
-            toast.info('Không chụp được ảnh giám sát', { description: 'Camera chưa sẵn sàng.' });
-          }
-          return { ok: false, error: 'not_ready' };
-        }
-
+    const captureFrameBlob = useCallback(async (): Promise<Blob | null> => {
+      const video = videoRef.current;
+      if (
+        !video ||
+        !streamRef.current ||
+        !readySyncRef.current ||
+        video.videoWidth === 0 ||
+        video.videoHeight === 0
+      ) return null;
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         const ctx = canvas.getContext('2d');
-        if (!ctx) return { ok: false, error: 'no_canvas_ctx' };
+        if (!ctx) return null;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const blob = await canvasToBlob(canvas);
+        return canvasToBlob(canvas);
+    }, []);
 
+    const uploadBlob = useCallback(async (kind: EvidenceKind, blob: Blob, phase?: string): Promise<CaptureEvidenceResult> => {
         const safeExam = ensureSafeKey(examId);
         const safeStudent = ensureSafeKey(studentKey);
         const safeAttempt = ensureSafeKey(attemptId);
-        const filename = `${kind}_${Date.now()}.jpg`;
+        const filename = `${kind}_${phase ? `${phase}_` : ''}${Date.now()}.jpg`;
         const res = await uploadExamFileViaEdge({
           category: 'proctoring',
           attemptId: safeAttempt,
@@ -170,14 +166,72 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
         });
         if (!res.ok) return { ok: false, error: res.error };
         return { ok: true, path: res.path, publicUrl: res.signedUrl };
+    }, [attemptId, examId, studentKey]);
+
+    const notifyNotReady = useCallback((toastOnceKey?: string) => {
+      if (toastOnceKey && !toastOnceRef.current.has(toastOnceKey)) {
+        toastOnceRef.current.add(toastOnceKey);
+        toast.info('Không chụp được ảnh giám sát', { description: 'Camera chưa sẵn sàng.' });
+      }
+    }, []);
+
+    const captureAndUpload = useCallback(
+      async (kind: EvidenceKind, opts?: { toastOnceKey?: string }): Promise<CaptureEvidenceResult> => {
+        if (!enabled) return { ok: false, error: 'disabled' };
+        await ensureStarted();
+        const blob = await captureFrameBlob();
+        if (!blob) {
+          notifyNotReady(opts?.toastOnceKey);
+          return { ok: false, error: 'not_ready' };
+        }
+        return uploadBlob(kind, blob);
       },
-      [attemptId, enabled, ensureStarted, examId, studentKey]
+      [captureFrameBlob, enabled, ensureStarted, notifyNotReady, uploadBlob]
+    );
+
+    const captureSequenceAndUpload = useCallback(
+      async (kind: EvidenceKind, opts?: { toastOnceKey?: string }): Promise<CaptureEvidenceResult> => {
+        if (!enabled) return { ok: false, error: 'disabled' };
+        const sessionToken = sessionTokenRef.current;
+        await ensureStarted();
+        if (!enabledRef.current || sessionToken !== sessionTokenRef.current) {
+          return { ok: false, error: 'disabled' };
+        }
+        const before = preEventBlobRef.current;
+        const during = await captureFrameBlob();
+        if (!during) {
+          notifyNotReady(opts?.toastOnceKey);
+          return { ok: false, error: 'not_ready' };
+        }
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 1_500));
+        if (!enabledRef.current || sessionToken !== sessionTokenRef.current) {
+          return { ok: false, error: 'disabled' };
+        }
+        const after = await captureFrameBlob();
+        const frames = [
+          before ? { phase: 'before', blob: before } : null,
+          { phase: 'during', blob: during },
+          after ? { phase: 'after', blob: after } : null,
+        ].filter((frame): frame is { phase: string; blob: Blob } => frame !== null);
+        const uploaded = await Promise.all(frames.map(async (frame) => ({
+          phase: frame.phase,
+          result: await uploadBlob(kind, frame.blob, frame.phase),
+        })));
+        const evidence = uploaded
+          .filter((item) => item.result.ok)
+          .map((item) => ({ phase: item.phase, path: item.result.path, publicUrl: item.result.publicUrl }));
+        const primary = evidence.find((item) => item.phase === 'during');
+        if (!primary) return { ok: false, error: 'upload_failed' };
+        return { ok: true, path: primary.path, publicUrl: primary.publicUrl, evidence };
+      },
+      [captureFrameBlob, enabled, ensureStarted, notifyNotReady, uploadBlob],
     );
 
     useImperativeHandle(ref, () => ({
       captureAndUpload,
+      captureSequenceAndUpload,
       getVideoElement: () => videoRef.current,
-    }), [captureAndUpload]);
+    }), [captureAndUpload, captureSequenceAndUpload]);
 
     useEffect(() => {
       if (!enabled) {
@@ -193,6 +247,20 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
       void ensureStarted();
       return () => stop();
     }, [enabled, ensureStarted, stop]);
+
+    useEffect(() => {
+      preEventBlobRef.current = null;
+      if (!enabled) {
+        return;
+      }
+      const refresh = async () => {
+        const blob = await captureFrameBlob();
+        if (blob) preEventBlobRef.current = blob;
+      };
+      void refresh();
+      const timer = window.setInterval(() => { void refresh(); }, 2_500);
+      return () => window.clearInterval(timer);
+    }, [attemptId, captureFrameBlob, enabled, examId, studentKey]);
 
     return (
       <video

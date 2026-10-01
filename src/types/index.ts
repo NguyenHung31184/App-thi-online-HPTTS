@@ -89,6 +89,10 @@ export interface ExamWindow {
   is_trial?: boolean;
   /** Số lần thi tối đa mỗi học viên (mặc định 2 = 1 thật + 1 lại). Không áp dụng cho is_trial. */
   max_attempts?: number;
+  /** Chính sách AI: standard chỉ lưu; strict tính điểm/tự nộp; supervised chờ giám thị duyệt. */
+  proctoring_mode?: 'standard' | 'strict' | 'supervised';
+  /** Ngưỡng điểm AI của strict mode, từ 4 đến 12. */
+  ai_risk_threshold?: number;
   created_at?: string;
 }
 
@@ -122,7 +126,17 @@ export interface Attempt {
   questions?: QuestionForStudent[];
 }
 
-export type AuditEvent = 'focus_lost' | 'visibility_hidden' | 'copy_paste_blocked' | 'photo_taken' | 'fullscreen_exited';
+export type AuditEvent =
+  | 'focus_lost'
+  | 'visibility_hidden'
+  | 'copy_paste_blocked'
+  | 'photo_taken'
+  | 'workspace_photo'
+  | 'fullscreen_exited'
+  | 'ai_no_face'
+  | 'ai_multiple_face'
+  | 'ai_cell_phone'
+  | 'ai_prohibited_object';
 
 export interface AttemptAuditLog {
   id: string;

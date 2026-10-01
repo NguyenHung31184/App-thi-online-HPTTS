@@ -66,6 +66,7 @@ beforeAll(async () => {
     ALTER TABLE question_bank ADD module_id uuid, ADD status text DEFAULT 'published';
     CREATE TABLE exam_access_failures(user_id uuid,window_id uuid,failure_count int,last_failed_at timestamptz,PRIMARY KEY(user_id,window_id));`);
   await db.exec(await migration('20260930160000_resume_in_progress_attempt.sql'));
+  await db.exec(await migration('20260930160140_ai_proctoring_policy.sql'));
   await sql('INSERT INTO profiles VALUES($1,$1,\'student\',NULL),($2,$2,\'student\',NULL),($3,NULL,\'teacher\',\'teacher\')',[student,other,teacher]);
   await sql('INSERT INTO enrollments(student_id,class_id) VALUES($1,$2)',[student,classId]);
   await sql("INSERT INTO exams(id,title,duration_minutes,module_id) VALUES($1,'Exam',1,$2)",[exam,moduleId]);
@@ -254,5 +255,77 @@ describe('entering an exam window again', () => {
     const first = await start();
     expect(first).toBeTruthy();
     expect(await start('999')).toBeNull();
+  });
+});
+
+describe('durable AI proctoring policy', () => {
+  async function record(id: string, event: string) {
+    return (await sql<{ should_auto_submit: boolean; risk_score: number; incident_count: number }>(
+      'SELECT should_auto_submit,risk_score,incident_count FROM record_ai_proctoring_incident($1,$2,$3::jsonb)',
+      [id, event, JSON.stringify({ evidence_path: `${event}.jpg` })],
+    ))[0];
+  }
+
+  it('keeps AI incidents review-only in standard mode', async () => {
+    const id = await attempt();
+    expect(await record(id, 'ai_cell_phone')).toMatchObject({
+      risk_score: 3,
+      incident_count: 1,
+      should_auto_submit: false,
+    });
+  });
+
+  it('auto-submits strict mode only after the threshold and two independent incidents', async () => {
+    const id = await attempt();
+    await db.exec('RESET ROLE');
+    await sql("UPDATE exam_windows SET proctoring_mode='strict',ai_risk_threshold=6 WHERE id=$1", [windowId]);
+    await login(student);
+    expect(await record(id, 'ai_cell_phone')).toMatchObject({ risk_score: 3, should_auto_submit: false });
+    expect(await record(id, 'ai_multiple_face')).toMatchObject({ risk_score: 5, should_auto_submit: false });
+    expect(await record(id, 'ai_no_face')).toMatchObject({
+      risk_score: 6,
+      incident_count: 3,
+      should_auto_submit: true,
+    });
+  });
+
+  it('rejects incidents submitted for another student attempt', async () => {
+    const id = await attempt();
+    await login(other);
+    await expect(record(id, 'ai_no_face')).rejects.toThrow('attempt_not_in_progress_or_forbidden');
+  });
+
+  it('blocks direct client insertion of AI incidents', async () => {
+    const id = await attempt();
+    await expect(sql(
+      "INSERT INTO attempt_audit_logs(attempt_id,event,metadata) VALUES($1,'ai_no_face',$2::jsonb)",
+      [id, JSON.stringify({ machine_confirmed: true, risk_points: 999 })],
+    )).rejects.toThrow('row-level security');
+  });
+
+  it('removes a rejected AI incident from the risk score', async () => {
+    const id = await attempt();
+    await record(id, 'ai_cell_phone');
+    await db.exec('RESET ROLE');
+    const [log] = await sql<{ id: string }>("SELECT id FROM attempt_audit_logs WHERE attempt_id=$1 AND event='ai_cell_phone'", [id]);
+    await login(teacher);
+    await sql("SELECT review_ai_proctoring_incident($1,'rejected')", [log.id]);
+    const [state] = await sql<{ risk_score: number; incident_count: number }>('SELECT risk_score,incident_count FROM get_ai_proctoring_state($1)', [id]);
+    expect(state).toEqual({ risk_score: 0, incident_count: 0 });
+  });
+
+  it('ignores malformed audit metadata instead of breaking the policy RPC', async () => {
+    const id = await attempt();
+    await db.exec('RESET ROLE');
+    await sql(
+      "INSERT INTO attempt_audit_logs(attempt_id,event,metadata) VALUES($1,'ai_no_face',$2::jsonb)",
+      [id, JSON.stringify({ machine_confirmed: 'invalid', risk_points: 'invalid' })],
+    );
+    await login(student);
+    const [state] = await sql<{ risk_score: number; incident_count: number }>(
+      'SELECT risk_score,incident_count FROM get_ai_proctoring_state($1)',
+      [id],
+    );
+    expect(state).toEqual({ risk_score: 0, incident_count: 0 });
   });
 });

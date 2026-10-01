@@ -1,5 +1,13 @@
 import { supabase } from '../../../platform/supabase/client';
-import type { Attempt, AttemptWindowContext, AvailableTheoryWindow, QuestionForStudent } from '../domain/exam-attempt';
+import type {
+  AiProctoringState,
+  Attempt,
+  AttemptWindowContext,
+  AvailableTheoryWindow,
+  QuestionForStudent,
+  RecordAiProctoringIncidentResult,
+} from '../domain/exam-attempt';
+import type { AiViolationKind } from '../domain/proctoring-policy';
 
 export async function fetchAvailableTheoryWindows(): Promise<AvailableTheoryWindow[]> {
   const { data, error } = await supabase.rpc('get_available_exam_windows');
@@ -21,6 +29,30 @@ export async function fetchAttemptWindowContext(attemptId: string): Promise<Atte
   const { data, error } = await supabase.rpc('get_attempt_window_context', { p_attempt_id: attemptId });
   if (error) throw error;
   return (data?.[0] ?? null) as AttemptWindowContext | null;
+}
+
+export async function fetchAiProctoringState(attemptId: string): Promise<AiProctoringState> {
+  const { data, error } = await supabase.rpc('get_ai_proctoring_state', { p_attempt_id: attemptId });
+  if (error) throw error;
+  const state = data?.[0] as AiProctoringState | undefined;
+  if (!state) throw new Error('Không tải được chính sách giám sát AI.');
+  return state;
+}
+
+export async function writeAiProctoringIncident(
+  attemptId: string,
+  event: AiViolationKind,
+  metadata: Record<string, unknown>,
+): Promise<RecordAiProctoringIncidentResult> {
+  const { data, error } = await supabase.rpc('record_ai_proctoring_incident', {
+    p_attempt_id: attemptId,
+    p_event: event,
+    p_metadata: metadata,
+  });
+  if (error) throw error;
+  const result = data?.[0] as RecordAiProctoringIncidentResult | undefined;
+  if (!result) throw new Error('Không ghi được sự việc giám sát AI.');
+  return result;
 }
 
 export async function saveAttemptAnswers(attemptId: string, answers: Record<string, string>): Promise<void> {

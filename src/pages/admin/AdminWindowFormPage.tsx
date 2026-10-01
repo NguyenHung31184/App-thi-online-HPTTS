@@ -9,6 +9,7 @@ import {
 import { listExams } from '../../services/examService';
 import { listClasses } from '../../services/ttdtDataService';
 import { countAttemptsForWindow } from '../../services/attemptService';
+import type { ProctoringMode } from '../../modules/exam-taking/public';
 
 function toDatetimeLocal(ts: number): string {
   const d = new Date(ts);
@@ -55,6 +56,8 @@ export default function AdminWindowFormPage() {
   const [access_code, setAccessCode] = useState('');
   const [is_trial, setIsTrial] = useState(false);
   const [max_attempts, setMaxAttempts] = useState(2);
+  const [proctoring_mode, setProctoringMode] = useState<ProctoringMode>('strict');
+  const [ai_risk_threshold, setAiRiskThreshold] = useState(6);
   const [exams, setExams] = useState<{ id: string; title: string; description?: string | null; module_id?: string | null }[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -102,6 +105,8 @@ export default function AdminWindowFormPage() {
       setIsTrial(w.is_trial ?? false);
       originalIsTrialRef.current = w.is_trial ?? false;
       setMaxAttempts(w.max_attempts ?? 2);
+      setProctoringMode(w.proctoring_mode ?? 'standard');
+      setAiRiskThreshold(w.ai_risk_threshold ?? 6);
     }).catch(() => setError('Không tải được kỳ thi.'));
     countAttemptsForWindow(id).then((n) => {
       if (!cancelled) setUsedAttemptsCount(n);
@@ -175,6 +180,8 @@ export default function AdminWindowFormPage() {
           exam_ids: useMultiExams ? selectedExamIds : [],
           is_trial,
           max_attempts,
+          proctoring_mode,
+          ai_risk_threshold,
         });
         navigate('/admin/windows');
       } else {
@@ -187,6 +194,8 @@ export default function AdminWindowFormPage() {
             access_code,
             is_trial,
             max_attempts,
+            proctoring_mode,
+            ai_risk_threshold,
           });
         } else {
           await createExamWindow({
@@ -197,6 +206,8 @@ export default function AdminWindowFormPage() {
             access_code,
             is_trial,
             max_attempts,
+            proctoring_mode,
+            ai_risk_threshold,
           });
         }
         navigate('/admin/windows');
@@ -506,6 +517,53 @@ export default function AdminWindowFormPage() {
             </label>
           );
         })()}
+
+        <fieldset className="rounded-xl border border-slate-300 p-4">
+          <legend className="px-1 text-sm font-semibold text-slate-800">Giám sát AI</legend>
+          <p className="mb-3 text-xs text-slate-600">
+            AI chỉ ghi nhận khi tín hiệu tồn tại qua nhiều lần quét. Mỗi sự việc lưu ảnh trước, trong và sau thời điểm phát hiện.
+          </p>
+          <div className="space-y-2">
+            {([
+              ['standard', 'Tiêu chuẩn', 'Cảnh báo và lưu bằng chứng để kiểm tra, không tự nộp do AI.'],
+              ['strict', 'Nghiêm ngặt', 'Cộng điểm rủi ro; đủ ngưỡng và ít nhất hai sự việc thì tự nộp.'],
+              ['supervised', 'Có giám thị', 'Gửi sự việc để giám thị xác nhận hoặc đánh dấu nhận diện nhầm.'],
+            ] as const).map(([value, label, description]) => (
+              <label key={value} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50">
+                <input
+                  type="radio"
+                  name="proctoring_mode"
+                  value={value}
+                  checked={proctoring_mode === value}
+                  onChange={() => setProctoringMode(value)}
+                  className="mt-1 accent-indigo-600"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-slate-800">{label}</span>
+                  <span className="block text-xs text-slate-600">{description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {proctoring_mode === 'strict' && (
+            <div className="mt-4 max-w-xs">
+              <label htmlFor="ai-risk-threshold" className="block text-sm font-medium text-slate-700">
+                Ngưỡng tự nộp do AI
+              </label>
+              <select
+                id="ai-risk-threshold"
+                value={ai_risk_threshold}
+                onChange={(event) => setAiRiskThreshold(Number(event.target.value))}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+              >
+                {[4, 5, 6, 7, 8, 9, 10, 11, 12].map((score) => (
+                  <option key={score} value={score}>{score} điểm</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">Mặc định 6 điểm; luôn cần ít nhất hai sự việc AI độc lập.</p>
+            </div>
+          )}
+        </fieldset>
 
         {/* Số lần thi tối đa — chỉ hiển thị cho kỳ thi thật */}
         {!is_trial && (

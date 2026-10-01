@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import type { ExamWindow } from '../types';
 import { listAvailableTheoryWindows } from '../modules/exam-taking/public';
+import type { ProctoringMode } from '../modules/exam-taking/public';
 
 export interface ExamWindowWithExam extends ExamWindow {
   exam_title?: string;
@@ -40,6 +41,8 @@ export interface CreateExamWindowInput {
   is_trial?: boolean;
   /** Số lần thi tối đa mỗi học viên (mặc định 2 = 1 thật + 1 lại). Không áp dụng cho is_trial. */
   max_attempts?: number;
+  proctoring_mode?: ProctoringMode;
+  ai_risk_threshold?: number;
 }
 
 export async function createExamWindow(input: CreateExamWindowInput): Promise<ExamWindow> {
@@ -55,6 +58,8 @@ export async function createExamWindow(input: CreateExamWindowInput): Promise<Ex
     access_code: input.access_code,
     is_trial: input.is_trial ?? false,
     max_attempts: input.max_attempts ?? 2,
+    proctoring_mode: input.proctoring_mode ?? 'strict',
+    ai_risk_threshold: input.ai_risk_threshold ?? 6,
   };
   const { data, error } = await supabase.from('exam_windows').insert(row).select().single();
   if (error) throw error;
@@ -72,6 +77,8 @@ export interface UpdateExamWindowInput {
   exam_ids?: string[] | null;
   is_trial?: boolean;
   max_attempts?: number;
+  proctoring_mode?: ProctoringMode;
+  ai_risk_threshold?: number;
 }
 
 export async function updateExamWindow(id: string, input: UpdateExamWindowInput): Promise<ExamWindow> {

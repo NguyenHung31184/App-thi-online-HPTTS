@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { BlazeFaceModel } from '@tensorflow-models/blazeface';
+import type { FaceDetector } from '@mediapipe/tasks-vision';
+import {
+  AI_DETECTION_RULES,
+  advanceDetectionWindow,
+  createDetectionWindowState,
+  type AiViolationKind,
+  type DetectionWindowState,
+} from '../../modules/exam-taking/public';
 import { detectFacesInVideo, loadBlazeFaceModel } from '../../utils/blazeFaceProctor';
+import { detectFacesWithMediaPipe, loadMediaPipeFaceDetector } from '../../utils/mediaPipeFaceProctor';
 import type { ProctoringEvidenceCaptureRef } from './ProctoringEvidenceCapture';
 
 type CocoSsd = typeof import('@tensorflow-models/coco-ssd');
@@ -14,17 +23,18 @@ export interface AiObjectProctorBurstProps {
    * Ghi nhận vi phạm: gọi 2 lần — (1) chỉ `kind` để UI cảnh báo ngay; (2) sau khi chụp evidence để ghi audit.
    */
   onViolation?: (
-    kind: 'ai_cell_phone' | 'ai_prohibited_object' | 'ai_no_face' | 'ai_multiple_face',
-    captureResult?: { ok: true; path?: string; publicUrl?: string } | { ok: false },
+    kind: AiViolationKind,
+    captureResult?: {
+      ok: true;
+      path?: string;
+      publicUrl?: string;
+      evidence?: { phase: string; path?: string; publicUrl?: string }[];
+    } | { ok: false },
+    detection?: AiDetectionDetails,
   ) => void;
   /**
-   * Gọi khi không thấy mặt trong N lần quét liên tiếp (mặc định 3 × 2,5s = ~7,5s che camera).
-   * Nên tính vào bộ đếm vi phạm chính để auto-submit.
-   */
-  onSustainedNoFace?: () => void;
-  /**
-   * true (mặc định): COCO-SSD (điện thoại, vật cấm) + BlazeFace (mặt).
-   * false: chỉ BlazeFace — dùng khi tắt VITE_AI_PROCTORING_ENABLED nhưng vẫn muốn kiểm tra không mặt / nhiều mặt (mục 2a).
+   * true (mặc định): COCO-SSD (điện thoại, vật cấm) + MediaPipe (mặt).
+   * false: chỉ MediaPipe; BlazeFace là phương án dự phòng nếu MediaPipe không tải được.
    */
   detectObjects?: boolean;
   /** @deprecated Giữ tương thích; không còn dùng (quét liên tục). */
@@ -39,19 +49,24 @@ export interface AiObjectProctorBurstProps {
   notify?: boolean;
 }
 
+export interface AiDetectionDetails {
+  confidence?: number;
+  bboxRatio?: number;
+  observedScans: number;
+  requiredHits: number;
+  windowScans: number;
+  durationMs: number;
+}
+
 function now() {
   return Date.now();
 }
-
-/** Số lần quét liên tiếp không thấy mặt trước khi tính là "che camera có chủ ý". */
-const SUSTAINED_NO_FACE_THRESHOLD = 3;
 
 export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   const {
     enabled,
     evidenceRef,
     onViolation,
-    onSustainedNoFace,
     detectObjects = true,
     detectIntervalMs = 2_500,
     minScore = 0.6,
@@ -65,11 +80,16 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   const streamRef = useRef<MediaStream | null>(null);
   const modelRef = useRef<CocoModel | null>(null);
   const blazeFaceRef = useRef<BlazeFaceModel | null>(null);
+  const mediaPipeFaceRef = useRef<FaceDetector | null>(null);
   const timersRef = useRef<{ tick?: number }>({});
   const lastHitRef = useRef<Record<string, number>>({});
-  /** Đếm số lần quét liên tiếp không thấy mặt — reset về 0 khi thấy mặt. */
-  const consecutiveNoFaceRef = useRef(0);
-  /** Sẵn sàng chạy burst: COCO xong (nếu detectObjects) hoặc BlazeFace xong (chế độ face-only). */
+  const signalStatesRef = useRef<Record<AiViolationKind, DetectionWindowState>>({
+    ai_no_face: createDetectionWindowState(),
+    ai_multiple_face: createDetectionWindowState(),
+    ai_cell_phone: createDetectionWindowState(),
+    ai_prohibited_object: createDetectionWindowState(),
+  });
+  /** Sẵn sàng quét khi bộ nhận diện mặt và, nếu bật, bộ nhận diện vật thể đã khởi tạo xong. */
   const [burstReady, setBurstReady] = useState(false);
 
   const configKey = useMemo(
@@ -84,11 +104,11 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     }
     let cancelled = false;
     const cocoDoneRef = { current: false };
-    const blazeDoneRef = { current: false };
+    const faceDoneRef = { current: false };
 
     const trySetBurstReady = () => {
       if (cancelled) return;
-      const modelsOk = detectObjects ? cocoDoneRef.current && blazeDoneRef.current : blazeDoneRef.current;
+      const modelsOk = detectObjects ? cocoDoneRef.current && faceDoneRef.current : faceDoneRef.current;
       if (modelsOk) setBurstReady(true);
     };
 
@@ -130,33 +150,52 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         trySetBurstReady();
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Không tải được model AI.';
-        toast.error('Không thể tải AI giám sát', { description: msg });
+        modelRef.current = null;
+        cocoDoneRef.current = true;
+        trySetBurstReady();
+        toast.warning('Không thể tải nhận diện vật thể', { description: `${msg} Kiểm tra khuôn mặt vẫn hoạt động.` });
       }
     };
 
-    const loadBlaze = async () => {
+    const loadFaceDetector = async () => {
       try {
-        const bm = await loadBlazeFaceModel();
+        const detector = await loadMediaPipeFaceDetector();
         if (cancelled) return;
-        blazeFaceRef.current = bm;
-        blazeDoneRef.current = true;
+        mediaPipeFaceRef.current = detector;
+        blazeFaceRef.current = null;
+        faceDoneRef.current = true;
         trySetBurstReady();
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Không tải BlazeFace.';
-        toast.error('Không thể tải kiểm tra khuôn mặt', { description: msg });
+      } catch {
+        try {
+          const fallback = await loadBlazeFaceModel();
+          if (cancelled) return;
+          mediaPipeFaceRef.current = null;
+          blazeFaceRef.current = fallback;
+          faceDoneRef.current = true;
+          trySetBurstReady();
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : 'Không tải được bộ nhận diện khuôn mặt.';
+          toast.error('Không thể tải kiểm tra khuôn mặt', { description: msg });
+        }
       }
     };
 
     setBurstReady(false);
+    signalStatesRef.current = {
+      ai_no_face: createDetectionWindowState(),
+      ai_multiple_face: createDetectionWindowState(),
+      ai_cell_phone: createDetectionWindowState(),
+      ai_prohibited_object: createDetectionWindowState(),
+    };
     cocoDoneRef.current = false;
-    blazeDoneRef.current = false;
+    faceDoneRef.current = false;
     startCamera();
     if (detectObjects) {
       loadModel();
-      loadBlaze();
+      loadFaceDetector();
     } else {
       modelRef.current = null;
-      loadBlaze();
+      loadFaceDetector();
     }
 
     return () => {
@@ -166,6 +205,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
 
   useEffect(() => {
     if (!enabled || !burstReady) return;
+    let cancelled = false;
 
     const clearTick = () => {
       const t = timersRef.current.tick;
@@ -196,18 +236,45 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         const model = modelRef.current;
         if (detectObjects && model) {
           preds = await model.detect(video);
+          let phoneScore = 0;
+          let phoneBboxRatio = 0;
+          let prohibitedScore = 0;
+          let prohibitedBboxRatio = 0;
+          const frameArea = video.videoWidth * video.videoHeight;
           for (const p of preds) {
-            if ((p.score ?? 0) < minScore) continue;
+            const score = p.score ?? 0;
+            const bboxArea = Math.max(0, p.bbox[2]) * Math.max(0, p.bbox[3]);
+            const bboxRatio = frameArea > 0 ? bboxArea / frameArea : 0;
             if (p.class === 'cell phone') {
-              await maybeHit('ai_cell_phone');
-            } else if (p.class === 'book' || p.class === 'laptop') {
-              await maybeHit('ai_prohibited_object');
+              if (score >= Math.max(minScore, 0.75) && bboxRatio >= 0.003 && score > phoneScore) {
+                phoneScore = score;
+                phoneBboxRatio = bboxRatio;
+              }
+            } else if (p.class === 'book' || p.class === 'knife' || p.class === 'scissors') {
+              if (score >= Math.max(minScore, 0.7) && bboxRatio >= 0.01 && score > prohibitedScore) {
+                prohibitedScore = score;
+                prohibitedBboxRatio = bboxRatio;
+              }
             }
           }
+          await updateSignal('ai_cell_phone', phoneScore > 0, {
+            confidence: phoneScore || undefined,
+            bboxRatio: phoneBboxRatio || undefined,
+          });
+          await updateSignal('ai_prohibited_object', prohibitedScore > 0, {
+            confidence: prohibitedScore || undefined,
+            bboxRatio: prohibitedBboxRatio || undefined,
+          });
         }
 
         let faceCount: number | null = null;
-        if (blazeFaceRef.current) {
+        if (mediaPipeFaceRef.current) {
+          try {
+            faceCount = detectFacesWithMediaPipe(mediaPipeFaceRef.current, video);
+          } catch {
+            faceCount = null;
+          }
+        } else if (blazeFaceRef.current) {
           try {
             // Cùng flip với bước chụp mặt đầu bài (selfie).
             const { count } = await detectFacesInVideo(video, false);
@@ -217,18 +284,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
           }
         }
         if (faceCount !== null) {
-          if (faceCount === 0) {
-            consecutiveNoFaceRef.current += 1;
-            await maybeHit('ai_no_face');
-            // Che camera ≥ N lần liên tiếp → tính vi phạm nghiêm trọng (đếm vào auto-submit)
-            if (consecutiveNoFaceRef.current % SUSTAINED_NO_FACE_THRESHOLD === 0) {
-              onSustainedNoFace?.();
-            }
-          } else {
-            // Thấy ít nhất 1 mặt → reset bộ đếm che camera
-            consecutiveNoFaceRef.current = 0;
-            if (faceCount > 1) await maybeHit('ai_multiple_face');
-          }
+          await updateSignal('ai_no_face', faceCount === 0);
+          await updateSignal('ai_multiple_face', faceCount > 1);
         } else if (preds) {
           let personCount = 0;
           let hasPerson = false;
@@ -239,15 +296,34 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
               personCount += 1;
             }
           }
-          if (!hasPerson) await maybeHit('ai_no_face');
-          if (personCount > 1) await maybeHit('ai_multiple_face');
+          await updateSignal('ai_no_face', !hasPerson);
+          await updateSignal('ai_multiple_face', personCount > 1);
         }
       } catch {
         /* một frame lỗi — bỏ qua */
       }
     };
 
-    const maybeHit = async (kind: 'ai_cell_phone' | 'ai_prohibited_object' | 'ai_no_face' | 'ai_multiple_face') => {
+    const updateSignal = async (
+      kind: AiViolationKind,
+      detected: boolean,
+      details?: Pick<AiDetectionDetails, 'confidence' | 'bboxRatio'>,
+    ) => {
+      const rule = AI_DETECTION_RULES[kind];
+      const result = advanceDetectionWindow(signalStatesRef.current[kind], detected, rule);
+      signalStatesRef.current[kind] = result.state;
+      if (!result.confirmed) return;
+      await maybeHit(kind, {
+        ...details,
+        observedScans: result.state.samples.length || rule.windowScans,
+        requiredHits: rule.requiredHits,
+        windowScans: rule.windowScans,
+        durationMs: rule.windowScans * detectIntervalMs,
+      });
+    };
+
+    const maybeHit = async (kind: AiViolationKind, detection: AiDetectionDetails) => {
+      if (cancelled) return;
       const last = lastHitRef.current[kind] ?? 0;
       // Face violations: cooldown 5s (phát hiện nhanh hơn); object violations: 10s (nặng hơn, tránh false positive)
       const cooldownMs = (kind === 'ai_no_face' || kind === 'ai_multiple_face') ? 5_000 : 10_000;
@@ -259,22 +335,44 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
             kind === 'ai_cell_phone'
               ? 'Điện thoại'
               : kind === 'ai_prohibited_object'
-                ? 'Vật cấm (sách / laptop)'
+                ? 'Sách hoặc vật cấm'
                 : kind === 'ai_multiple_face'
                   ? 'Nhiều người'
                   : 'Không thấy khuôn mặt',
         });
       }
-      onViolation?.(kind);
-      const res = await evidenceRef.current?.captureAndUpload(kind, { toastOnceKey: `evidence_${kind}` });
-      onViolation?.(kind, res?.ok ? { ok: true, path: res.path, publicUrl: res.publicUrl } : { ok: false });
+      onViolation?.(kind, undefined, detection);
+      const res = await evidenceRef.current?.captureSequenceAndUpload(kind, { toastOnceKey: `evidence_${kind}` });
+      if (cancelled) return;
+      onViolation?.(
+        kind,
+        res?.ok
+          ? { ok: true, path: res.path, publicUrl: res.publicUrl, evidence: res.evidence }
+          : { ok: false },
+        detection,
+      );
     };
 
+    let detectionInFlight = false;
+    const runDetection = async () => {
+      if (detectionInFlight) return;
+      detectionInFlight = true;
+      try {
+        await detectOnce();
+      } finally {
+        detectionInFlight = false;
+      }
+    };
+
+    void runDetection();
     timersRef.current.tick = window.setInterval(() => {
-      void detectOnce();
+      void runDetection();
     }, detectIntervalMs);
 
-    return () => stopTimersAndOwnStream();
+    return () => {
+      cancelled = true;
+      stopTimersAndOwnStream();
+    };
   }, [
     enabled,
     configKey,
@@ -285,7 +383,6 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     notify,
     burstReady,
     onViolation,
-    onSustainedNoFace,
   ]);
 
   // Video dự phòng: chỉ phát huy tác dụng khi shared video từ ProctoringEvidenceCapture chưa sẵn sàng

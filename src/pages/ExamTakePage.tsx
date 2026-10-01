@@ -1,8 +1,26 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAttempt, getAttemptWindowContext, updateAttemptAnswers, getQuestionsForAttempt, submitAttempt, logAuditEvent } from '../services/attemptService';
-import { optionLetter, referencesOtherOptions, useAttemptHeartbeat } from '../modules/exam-taking/public';
+import {
+  getAiProctoringState,
+  getAttempt,
+  getAttemptWindowContext,
+  logAuditEvent,
+  recordAiProctoringIncident,
+  submitAttempt,
+  updateAttemptAnswers,
+  getQuestionsForAttempt,
+} from '../services/attemptService';
+import {
+  DEFAULT_AI_RISK_THRESHOLD,
+  MAX_MAIN_VIOLATIONS,
+  canRecordLeaveViolation,
+  optionLetter,
+  referencesOtherOptions,
+  useAttemptHeartbeat,
+  type AiProctoringState,
+  type AiViolationKind,
+} from '../modules/exam-taking/public';
 import { getExam } from '../services/examService';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
 import { uploadExamFileViaEdge } from '../services/examUploadService';
@@ -11,7 +29,7 @@ import { LabelOnImageDrop } from '../components/LabelOnImageDrop';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { CheckCircle } from 'lucide-react';
 import { ProctoringEvidenceCapture, type ProctoringEvidenceCaptureRef, type EvidenceKind } from '../components/proctoring/ProctoringEvidenceCapture';
-import { AiObjectProctorBurst } from '../components/proctoring/AiObjectProctorBurst';
+import { AiObjectProctorBurst, type AiDetectionDetails } from '../components/proctoring/AiObjectProctorBurst';
 import { ViolationAlertModal } from '../components/proctoring/ViolationAlertModal';
 import { PortraitCameraGuide } from '../components/PortraitCameraGuide';
 import type { Attempt, Exam, QuestionForStudent } from '../types';
@@ -102,7 +120,7 @@ export default function ExamTakePage() {
   const violationCountRef = useRef(0);
   const submittedDueToViolationRef = useRef(false);
   const violationSubmitPendingRef = useRef(false);
-  /** Gộp visibility + blur trong ~700ms = một lần vi phạm (tránh đếm đôi một thao tác trên mobile). */
+  /** Gộp blur, ẩn tab và thoát fullscreen phát sinh từ cùng một thao tác. */
   const leaveViolationBundleAtRef = useRef(0);
   const fullscreenRequestedRef = useRef(false);
   /** Bỏ qua visibility_hidden / focus_lost đến mốc thời gian này (ms epoch) — hệ thống fullscreen Android. */
@@ -111,13 +129,19 @@ export default function ExamTakePage() {
   attemptRef.current = attempt;
   const examRef = useRef<Exam | null>(null);
   examRef.current = exam;
-  const MAX_VIOLATIONS = 5;
+  const MAX_VIOLATIONS = MAX_MAIN_VIOLATIONS;
   /** Ép re-render khi tăng đếm vi phạm (modal đếm lùi đọc đúng ref). */
   const [, setViolationRenderTick] = useState(0);
-  /** Đếm vi phạm AI nhiều mặt — sau mỗi 3 lần tính 1 vi phạm chính. */
-  const aiMultipleFaceCountRef = useRef(0);
   /** Đủ MAX_VIOLATIONS: khóa làm bài + ép hiển thị trạng thái tự nộp (đồng bộ UI với ref). */
   const [violationsCapActive, setViolationsCapActive] = useState(false);
+  const [autoSubmitReason, setAutoSubmitReason] = useState<'browser' | 'ai' | null>(null);
+  const [aiProctoringState, setAiProctoringState] = useState<AiProctoringState>({
+    mode: 'standard',
+    risk_threshold: DEFAULT_AI_RISK_THRESHOLD,
+    risk_score: 0,
+    incident_count: 0,
+    should_auto_submit: false,
+  });
 
   /** Bước 0: Chụp ảnh bàn làm việc — xác nhận môi trường thi trước khi chụp mặt. */
   const [workspacePhotoTaken, setWorkspacePhotoTaken] = useState(false);
@@ -563,48 +587,86 @@ export default function ExamTakePage() {
     violationCountRef.current += 1;
     setViolationRenderTick((n) => n + 1);
     if (violationCountRef.current >= MAX_VIOLATIONS) {
+      setAutoSubmitReason('browser');
       setViolationsCapActive(true);
       scheduleViolationAutoSubmit();
     }
-  }, [scheduleViolationAutoSubmit]);
+  }, [MAX_VIOLATIONS, scheduleViolationAutoSubmit]);
 
   const handleAiProctorViolation = useCallback(
     (
-      kind: EvidenceKind,
-      captureResult?: { ok: true; path?: string; publicUrl?: string } | { ok: false },
+      kind: AiViolationKind,
+      captureResult?: {
+        ok: true;
+        path?: string;
+        publicUrl?: string;
+        evidence?: { phase: string; path?: string; publicUrl?: string }[];
+      } | { ok: false },
+      detection?: AiDetectionDetails,
     ) => {
       if (captureResult === undefined) {
         showViolationAlert(kind);
-        // ai_multiple_face: cứ 3 lần phát hiện → tính 1 vi phạm chính (có người xem ké)
-        if (kind === 'ai_multiple_face') {
-          aiMultipleFaceCountRef.current += 1;
-          if (aiMultipleFaceCountRef.current % 3 === 0) {
-            incrementMainViolation();
-          }
-        }
         return;
       }
       if (!attemptId) return;
-      void logAuditEvent(
-        attemptId,
-        kind,
-        captureResult.ok && captureResult.publicUrl
-          ? { evidence_url: captureResult.publicUrl, evidence_path: captureResult.path }
-          : { evidence_error: true },
-      );
+      void (async () => {
+        try {
+          const result = await recordAiProctoringIncident(attemptId, kind, {
+            ...(captureResult.ok
+              ? {
+                  evidence_url: captureResult.publicUrl,
+                  evidence_path: captureResult.path,
+                  evidence: captureResult.evidence ?? [],
+                }
+              : { evidence_error: true }),
+            detection: detection ?? null,
+          });
+          setAiProctoringState(result);
+          if (result.should_auto_submit) {
+            setAutoSubmitReason('ai');
+            setViolationsCapActive(true);
+            scheduleViolationAutoSubmit();
+          }
+        } catch {
+          await logAuditEvent(attemptId, kind, {
+            evidence_error: !captureResult.ok,
+            evidence_url: captureResult.ok ? captureResult.publicUrl : undefined,
+            evidence_path: captureResult.ok ? captureResult.path : undefined,
+            detection: detection ?? null,
+            ai_policy_error: true,
+          });
+        }
+      })();
     },
-    [attemptId, incrementMainViolation, showViolationAlert],
+    [attemptId, scheduleViolationAutoSubmit, showViolationAlert],
   );
 
-  /** Che camera liên tục (~7,5s) → tính thẳng vào bộ đếm vi phạm chính. */
-  const handleSustainedNoFace = useCallback(() => {
-    showViolationAlert('ai_no_face');
-    incrementMainViolation();
-    if (attemptId) {
-      logAuditEvent(attemptId, 'ai_no_face', { sustained: true }).catch(() => {});
-      captureViolationEvidence('ai_no_face').catch(() => {});
-    }
-  }, [attemptId, captureViolationEvidence, incrementMainViolation, showViolationAlert]);
+  useEffect(() => {
+    if (!attemptId) return;
+    let cancelled = false;
+    getAiProctoringState(attemptId)
+      .then((state) => {
+        if (cancelled) return;
+        setAiProctoringState(state);
+        if (state.should_auto_submit) {
+          setAutoSubmitReason('ai');
+          setViolationsCapActive(true);
+          scheduleViolationAutoSubmit();
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAiProctoringState({
+            mode: 'standard',
+            risk_threshold: DEFAULT_AI_RISK_THRESHOLD,
+            risk_score: 0,
+            incident_count: 0,
+            should_auto_submit: false,
+          });
+        }
+      });
+    return () => { cancelled = true; };
+  }, [attemptId, scheduleViolationAutoSubmit]);
 
   useEffect(() => {
     violationCountRef.current = 0;
@@ -614,6 +676,7 @@ export default function ExamTakePage() {
     leaveViolationIgnoreUntilRef.current = 0;
     setViolationRenderTick(0);
     setViolationsCapActive(false);
+    setAutoSubmitReason(null);
   }, [attemptId]);
 
   /** Đủ vi phạm: retry tự nộp định kỳ nếu lần đầu lỗi mạng / race. */
@@ -679,7 +742,7 @@ export default function ExamTakePage() {
 
     const tryConsumeLeaveBundle = (): boolean => {
       const t = Date.now();
-      if (t - leaveViolationBundleAtRef.current < 700) return false;
+      if (!canRecordLeaveViolation(leaveViolationBundleAtRef.current, t)) return false;
       leaveViolationBundleAtRef.current = t;
       return true;
     };
@@ -688,15 +751,9 @@ export default function ExamTakePage() {
       if (document.visibilityState === 'hidden' && attemptId) {
         if (Date.now() < leaveViolationIgnoreUntilRef.current) return;
         if (!tryConsumeLeaveBundle()) return;
-        logAuditEvent(attemptId, 'visibility_hidden').catch(() => {});
         captureViolationEvidence('visibility_hidden').catch(() => {});
         showViolationAlert('visibility_hidden');
-        violationCountRef.current += 1;
-        setViolationRenderTick((n) => n + 1);
-        if (violationCountRef.current >= MAX_VIOLATIONS) {
-          setViolationsCapActive(true);
-          scheduleViolationAutoSubmit();
-        }
+        incrementMainViolation();
       }
       if (document.visibilityState === 'visible' && attemptId) {
         if (pendingViolationRef.current) {
@@ -716,15 +773,9 @@ export default function ExamTakePage() {
       if (!attemptId) return;
       if (Date.now() < leaveViolationIgnoreUntilRef.current) return;
       if (!tryConsumeLeaveBundle()) return;
-      logAuditEvent(attemptId, 'focus_lost').catch(() => {});
       captureViolationEvidence('focus_lost').catch(() => {});
       showViolationAlert('focus_lost');
-      violationCountRef.current += 1;
-      setViolationRenderTick((n) => n + 1);
-      if (violationCountRef.current >= MAX_VIOLATIONS) {
-        setViolationsCapActive(true);
-        scheduleViolationAutoSubmit();
-      }
+      incrementMainViolation();
     };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('blur', onBlur);
@@ -740,6 +791,7 @@ export default function ExamTakePage() {
     navigate,
     photoVerified,
     questions.length,
+    incrementMainViolation,
     scheduleViolationAutoSubmit,
     showViolationAlert,
   ]);
@@ -772,15 +824,12 @@ export default function ExamTakePage() {
         return;
       }
       if (fullscreenRequestedRef.current && attemptId) {
-        logAuditEvent(attemptId, 'fullscreen_exited').catch(() => {});
+        const t = Date.now();
+        if (!canRecordLeaveViolation(leaveViolationBundleAtRef.current, t)) return;
+        leaveViolationBundleAtRef.current = t;
         captureViolationEvidence('fullscreen_exited').catch(() => {});
         showViolationAlert('fullscreen_exited');
-        violationCountRef.current += 1;
-        setViolationRenderTick((n) => n + 1);
-        if (violationCountRef.current >= MAX_VIOLATIONS) {
-          setViolationsCapActive(true);
-          scheduleViolationAutoSubmit();
-        }
+        incrementMainViolation();
       }
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
@@ -789,9 +838,9 @@ export default function ExamTakePage() {
     attempt,
     attemptId,
     captureViolationEvidence,
+    incrementMainViolation,
     photoVerified,
     questions.length,
-    scheduleViolationAutoSubmit,
     showViolationAlert,
   ]);
 
@@ -827,7 +876,7 @@ export default function ExamTakePage() {
         examId={attempt?.exam_id ?? ''}
         studentKey={(user?.student_id ?? studentSession?.student_id ?? user?.id ?? attempt?.user_id ?? 'unknown') as string}
       />
-      {/* BlazeFace (mục 2a): luôn bật sau khi đã chụp start_photo. COCO (điện thoại/vật cấm) chỉ khi VITE_AI_PROCTORING_ENABLED=1. */}
+      {/* MediaPipe nhận diện mặt; BlazeFace dự phòng. COCO nhận diện điện thoại/sách khi VITE_AI_PROCTORING_ENABLED=1. */}
       <AiObjectProctorBurst
         enabled={proctoringCameraEnabled}
         evidenceRef={evidenceRef}
@@ -836,13 +885,15 @@ export default function ExamTakePage() {
         minScore={0.6}
         notify={false}
         onViolation={handleAiProctorViolation}
-        onSustainedNoFace={handleSustainedNoFace}
       />
       {/* Modal cảnh báo vi phạm */}
       <ViolationAlertModal
         kind={violationAlert}
         violationCount={violationCountRef.current}
         maxViolations={MAX_VIOLATIONS}
+        aiRiskScore={aiProctoringState.risk_score}
+        aiRiskThreshold={aiProctoringState.risk_threshold}
+        proctoringMode={aiProctoringState.mode}
         onClose={() => setViolationAlert(null)}
       />
 
@@ -855,7 +906,9 @@ export default function ExamTakePage() {
         >
           <div className="max-w-md rounded-xl bg-white p-6 shadow-xl border border-slate-200">
             <p id="violation-cap-title" className="text-lg font-semibold text-slate-900 mb-2">
-              Đã đủ {MAX_VIOLATIONS} lần vi phạm
+              {autoSubmitReason === 'ai'
+                ? `Đã đạt ${aiProctoringState.risk_score}/${aiProctoringState.risk_threshold} điểm rủi ro AI`
+                : `Đã đủ ${MAX_VIOLATIONS} lần rời trang thi`}
             </p>
             <p className="text-slate-600 text-sm mb-4">
               Bài thi đang được <strong>tự động nộp</strong>. Vui lòng chờ vài giây; nếu mạng chậm, hệ thống sẽ thử lại. Bạn không thể tiếp tục sửa bài trong lúc này.

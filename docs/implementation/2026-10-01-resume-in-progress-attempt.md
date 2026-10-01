@@ -1,6 +1,7 @@
 # Resume the open attempt when a student enters an exam again
 
-- Status: committed 2026-09-30; migration dry run passed on production, waiting for the operator's approval to apply.
+- Status: applied 2026-10-01 after the operator's approval (CLI `db query --linked -f`, version `20260930160000` recorded);
+  code `8b32bfb` pushed.
 - Date: 2026-09-30
 - Database: `supabase/migrations/20260930160000_resume_in_progress_attempt.sql` (replaces `start_exam_attempt`), applied
   only after a self-rolling-back dry run and the operator's approval.
@@ -44,3 +45,5 @@ No client change: the dashboard already opens `/exam/<returned id>`.
 - Production dry run (block raising at the end, nothing kept), as the test student in trial window `01311460…` before
   the open attempt's deadline: both calls returned `ca581262…`, attempts stayed at 2, `anon` has no execute right; after
   the run the production function was still the old one.
+- Applied 2026-10-01: production `start_exam_attempt` contains the resume block, `SECURITY DEFINER`, `anon` cannot execute,
+  `authenticated` can.

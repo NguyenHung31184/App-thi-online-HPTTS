@@ -52,7 +52,7 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 - `35c8398` bước 2: tầng data và application; `reportService`, `dashboardService` thành re-export.
 - `f4d5bec` bước 3: trang Kết quả một lượt thi vào module.
 - `1f7f11f` bước 4: Báo cáo và Dashboard admin vào module; route lấy từ `public.ts`.
-- Bước 5 _(commit cuối của giai đoạn)_: xóa `reportService`, `dashboardService`; README module.
+- `ec14d4b` bước 5: xóa `reportService`, `dashboardService`; README module.
 - Tài liệu: [implementation](implementation/2026-10-02-phase-2-exam-reporting-module.md) ·
   [rollback](rollback/2026-10-02-phase-2-exam-reporting-module.md)
 
@@ -74,8 +74,8 @@ sau đó revert bình thường rồi push. Các mốc an toàn:
 **Lùi bằng git** (giai đoạn chỉ chuyển code, không có migration):
 
 ```bash
-# Lùi giai đoạn 2 (thay <bước 5> bằng hash commit bước 5)
-git revert --no-edit <bước 5> 1f7f11f f4d5bec 35c8398 3db4e2d
+# Lùi giai đoạn 2
+git revert --no-edit ec14d4b 1f7f11f f4d5bec 35c8398 3db4e2d
 
 # Lùi giai đoạn 1b (phải lùi 2 trước)
 git revert --no-edit ad99cd0 b786e65 c4832af fd9caf5 5578bd7

@@ -34,6 +34,8 @@ Found in the 2026-09-30 trial exam: entering again created a new attempt; fix `d
 
 Modular monolith plan `docs/implementation/2026-10-01-modular-monolith-90-plan.md`: progress, commits and rollback per phase in `docs/MODULAR_MONOLITH_TIEN_DO.md` (phases 0, 1a, 1b done; 43.6%, 5/10, 22/46 routes). Phase 2 done (`docs/implementation/2026-10-02-phase-2-exam-reporting-module.md`; 54.3%, 5/10, 25/46 routes). The report's signals tab now follows the chosen exam or window and reads past 1,000 rows: `docs/implementation/2026-10-02-report-signals-filter.md`. Phase 3 done (`docs/implementation/2026-10-02-phase-3-practical-exams-module.md`; 62.6%, 5/10, 34/46 routes); practical template, criterion and session deletes are hard deletes too, to decide. Phase 4 deferred (e-learning later, E-LEARNING stash). Phase 5 done (`docs/implementation/2026-10-02-phase-5-identity-integrations.md`; 72%, 5/10, 38/46 routes); "Dọn lỗi cũ" on the sync log is a hard delete too; teacher and student sign-in not yet tried on real accounts.
 
+Missing TTDT grades for March and April 2026 (browser-only sync before 29/09) and the "Dọn lỗi cũ" button that deleted nothing: `docs/implementation/2026-10-02-ttdt-resend-and-sync-log-cleanup.md`.
+
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.
 
 Removed 2026-09-28: the manual essay grading screen, `docs/implementation/2026-09-28-remove-essay-grading-screen.md`.

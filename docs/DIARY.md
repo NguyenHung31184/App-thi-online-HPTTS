@@ -22,9 +22,16 @@
 - Lỗi có sẵn: tab "Tín hiệu giám sát" không lọc theo đề/kỳ thi và dừng ở 1.000 dòng (production cũng vậy). Đã sửa
   bằng `attempts!inner` và đọc theo trang; số trên Edge khớp đếm trực tiếp trong database (QC 170, đề lớn 2.276).
 
+- Push giai đoạn 2 và bản sửa lọc tín hiệu (`2259f3f`, `e062e20`, CI đạt).
+- Giai đoạn 3, module `practical-exams` (`c13ab5e` … bước 4): 3 service, 7 trang, adapter tải ảnh
+  `src/platform/storage/`. 62.6% mã nghiệp vụ trong module, 34/46 route. Edge: các trang có dữ liệu giống production.
+  Form thêm mẫu không còn mất con trỏ sau ký tự đầu.
+- Cửa sổ Edge kiểm thử (cổng 9333) bị đóng; mở lại bằng hồ sơ cũ trong scratchpad, vẫn còn đăng nhập.
+
 ### Kế hoạch tiếp theo
-- Hỏi người dùng trước khi push giai đoạn 2.
-- Giai đoạn 3 (`practical-exams`).
+- Hỏi người dùng trước khi push giai đoạn 3.
+- Thử luồng thi thực hành trên dữ liệu thật (tạo kỳ thi thử, nộp ảnh, chấm) khi người dùng đồng ý.
+- Giai đoạn 4 (`learning`).
 
 ---
 

@@ -1,6 +1,7 @@
 # Modular monolith phase 3: `practical-exams` module
 
-- Status: in progress.
+- Status: done 2026-10-02 (steps 1–4 committed, not pushed yet). Result: 62.6% of business code in modules, 34/46
+  routes.
 - Date: 2026-10-02
 - Database: none. Behaviour and screens unchanged (moves only).
 - Rollback: `docs/rollback/2026-10-02-phase-3-practical-exams-module.md`

@@ -169,18 +169,6 @@
       "phase": 5
     },
     {
-      "file": "src/services/practicalAttemptService.ts",
-      "phase": 3
-    },
-    {
-      "file": "src/services/practicalSessionService.ts",
-      "phase": 3
-    },
-    {
-      "file": "src/services/practicalTemplateService.ts",
-      "phase": 3
-    },
-    {
       "file": "src/services/profileService.ts",
       "phase": 5
     },

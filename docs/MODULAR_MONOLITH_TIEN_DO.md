@@ -14,7 +14,7 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 | 1a | Bỏ trang thêm/sửa/nhập câu hỏi theo đề | Xong | 2026-10-02 | không đo riêng | Đã push | Không |
 | 1b | Module `exam-management` | Xong | 2026-10-02 | 43,6% · 22/46 route · 5/10 | Đã push | Không |
 | 2 | Module `exam-reporting` | Xong | 2026-10-02 | 54,3% · 25/46 route · 5/10 | Đã push | Không |
-| 3 | Module `practical-exams` | Đang làm | 2026-10-02 | | Chưa | Không |
+| 3 | Module `practical-exams` | Xong | 2026-10-02 | 62,6% · 34/46 route · 5/10 | Chưa | Không |
 | 4 | Module `learning` | Chưa làm | | | | |
 | 5 | `identity-access` và `integrations` | Chưa làm | | | | |
 | 6 | `exam-taking` và giám sát AI (làm sau cùng) | Chưa làm | | | | |
@@ -56,7 +56,21 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 - Tài liệu: [implementation](implementation/2026-10-02-phase-2-exam-reporting-module.md) ·
   [rollback](rollback/2026-10-02-phase-2-exam-reporting-module.md)
 
-Commit chỉ có tài liệu: `4871f6d`, `ce48a3d`, `e32affd`. Không cần revert khi rollback.
+### Giai đoạn 3
+
+- `c13ab5e` tài liệu kế hoạch giai đoạn 3.
+- `f7b3b72` bước 1: luật thi thực hành thuần trong `domain/` kèm test; đổi giờ `datetime-local` sang `src/shared/lib/`.
+- `04c5aa5` bước 2: data, application, adapter `src/platform/storage/exam-uploads.ts`; 3 service thành re-export.
+- `252774c` bước 3: 7 trang vào module, 10 route lấy từ `public.ts`.
+- Bước 4 _(commit cuối của giai đoạn)_: xóa 3 service thực hành; README module.
+- Tài liệu: [implementation](implementation/2026-10-02-phase-3-practical-exams-module.md) ·
+  [rollback](rollback/2026-10-02-phase-3-practical-exams-module.md)
+
+### Sửa lỗi ngoài kế hoạch
+
+- `e062e20` tab "Tín hiệu giám sát" lọc đúng theo đề, kỳ thi và đọc quá 1.000 dòng.
+
+Commit chỉ có tài liệu: `4871f6d`, `ce48a3d`, `e32affd`, `2259f3f`, `c13ab5e`. Không cần revert khi rollback.
 
 ## Cách rollback
 
@@ -98,6 +112,9 @@ mục 6 của kế hoạch.
 
 - Xóa kỳ thi và nút "Xóa báo cáo thi thử" vẫn xóa hẳn dữ liệu, trái quy ước xóa mềm
   (`src/modules/exam-management/data/exam-window-repository.ts`). Chờ người vận hành quyết định.
+- Thi thực hành: xóa mẫu, tiêu chí, kỳ thi cũng là xóa cứng (`src/modules/practical-exams/data/`). Chờ quyết định cùng
+  việc trên.
+- Trang chấm thực hành và trang học viên nộp ảnh chưa thử trên dữ liệu thật (production chưa có kỳ thi thực hành nào).
 - Giai đoạn 6 chỉ bắt đầu sau một buổi thi thử có giám sát AI chạy ổn định, không làm trong ngày có ca thi thật.
 - Kịch bản Edge của buổi thi thử 2026-09-30 chưa đưa vào repo thành smoke test.
 - Đã sửa (ngoài kế hoạch, sau giai đoạn 2): tab "Tín hiệu giám sát" trước đây không lọc theo đề hay kỳ thi và dừng ở
@@ -154,9 +171,9 @@ học viên nộp ảnh. Ngoài phạm vi nhưng gọi tới: `DashboardPage`, `
   TTDT vẫn gọi `ttdtSyncService` (chuyển ở giai đoạn 5, ghi trong allowlist).
 - [x] Bước 3, 7 trang vào `practical-exams/ui`, 10 route lấy từ `public.ts`; `DashboardPage`, `AdminSyncPage` import qua
   `public.ts`.
-- [ ] Bước 4, dọn: xóa 3 service, trang cũ; allowlist; README; đo điểm.
+- [x] Bước 4, dọn: xóa 3 service, trang cũ; allowlist; README; đo điểm (62,6%, 34/46 route).
 - [x] Edge, chỉ xem: danh sách mẫu, sửa mẫu (7 tiêu chí), thêm mẫu, danh sách kỳ thi, thêm kỳ thi, danh sách chấm giống
   production; không lỗi trang. Production có 0 kỳ thi, 0 bài làm thực hành: trang chấm và trang học viên nộp ảnh chưa
   thử được bằng dữ liệu thật (cần tạo kỳ thi thử, người vận hành duyệt).
-- [ ] Giữ nguyên, chờ quyết định: xóa mẫu, tiêu chí, kỳ thi là xóa cứng.
-- [ ] Cập nhật tài liệu; hỏi trước khi push.
+- [x] Giữ nguyên, chờ quyết định: xóa mẫu, tiêu chí, kỳ thi là xóa cứng (ghi ở "Việc còn mở").
+- [x] Cập nhật tài liệu. Chờ người vận hành cho push.

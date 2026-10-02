@@ -86,6 +86,11 @@ mục 6 của kế hoạch.
   (`src/modules/exam-management/data/exam-window-repository.ts`). Chờ người vận hành quyết định.
 - Giai đoạn 6 chỉ bắt đầu sau một buổi thi thử có giám sát AI chạy ổn định, không làm trong ngày có ca thi thật.
 - Kịch bản Edge của buổi thi thử 2026-09-30 chưa đưa vào repo thành smoke test.
+- Lỗi có từ trước, tìm thấy khi kiểm tra giai đoạn 2: tab "Tín hiệu giám sát" của Báo cáo không lọc theo đề hay kỳ
+  thi. Bộ lọc `attempts.exam_id` / `attempts.window_id` đặt trên bảng nhúng nên không bỏ dòng nào, và PostgREST
+  cắt ở 1.000 dòng: đề nào cũng hiện 1.000 tín hiệu mới nhất của mọi đề (đề QC có 15 bài nhưng file Excel vi phạm
+  có 168 lượt thi). Production và bản mới giống nhau. Sửa riêng sau khi xong giai đoạn 2 (cần `!inner` hoặc lọc
+  theo danh sách lượt thi, và phân trang).
 
 ## Giai đoạn 2: module `exam-reporting`
 
@@ -111,13 +116,13 @@ Mỗi bước một commit, không đổi database, không đổi giao diện:
   `dashboardService` tạm chỉ re-export.
 - [x] Bước 3, trang kết quả một lượt thi: 8 truy vấn trực tiếp vào `attempt-result-repository`, đọc bảng cũ
   `questions` giữ nguyên (chỉ đọc), hook ở `queries/`, tách component con để trang ≤350 dòng.
-- [ ] Bước 4, UI và route: `ReportPage`, `AttemptResultPage`, `AdminDashboardPage` vào `exam-reporting/ui`, export
+- [x] Bước 4, UI và route: `ReportPage`, `AttemptResultPage`, `AdminDashboardPage` vào `exam-reporting/ui`, export
   qua `public.ts`; `App.tsx` trỏ route `dashboard`, `report`, `attempts/:attemptId/result` vào module;
   `DashboardPage` lấy số liệu qua `exam-reporting/public`.
 - [ ] Bước 5, dọn: xóa `reportService.ts`, `dashboardService.ts`, 3 trang cũ; sinh lại allowlist; README module; đo
   `arch:score` (dự kiến khoảng 54–56%, 25/46 route).
 - [ ] Mỗi bước: `npm test`, `npx tsc -b`, `npm run lint`, `npm run check:boundaries`, `npm run build`.
-- [ ] Edge, chỉ xem, bản local: dashboard admin khớp production; báo cáo lọc theo đề, kỳ, lớp khớp số dòng; xuất Excel
+- [x] Edge, chỉ xem, bản local: dashboard admin khớp production; báo cáo lọc theo đề, kỳ, lớp khớp số dòng; xuất Excel
   kết quả và vi phạm, mở file xem cột; mở bằng chứng AI; trang kết quả một lượt thi có ảnh lúc vào thi và đáp án.
   Không bấm duyệt sự việc AI trên dữ liệu thật nếu chưa được cho phép.
 - [ ] Điều kiện xong: điểm AI tổng hợp theo lượt; link bằng chứng ký lại khi xem; Excel và bộ lọc giữ nguyên; giám sát

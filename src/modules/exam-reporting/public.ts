@@ -6,3 +6,5 @@ export type { DashboardRecentAttemptRow } from './domain/recent-attempts';
 export type { ViolationSummaryRow } from './domain/report-rows';
 export { exportReportToExcel, exportViolationsToExcel } from './ui/report/download-report';
 export { default as AttemptResultPage } from './ui/attempt-result/AttemptResultPage';
+export { default as ReportPage } from './ui/report/ReportPage';
+export { default as AdminDashboardPage } from './ui/dashboard/AdminDashboardPage';

@@ -12,7 +12,7 @@ import {
 } from '../services/practicalSessionService';
 import { createPracticalAttempt } from '../services/practicalAttemptService';
 import type { PracticalSessionWithTemplate } from '../services/practicalSessionService';
-import { getAdminDashboardStats, type AdminDashboardStats } from '../services/dashboardService';
+import { getAdminDashboardStats, type AdminDashboardStats } from '../modules/exam-reporting/public';
 
 export default function DashboardPage() {
   const { user } = useAuth();

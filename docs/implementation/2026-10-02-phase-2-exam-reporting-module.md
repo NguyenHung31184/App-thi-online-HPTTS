@@ -34,6 +34,19 @@
 Kept as is: old attempts without `question_ids` are reviewed from the legacy `questions` table (read only). Student and
 class names for the report are read by the module itself (a read model), not through `integrations`.
 
+## Found while checking (not changed here)
+
+The "Tín hiệu giám sát" tab ignores its filter: `attempts.exam_id` / `attempts.window_id` filter the embedded table, not
+the audit logs, and PostgREST stops at 1,000 rows. Every exam shows the latest 1,000 signals of all exams (exam QC has
+15 attempts, its signals export lists 168). Same on production before the move. To fix separately: `attempts!inner`
+or filter by the report's attempt ids, and page past 1,000 rows.
+
+## Edge check 2026-10-02 (local build against production, read only)
+
+Dashboard text identical. Report: 6 exams, attempt and signal counts identical on both tabs. Both Excel files have
+the old sheet names and columns. AI evidence link opens (200, image/jpeg, freshly signed). Attempt result: same score,
+result and 50 questions; start photo loads on both. Unknown attempt id shows "Không tìm thấy bài làm.".
+
 ## Checks (each step)
 
 `npm run check:boundaries`, `npm run arch:score`, `npm test`, `npx tsc -b`, `npm run lint`, `npm run build`.

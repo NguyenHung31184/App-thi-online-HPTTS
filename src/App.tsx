@@ -21,9 +21,7 @@ import AdminPracticalSessionsPage from './pages/admin/AdminPracticalSessionsPage
 import AdminPracticalSessionFormPage from './pages/admin/AdminPracticalSessionFormPage';
 import AdminPracticalGradingPage from './pages/admin/AdminPracticalGradingPage';
 import AdminPracticalGradingDetailPage from './pages/admin/AdminPracticalGradingDetailPage';
-import AdminReportPage from './pages/admin/AdminReportPage';
-import AdminDashboardPage from './pages/admin/AdminDashboardPage';
-import { AttemptResultPage } from './modules/exam-reporting/public';
+import { AdminDashboardPage, AttemptResultPage, ReportPage } from './modules/exam-reporting/public';
 import AdminSyncPage from './pages/admin/AdminSyncPage';
 import ExamTakePage from './pages/ExamTakePage';
 import ExamIntroPage from './pages/ExamIntroPage';
@@ -90,7 +88,7 @@ function App() {
             <Route path="practical-sessions/:id" element={<AdminPracticalSessionFormPage />} />
             <Route path="practical-grading" element={<AdminPracticalGradingPage />} />
             <Route path="practical-grading/:attemptId" element={<AdminPracticalGradingDetailPage />} />
-            <Route path="report" element={<AdminReportPage />} />
+            <Route path="report" element={<ReportPage />} />
             <Route path="attempts/:attemptId/result" element={<AttemptResultPage />} />
             <Route path="sync" element={<AdminSyncPage />} />
           </Route>

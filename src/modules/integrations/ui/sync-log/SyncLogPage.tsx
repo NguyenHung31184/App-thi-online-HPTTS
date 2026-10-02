@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { failedCounts, type ExamSyncLogEntry } from '../../domain/sync-log';
 import { explainTheorySyncError } from '../../domain/sync-errors';
-import { useCleanupSyncLogs, usePracticalSyncLog, useRetrySync, useTheorySyncLog, useTtdtSyncConfigured } from '../../queries/use-sync-log';
+import { usePracticalSyncLog, useRetrySync, useTheorySyncLog, useTtdtSyncConfigured } from '../../queries/use-sync-log';
 import { ResponseModal } from './ResponseModal';
 import { PracticalSyncTable, TheorySyncTable } from './SyncLogTables';
 
@@ -19,7 +19,6 @@ export default function SyncLogPage() {
   const theory = useTheorySyncLog(status, configured && tab === 'theory');
   const practical = usePracticalSyncLog(status, configured && tab === 'practical');
   const retry = useRetrySync();
-  const cleanup = useCleanupSyncLogs();
 
   const theoryLogs = useMemo(() => theory.data ?? [], [theory.data]);
   const practicalLogs = useMemo(() => practical.data ?? [], [practical.data]);
@@ -45,15 +44,6 @@ export default function SyncLogPage() {
 
   const handleExplain = (log: ExamSyncLogEntry) =>
     setResponseModal({ title: `Hướng dẫn xử lý lỗi (${log.attempt_id.slice(0, 8)}…)`, content: explainTheorySyncError(log.response) });
-
-  const handleCleanup = () => {
-    if (!window.confirm('Xóa các log Lỗi đã cũ hơn 30 ngày? Thao tác này không thể hoàn tác.')) return;
-    setMessage('Đang dọn dẹp log cũ...');
-    cleanup.mutate(undefined, {
-      onSuccess: () => setMessage('Đã dọn dẹp các log lỗi cũ (trên 30 ngày).'),
-      onError: (e) => setMessage(e instanceof Error ? e.message : 'Lỗi khi dọn dẹp log.'),
-    });
-  };
 
   if (!configured) {
     return (
@@ -91,14 +81,6 @@ export default function SyncLogPage() {
           </label>
           <button type="button" onClick={reload} className="px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-full hover:bg-slate-50 text-sm">
             Tải lại
-          </button>
-          <button
-            type="button"
-            onClick={handleCleanup}
-            disabled={cleanup.isPending}
-            className="px-3 py-2 bg-rose-50 border border-rose-200 text-rose-700 rounded-full hover:bg-rose-100 text-sm disabled:opacity-50"
-          >
-            {cleanup.isPending ? 'Đang dọn...' : 'Dọn lỗi cũ (30 ngày)'}
           </button>
         </div>
       </div>

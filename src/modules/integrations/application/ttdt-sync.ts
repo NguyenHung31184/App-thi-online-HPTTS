@@ -1,10 +1,9 @@
 import type { Attempt } from '../../../types';
 import {
-  deleteSyncLogsBefore, practicalAttemptExists, selectClassNamesById, selectExamSyncLog, selectPracticalSyncLog, selectTheoryAttemptRef,
+  practicalAttemptExists, selectClassNamesById, selectExamSyncLog, selectPracticalSyncLog, selectTheoryAttemptRef,
 } from '../data/sync-log-repository';
 import { requestSync, syncEnabled, type SyncResult } from '../data/ttdt-sync-client';
 import { withClassNames, type ExamSyncLogEntry, type PracticalSyncLogEntry, type SyncStatus } from '../domain/sync-log';
-import { syncLogCutoff } from '../domain/sync-errors';
 
 export type { SyncResult };
 
@@ -36,11 +35,6 @@ export async function listExamSyncLog(filters?: { status?: SyncStatus }): Promis
 
 export function listPracticalSyncLog(filters?: { status?: SyncStatus }): Promise<PracticalSyncLogEntry[]> {
   return selectPracticalSyncLog(filters?.status);
-}
-
-/** Removes old logs (default: failed ones older than 30 days). */
-export function cleanupOldSyncLogs(options?: { days?: number; status?: SyncStatus }): Promise<void> {
-  return deleteSyncLogsBefore(syncLogCutoff(Date.now(), options?.days ?? 30), options?.status ?? 'failed');
 }
 
 /** Retries a theory sync from the log page; returns the message to show. */

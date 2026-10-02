@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ocrHttpError, ocrNetworkError, ocrResultFrom } from './ocr';
-import { explainTheorySyncError, syncLogCutoff } from './sync-errors';
+import { explainTheorySyncError } from './sync-errors';
 
 describe('theory sync error help', () => {
   it('picks the help by what the TTDT response mentions', () => {
@@ -9,10 +9,6 @@ describe('theory sync error help', () => {
     expect(explainTheorySyncError('no enrollment_id')).toMatch(/^Lỗi liên quan student_id/);
     expect(explainTheorySyncError('HTTP 401')).toMatch(/^Lỗi xác thực API TTDT/);
     expect(explainTheorySyncError(null)).toMatch(/^Không nhận diện được/);
-  });
-
-  it('computes the cleanup cutoff', () => {
-    expect(syncLogCutoff(Date.UTC(2026, 9, 31), 30)).toBe('2026-10-01T00:00:00.000Z');
   });
 });
 

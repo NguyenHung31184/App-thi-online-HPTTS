@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  cleanupOldSyncLogs, isTtdtSyncConfigured, listExamSyncLog, listPracticalSyncLog, retryPracticalSync, retryTheorySync,
+  isTtdtSyncConfigured, listExamSyncLog, listPracticalSyncLog, retryPracticalSync, retryTheorySync,
 } from '../application/ttdt-sync';
 import type { SyncStatus } from '../domain/sync-log';
 
@@ -33,9 +33,4 @@ export function useRetrySync() {
       source === 'theory' ? retryTheorySync(attemptId) : retryPracticalSync(attemptId),
     onSuccess: (result) => { if (result.success) void invalidate(); },
   });
-}
-
-export function useCleanupSyncLogs() {
-  const invalidate = useInvalidateLogs();
-  return useMutation({ mutationFn: () => cleanupOldSyncLogs({ days: 30, status: 'failed' }), onSuccess: () => void invalidate() });
 }

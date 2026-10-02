@@ -4,7 +4,7 @@ export {
 export type { ModuleWithCourse } from './domain/ttdt-directory';
 export { analyzeCccdByImageFile, isOcrConfigured } from './application/ocr';
 export {
-  cleanupOldSyncLogs, isTtdtSyncConfigured, listExamSyncLog, listPracticalSyncLog, syncAttemptToTtdt, syncPracticalAttemptToTtdt,
+  isTtdtSyncConfigured, listExamSyncLog, listPracticalSyncLog, syncAttemptToTtdt, syncPracticalAttemptToTtdt,
   type SyncResult,
 } from './application/ttdt-sync';
 export type { ExamSyncLogEntry, PracticalSyncLogEntry, SyncStatus } from './domain/sync-log';

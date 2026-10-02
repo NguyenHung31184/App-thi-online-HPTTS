@@ -48,8 +48,3 @@ export function explainTheorySyncError(response: string | null | undefined): str
     '3. Sau khi chỉnh sửa, quay lại màn Đồng bộ điểm và bấm "Thử lại".',
   ].join('\n');
 }
-
-/** Cutoff for "Dọn log lỗi cũ": logs created before it are removed. */
-export function syncLogCutoff(now: number, days: number): string {
-  return new Date(now - days * 24 * 60 * 60 * 1000).toISOString();
-}

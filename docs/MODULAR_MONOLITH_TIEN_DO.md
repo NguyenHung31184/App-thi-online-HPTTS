@@ -133,7 +133,7 @@ mục 6 của kế hoạch.
 - Thi thực hành: xóa mẫu, tiêu chí, kỳ thi cũng là xóa cứng (`src/modules/practical-exams/data/`). Chờ quyết định cùng
   việc trên.
 - Trang chấm thực hành và trang học viên nộp ảnh chưa thử trên dữ liệu thật (production chưa có kỳ thi thực hành nào).
-- "Dọn lỗi cũ (30 ngày)" ở Nhật ký đồng bộ xóa hẳn log lỗi cũ; chờ quyết định cùng các việc xóa cứng ở trên.
+- "Dọn lỗi cũ (30 ngày)" ở Nhật ký đồng bộ: đã bỏ nút 2026-10-02 (không có quyền xóa nên chưa từng xóa được gì), xem `docs/implementation/2026-10-02-ttdt-resend-and-sync-log-cleanup.md`.
 - Giai đoạn 5 chưa thử đăng nhập bằng tài khoản giáo viên và học viên thật (chặn quyền đã có test theo vai trò).
 - Giai đoạn 6 chỉ bắt đầu sau một buổi thi thử có giám sát AI chạy ổn định, không làm trong ngày có ca thi thật.
 - Kịch bản Edge của buổi thi thử 2026-09-30 chưa đưa vào repo thành smoke test.

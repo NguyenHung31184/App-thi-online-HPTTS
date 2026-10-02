@@ -31,17 +31,6 @@ export async function selectClassNamesById(classIds: string[]): Promise<Map<stri
   return map;
 }
 
-/** Hard delete of old log rows with this status, kept from before the move; each table is tried on its own. */
-export async function deleteSyncLogsBefore(cutoff: string, status: SyncStatus): Promise<void> {
-  for (const table of ['exam_sync_log', 'practical_sync_log'] as const) {
-    try {
-      await supabase.from(table).delete().lt('created_at', cutoff).eq('status', status);
-    } catch (err) {
-      console.warn(`[cleanupOldSyncLogs] ${table}:`, err);
-    }
-  }
-}
-
 /** Whether the attempt and its exam exist, before asking for a retry. */
 export async function selectTheoryAttemptRef(attemptId: string): Promise<{ attempt: boolean; exam: boolean }> {
   const { data: attempt } = await supabase.from('attempts').select('id, exam_id').eq('id', attemptId).maybeSingle();

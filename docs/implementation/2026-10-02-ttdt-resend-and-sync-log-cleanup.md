@@ -1,6 +1,6 @@
 # Missing TTDT grades (March, April 2026) and the "Dọn lỗi cũ" button
 
-- Status: button removal in code (step 1); resend waiting for operator confirmation (step 2).
+- Status: step 1 done 2026-10-02 (not pushed); step 2 waiting for operator confirmation.
 - Date: 2026-10-02
 - Database: no migration. Step 2 writes TTDT grades through the existing `/api/sync-ttdt` endpoint.
 - Rollback: `docs/rollback/2026-10-02-ttdt-resend-and-sync-log-cleanup.md`
@@ -36,3 +36,7 @@
 
 Step 1: `npm run check:boundaries`, `npm test`, `npx tsc -b`, `npm run lint`, `npm run build`; Edge, local build:
 `/admin/sync` without the button, tabs and filter unchanged.
+
+Step 1 notes: checks pass (195 tests, the cutoff test went with the function). Edge, local build with
+`VITE_TTDT_SYNC_ENABLED=1`: no "Dọn lỗi cũ", "Tải lại" there, theory tab 13/13, failed filter shows 13 "Thử lại",
+practical tab empty as in production, no page errors.

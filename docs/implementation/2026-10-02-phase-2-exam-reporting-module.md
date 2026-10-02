@@ -1,6 +1,7 @@
 # Modular monolith phase 2: `exam-reporting` module
 
-- Status: in progress.
+- Status: done 2026-10-02 (steps 1–4 and cleanup committed, not pushed yet). Result: 54.3% of business code in modules,
+  25/46 routes.
 - Date: 2026-10-02
 - Database: none. Behaviour and screens unchanged (moves only).
 - Rollback: `docs/rollback/2026-10-02-phase-2-exam-reporting-module.md`

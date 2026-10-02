@@ -170,10 +170,6 @@
       "phase": 6
     },
     {
-      "file": "src/services/dashboardService.ts",
-      "phase": 2
-    },
-    {
       "file": "src/services/elearningStudyService.ts",
       "phase": 4
     },
@@ -200,10 +196,6 @@
     {
       "file": "src/services/profileService.ts",
       "phase": 5
-    },
-    {
-      "file": "src/services/reportService.ts",
-      "phase": 2
     },
     {
       "file": "src/services/syncLogService.ts",

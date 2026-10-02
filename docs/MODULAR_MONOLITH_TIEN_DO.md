@@ -13,7 +13,7 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 | 0 | Luật kiến trúc, allowlist, điểm đo | Xong | 2026-10-02 | 25,3% · 14/49 route · 4/10 | Đã push | Không |
 | 1a | Bỏ trang thêm/sửa/nhập câu hỏi theo đề | Xong | 2026-10-02 | không đo riêng | Đã push | Không |
 | 1b | Module `exam-management` | Xong | 2026-10-02 | 43,6% · 22/46 route · 5/10 | Đã push | Không |
-| 2 | Module `exam-reporting` | Đang làm | 2026-10-02 | | Chưa | Không |
+| 2 | Module `exam-reporting` | Xong | 2026-10-02 | 54,3% · 25/46 route · 5/10 | Chưa | Không |
 | 3 | Module `practical-exams` | Chưa làm | | | | |
 | 4 | Module `learning` | Chưa làm | | | | |
 | 5 | `identity-access` và `integrations` | Chưa làm | | | | |
@@ -45,7 +45,18 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 - Tài liệu: [implementation](implementation/2026-10-02-phase-1b-exam-management-module.md) ·
   [rollback](rollback/2026-10-02-phase-1b-exam-management-module.md)
 
-Commit chỉ có tài liệu: `4871f6d` (nhật ký). Không cần revert khi rollback.
+### Giai đoạn 2
+
+- `e32affd` tài liệu kế hoạch giai đoạn 2.
+- `3db4e2d` bước 1: luật báo cáo thuần trong `domain/` kèm test.
+- `35c8398` bước 2: tầng data và application; `reportService`, `dashboardService` thành re-export.
+- `f4d5bec` bước 3: trang Kết quả một lượt thi vào module.
+- `1f7f11f` bước 4: Báo cáo và Dashboard admin vào module; route lấy từ `public.ts`.
+- Bước 5 _(commit cuối của giai đoạn)_: xóa `reportService`, `dashboardService`; README module.
+- Tài liệu: [implementation](implementation/2026-10-02-phase-2-exam-reporting-module.md) ·
+  [rollback](rollback/2026-10-02-phase-2-exam-reporting-module.md)
+
+Commit chỉ có tài liệu: `4871f6d`, `ce48a3d`, `e32affd`. Không cần revert khi rollback.
 
 ## Cách rollback
 
@@ -58,12 +69,15 @@ sau đó revert bình thường rồi push. Các mốc an toàn:
 |---|---|
 | Trước giai đoạn 0 | `2f3bf4d` (chỉ tài liệu sau `0267b37`) |
 | Sau giai đoạn 0 | `ca8f136` |
-| Sau giai đoạn 1b | `4871f6d` |
+| Sau giai đoạn 1b | `4871f6d` (hoặc `ce48a3d`, chỉ thêm tài liệu) |
 
 **Lùi bằng git** (giai đoạn chỉ chuyển code, không có migration):
 
 ```bash
-# Lùi giai đoạn 1b
+# Lùi giai đoạn 2 (thay <bước 5> bằng hash commit bước 5)
+git revert --no-edit <bước 5> 1f7f11f f4d5bec 35c8398 3db4e2d
+
+# Lùi giai đoạn 1b (phải lùi 2 trước)
 git revert --no-edit ad99cd0 b786e65 c4832af fd9caf5 5578bd7
 
 # Lùi giai đoạn 1a (phải lùi 1b trước)
@@ -119,12 +133,12 @@ Mỗi bước một commit, không đổi database, không đổi giao diện:
 - [x] Bước 4, UI và route: `ReportPage`, `AttemptResultPage`, `AdminDashboardPage` vào `exam-reporting/ui`, export
   qua `public.ts`; `App.tsx` trỏ route `dashboard`, `report`, `attempts/:attemptId/result` vào module;
   `DashboardPage` lấy số liệu qua `exam-reporting/public`.
-- [ ] Bước 5, dọn: xóa `reportService.ts`, `dashboardService.ts`, 3 trang cũ; sinh lại allowlist; README module; đo
+- [x] Bước 5, dọn: xóa `reportService.ts`, `dashboardService.ts`, 3 trang cũ; sinh lại allowlist; README module; đo
   `arch:score` (dự kiến khoảng 54–56%, 25/46 route).
-- [ ] Mỗi bước: `npm test`, `npx tsc -b`, `npm run lint`, `npm run check:boundaries`, `npm run build`.
+- [x] Mỗi bước: `npm test`, `npx tsc -b`, `npm run lint`, `npm run check:boundaries`, `npm run build`.
 - [x] Edge, chỉ xem, bản local: dashboard admin khớp production; báo cáo lọc theo đề, kỳ, lớp khớp số dòng; xuất Excel
   kết quả và vi phạm, mở file xem cột; mở bằng chứng AI; trang kết quả một lượt thi có ảnh lúc vào thi và đáp án.
   Không bấm duyệt sự việc AI trên dữ liệu thật nếu chưa được cho phép.
-- [ ] Điều kiện xong: điểm AI tổng hợp theo lượt; link bằng chứng ký lại khi xem; Excel và bộ lọc giữ nguyên; giám sát
+- [x] Điều kiện xong: điểm AI tổng hợp theo lượt; link bằng chứng ký lại khi xem; Excel và bộ lọc giữ nguyên; giám sát
   trực tiếp vẫn ở `exam-monitoring`.
-- [ ] Cập nhật file này, `ROLLBACK.md`, `DIARY.md`; hỏi trước khi push.
+- [x] Cập nhật file này, `ROLLBACK.md`, `DIARY.md`. Chờ người vận hành cho push.

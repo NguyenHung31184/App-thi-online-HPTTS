@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-10-02 (chiều) | Modular monolith: file theo dõi tiến độ, giai đoạn 2
+
+### Đã làm
+- Push 1a, 1b (`ca8f136..4871f6d`, CI đạt) và file theo dõi `docs/MODULAR_MONOLITH_TIEN_DO.md` (`ce48a3d`): bảng
+  giai đoạn, commit, lệnh rollback, việc còn mở.
+- Giai đoạn 2, module `exam-reporting` (`e32affd` … bước 5): Dashboard admin, Báo cáo lý thuyết, trang kết quả một
+  lượt thi; xóa `reportService`, `dashboardService`. Luật thuần vào `domain/` kèm 27 test (tổng 175).
+- Kết quả: 54.3% mã nghiệp vụ trong module, 25/46 route, 5/10 tiêu chí.
+- Kiểm tra trên Edge (bản local so với production, chỉ xem): dashboard giống hệt; 6 đề có số bài và số tín hiệu khớp;
+  2 file Excel đúng tên sheet và cột; link bằng chứng AI mở được (ký mới); trang kết quả một lượt thi khớp điểm, 50 câu,
+  ảnh lúc vào thi hiện.
+
+### Vấn đề gặp
+- Phiên đăng nhập production trong Edge hết hạn; người dùng đăng nhập lại.
+- Lỗi có sẵn: tab "Tín hiệu giám sát" không lọc theo đề/kỳ thi và dừng ở 1.000 dòng (production cũng vậy). Ghi lại,
+  chưa sửa.
+
+### Kế hoạch tiếp theo
+- Hỏi người dùng trước khi push giai đoạn 2.
+- Sửa lọc tín hiệu giám sát (việc riêng).
+- Giai đoạn 3 (`practical-exams`).
+
+---
+
 ## 2026-10-02 | Modular monolith: giai đoạn 0, 1a, 1b
 
 ### Đã làm

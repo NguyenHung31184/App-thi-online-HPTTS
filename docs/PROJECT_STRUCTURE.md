@@ -20,6 +20,11 @@ src/
       domain/ application/ data/ queries/ public.ts
     question-bank/      # Ngân hàng câu hỏi: một ngân hàng mỗi mô-đun (Phase C, C2)
       domain/ application/ data/ queries/ ui/ public.ts
+    exam-management/    # Đề thi, kỳ thi, kiểm tra ngân hàng của đề
+    exam-monitoring/    # Giám sát trực tiếp kỳ thi đang chạy
+    exam-reporting/     # Dashboard admin, Báo cáo lý thuyết, kết quả một lượt thi
+    integrations/       # Danh bạ TTDT (lớp, mô-đun); đồng bộ, OCR chuyển sau
+  shared/ui/           # Thành phần giao diện dùng chung, không mang nghiệp vụ
   App.tsx              # Toàn bộ routes (import trực tiếp, không lazy)
   contexts/AuthContext.tsx   # Supabase Auth + StudentSession (CCCD)
   lib/supabaseClient.ts
@@ -41,8 +46,8 @@ Lát `exam-taking` đã chuyển luồng danh sách kỳ thi, vào thi, lưu đ�
 Lát `question-bank` giữ toàn bộ ngân hàng câu hỏi: danh sách ngân hàng, cây kiến thức, danh sách câu
 (lọc, chọn nhiều để đổi trạng thái hoặc xóa, xuất Excel), editor 7 loại câu, nhập Excel/CSV/ZIP,
 phiếu nhập tài liệu (P1). Các trang cũ `/admin/questions/...` đã bỏ; URL cũ chuyển hướng sang ngân hàng.
-Các CRUD quản trị đề/cửa sổ thi, thi thực hành, chấm và báo cáo vẫn là facade cũ; sẽ chuyển từng
-use case, không di chuyển hàng loạt file.
+Đề thi, kỳ thi (`exam-management`) và báo cáo (`exam-reporting`) đã chuyển. Thi thực hành, học trực tuyến,
+định danh và đồng bộ TTDT còn ở `services/`; thứ tự và tiến độ ở `docs/MODULAR_MONOLITH_TIEN_DO.md`.
 
 ## Routes học viên
 

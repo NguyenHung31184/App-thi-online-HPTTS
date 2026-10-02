@@ -32,7 +32,7 @@ This ledger is the entry point for people and coding agents continuing the proje
 
 Found in the 2026-09-30 trial exam: entering again created a new attempt; fix `docs/implementation/2026-10-01-resume-in-progress-attempt.md` (migration applied 2026-10-01).
 
-Modular monolith plan `docs/implementation/2026-10-01-modular-monolith-90-plan.md`: progress, commits and rollback per phase in `docs/MODULAR_MONOLITH_TIEN_DO.md` (phases 0, 1a, 1b done; 43.6%, 5/10, 22/46 routes). Phase 2 in progress: `docs/implementation/2026-10-02-phase-2-exam-reporting-module.md`.
+Modular monolith plan `docs/implementation/2026-10-01-modular-monolith-90-plan.md`: progress, commits and rollback per phase in `docs/MODULAR_MONOLITH_TIEN_DO.md` (phases 0, 1a, 1b done; 43.6%, 5/10, 22/46 routes). Phase 2 done (`docs/implementation/2026-10-02-phase-2-exam-reporting-module.md`; 54.3%, 5/10, 25/46 routes). Found: the report's signals tab does not filter by exam or window and stops at 1,000 rows (pre-existing, to fix separately).
 
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.
 

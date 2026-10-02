@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-02 — Module `exam-reporting` (giai đoạn 2)
+
+**Commit:** `3db4e2d` (domain), `35c8398` (data, application), `f4d5bec` (trang kết quả một lượt thi), `1f7f11f` (Báo cáo, Dashboard admin), bước 5 _(commit này: xóa `reportService`, `dashboardService`)_
+**Branch:** main
+
+Chỉ chuyển code, không đổi database, giao diện giữ nguyên. Rollback: `git revert` theo thứ tự ngược; xem `docs/rollback/2026-10-02-phase-2-exam-reporting-module.md` và `docs/MODULAR_MONOLITH_TIEN_DO.md`.
+
+---
+
 ## 2026-10-02 — Module `exam-management` (giai đoạn 1b)
 
 **Commit:** `5578bd7` (bước 1: data, application), `fd9caf5` và `c4832af` (chuẩn bị: `shared/ui`, module `integrations`), `b786e65` (bước 2: 6 trang Đề thi, Kỳ thi, Kiểm tra ngân hàng vào module), bước 3 _(commit này: các trang khác import từ `public.ts`, xóa 4 service trung gian)_

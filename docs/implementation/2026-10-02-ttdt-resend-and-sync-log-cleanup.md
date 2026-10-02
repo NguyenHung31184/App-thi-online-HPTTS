@@ -1,6 +1,6 @@
 # Missing TTDT grades (March, April 2026) and the "Dọn lỗi cũ" button
 
-- Status: step 1 done and pushed 2026-10-02 (`2a89559`); step 2 waiting for operator confirmation.
+- Status: step 1 done and pushed 2026-10-02 (`2a89559`); step 2 sent 2026-10-02 (operator: send the 66, keep the 6).
 - Date: 2026-10-02
 - Database: no migration. Step 2 writes TTDT grades through the existing `/api/sync-ttdt` endpoint.
 - Rollback: `docs/rollback/2026-10-02-ttdt-resend-and-sync-log-cleanup.md`
@@ -40,3 +40,14 @@ Step 1: `npm run check:boundaries`, `npm test`, `npx tsc -b`, `npm run lint`, `n
 Step 1 notes: checks pass (195 tests, the cutoff test went with the function). Edge, local build with
 `VITE_TTDT_SYNC_ENABLED=1`: no "Dọn lỗi cũ", "Tải lại" there, theory tab 13/13, failed filter shows 13 "Thử lại",
 practical tab empty as in production, no page errors.
+
+Step 2 notes (2026-10-02, about 21:45 Vietnam time): 66 POSTs, all HTTP 502 with "Không ghi được nhật ký: invalid
+input syntax for type uuid" and the module id (`m07`, `mod…`). Read back with the service key: all 66 now have
+`grade_details.final_exam_score` equal to the attempt score and `synced_to_ttdt_at` set; their 66 `exam_sync_jobs` rows
+are `pending` (attempt 1), so the worker sends them again with backoff until the log insert works. TTDT receives the
+same score each time.
+
+Cause: `exam_sync_log.module_id` is `uuid` (`001_mvp_tables.sql`) while TTDT module ids are text; the server sync since
+2026-09-29 writes the module id into the log, so every theory sync fails at the log step after delivering the grade.
+`practical_sync_log.module_id` was already changed to text in May. Fix: a migration changing the column to text
+(operator approval), separate entry.

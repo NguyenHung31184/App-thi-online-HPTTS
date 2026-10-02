@@ -9,3 +9,4 @@ export {
 } from './application/ttdt-sync';
 export type { ExamSyncLogEntry, PracticalSyncLogEntry, SyncStatus } from './domain/sync-log';
 export { default as SyncLogPage } from './ui/sync-log/SyncLogPage';
+export { SyncStatusChip } from './ui/SyncStatusChip';

@@ -20,7 +20,7 @@ export const authConfigured = (): boolean => isSupabaseConfigured();
 export async function readSessionAccount(): Promise<{ account: AuthAccount | null; error: boolean }> {
   const { data, error } = await supabase.auth.getSession();
   if (error) {
-    void supabase.auth.signOut();
+    void supabase.auth.signOut({ scope: 'local' });
     return { account: null, error: true };
   }
   return { account: data.session?.user ? accountOf(data.session.user) : null, error: false };
@@ -48,8 +48,9 @@ export async function signInWithPassword(email: string, password: string): Promi
   return { account: data.session?.user ? accountOf(data.session.user) : null };
 }
 
+/** This device only: the same account may be signed in to Sổ chuyên cần or the TTDT app. */
 export async function signOutSession(): Promise<void> {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: 'local' });
 }
 
 export async function currentAccessToken(): Promise<string | null> {

@@ -43,3 +43,10 @@ export async function practicalAttemptExists(attemptId: string): Promise<boolean
   const { data } = await supabase.from('practical_attempts').select('id').eq('id', attemptId).maybeSingle();
   return Boolean(data);
 }
+
+/** Grades waiting in the server queue (pending or being sent). */
+export async function countWaitingSyncJobs(): Promise<number> {
+  const { count, error } = await supabase.from('exam_sync_jobs').select('id', { count: 'exact', head: true }).in('status', ['pending', 'processing']);
+  if (error) throw error;
+  return count ?? 0;
+}

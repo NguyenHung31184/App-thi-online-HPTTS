@@ -17,7 +17,7 @@ export default function RoleSelectPage() {
             onClick={() => navigate('/login')}
             className="group rounded-xl border border-slate-200 p-4 text-left hover:border-brand-500 transition-colors bg-slate-50"
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 mb-1">Quản trị</p>
+            <p className="text-sm font-semibold text-brand-700 mb-1">Quản trị</p>
             <p className="font-semibold text-slate-800 mb-1">Admin</p>
             <p className="text-xs text-slate-500">
               Đăng nhập bằng email và mật khẩu để cấu hình đề thi, kỳ thi, xem báo cáo, đồng bộ điểm.
@@ -29,7 +29,7 @@ export default function RoleSelectPage() {
             onClick={() => navigate('/login')}
             className="group rounded-xl border border-slate-200 p-4 text-left hover:border-brand-500 transition-colors bg-slate-50"
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 mb-1">Giáo viên</p>
+            <p className="text-sm font-semibold text-brand-700 mb-1">Giáo viên</p>
             <p className="font-semibold text-slate-800 mb-1">Instructor</p>
             <p className="text-xs text-slate-500">
               Dùng tài khoản được cấp để chấm bài, xem kết quả, hỗ trợ coi thi.
@@ -41,7 +41,7 @@ export default function RoleSelectPage() {
             onClick={() => navigate('/login')}
             className="group rounded-xl border border-slate-200 p-4 text-left hover:border-brand-500 transition-colors bg-slate-50"
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 mb-1">Thí sinh</p>
+            <p className="text-sm font-semibold text-brand-700 mb-1">Thí sinh</p>
             <p className="font-semibold text-slate-800 mb-1">Student</p>
             <p className="text-xs text-slate-500">
               Đăng nhập bằng tài khoản thi (mã học viên/email + mật khẩu). Sau khi đăng nhập, vào mục “Xác thực CCCD” để hệ thống kiểm tra rồi vào phòng thi.

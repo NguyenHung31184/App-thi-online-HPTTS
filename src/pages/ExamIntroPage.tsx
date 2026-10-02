@@ -61,7 +61,7 @@ export default function ExamIntroPage() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col lg:flex-row">
         <div className="lg:w-1/2 bg-slate-900 text-slate-100 flex items-center justify-center p-6">
           <div className="max-w-md">
-            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-slate-400 mb-2">
+            <p className="text-sm font-medium text-slate-600 mb-2">
               App Thi Online · HPTTS
             </p>
             <h1 className="text-2xl font-bold mb-3">{exam.title}</h1>
@@ -76,7 +76,7 @@ export default function ExamIntroPage() {
         <div className="lg:w-1/2 p-6 space-y-4">
 
           <section>
-            <h2 className="text-sm font-semibold text-slate-800 uppercase tracking-wide mb-1">
+            <h2 className="text-base font-semibold text-slate-800 mb-1">
               Mô tả bài thi
             </h2>
             <p className="text-sm text-slate-600">
@@ -86,7 +86,7 @@ export default function ExamIntroPage() {
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold text-slate-800 uppercase tracking-wide mb-1">
+            <h2 className="text-base font-semibold text-slate-800 mb-1">
               Quy định trong phòng thi
             </h2>
             <ol className="list-decimal list-inside space-y-1 text-sm text-slate-600">
@@ -107,7 +107,7 @@ export default function ExamIntroPage() {
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold text-slate-800 uppercase tracking-wide mb-1">
+            <h2 className="text-base font-semibold text-slate-800 mb-1">
               Lưu ý kỹ thuật
             </h2>
             <ul className="list-disc list-inside space-y-1 text-sm text-slate-600">

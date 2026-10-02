@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { adminAreaAccess, useAuth } from '../../modules/identity-access/public';
 import AppLayout, { type NavSection } from '../../components/AppLayout';
+import { SyncStatusChip } from '../../modules/integrations/public';
+import { NetworkChip } from '../../shared/ui/NetworkChip';
 import {
   ExamIcon,
   CalendarIcon,
@@ -13,7 +15,7 @@ import {
 } from '../../components/Icons';
 
 const adminTitles: Record<string, string> = {
-  '/admin/dashboard': 'Dashboard',
+  '/admin/dashboard': 'Tổng quan',
   '/admin/question-libraries': 'Ngân hàng câu hỏi',
   '/admin/exams': 'Đề thi & ma trận',
   '/admin/questions': 'Ngân hàng câu hỏi',
@@ -48,12 +50,12 @@ export default function AdminLayout() {
       return [
         {
           id: 'home',
-          title: 'HOME',
-          items: [{ to: '/admin/dashboard', label: 'Dashboard', icon: DashboardIcon }],
+          title: 'Trang chủ',
+          items: [{ to: '/admin/dashboard', label: 'Tổng quan', icon: DashboardIcon }],
         },
         {
           id: 'theory',
-          title: 'THI LÝ THUYẾT',
+          title: 'Thi lý thuyết',
           items: [
             { to: '/admin/question-libraries', label: 'Ngân hàng câu hỏi', icon: QuestionBankIcon },
             { to: '/admin/exams', label: 'Đề thi & ma trận', icon: ExamIcon },
@@ -65,12 +67,12 @@ export default function AdminLayout() {
     return [
       {
         id: 'home',
-        title: 'HOME',
-        items: [{ to: '/admin/dashboard', label: 'Dashboard', icon: DashboardIcon }],
+        title: 'Trang chủ',
+        items: [{ to: '/admin/dashboard', label: 'Tổng quan', icon: DashboardIcon }],
       },
       {
         id: 'theory',
-        title: 'THI LÝ THUYẾT',
+        title: 'Thi lý thuyết',
         items: [
           { to: '/admin/question-libraries', label: 'Ngân hàng câu hỏi', icon: QuestionBankIcon },
           { to: '/admin/exams', label: 'Đề thi & ma trận', icon: ExamIcon },
@@ -80,7 +82,7 @@ export default function AdminLayout() {
       },
       {
         id: 'practical',
-        title: 'THI THỰC HÀNH',
+        title: 'Thi thực hành',
         items: [
           { to: '/admin/practical-templates', label: 'Mẫu đánh giá', icon: PracticalIcon },
           { to: '/admin/practical-sessions', label: 'Ca thi thực hành', icon: CalendarIcon },
@@ -89,7 +91,7 @@ export default function AdminLayout() {
       },
       {
         id: 'system',
-        title: 'HỆ THỐNG',
+        title: 'Hệ thống',
         items: [{ to: '/admin/sync', label: 'Nhật ký đồng bộ TTDT', icon: SyncIcon }],
       },
     ];
@@ -111,6 +113,8 @@ export default function AdminLayout() {
     <AppLayout
       navSections={navSections}
       title={title}
+      breadcrumb="Quản trị"
+      headerChips={<><NetworkChip />{!isTeacher && <SyncStatusChip />}</>}
       userEmail={user.email}
       userRole={isTeacher ? 'Giáo viên' : 'Admin'}
       onLogout={() => signOut()}

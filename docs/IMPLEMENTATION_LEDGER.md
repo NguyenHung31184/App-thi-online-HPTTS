@@ -38,6 +38,7 @@ Missing TTDT grades for March and April 2026 (browser-only sync before 29/09) an
 The theory sync log could not store TTDT module ids (uuid column), so every server sync since 29/09 failed after delivering: `docs/implementation/2026-10-02-exam-sync-log-module-id.md`.
 Practical grades from Sổ chuyên cần go through the server queue with the TTDT student id (RTG exam 2026-10-09): `docs/implementation/2026-10-03-practical-field-grading-sync.md`.
 Practical templates get the field grading set-up, a TTDT module and soft delete: `docs/implementation/2026-10-03-practical-field-config.md`.
+App shell following the practical-exam mock-up (HPTTS identity kept), local sign-out: `docs/implementation/2026-10-03-shell-theo-mau-hptts.md`.
 
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.
 

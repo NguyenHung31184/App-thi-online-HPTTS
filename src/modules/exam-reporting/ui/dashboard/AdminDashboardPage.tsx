@@ -56,26 +56,26 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <h2 className="text-xl font-bold text-slate-800 mb-4">Dashboard báo cáo</h2>
+      <h2 className="sr-only">Báo cáo nhanh</h2>
       {loading && <p className="text-slate-500 text-sm">Đang tải thống kê...</p>}
       {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
       {stats && (
         <>
           <div className="grid gap-4 md:grid-cols-3 mb-6">
             <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Kỳ thi đang mở</p>
+              <p className="text-sm font-medium text-slate-600 mb-1">Kỳ thi đang mở</p>
               <p className="text-2xl font-bold text-slate-900">{stats.openWindowsToday}</p>
               <p className="text-xs text-slate-500 mt-1">Trong thời điểm hiện tại</p>
             </div>
             <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Bài làm hôm nay</p>
+              <p className="text-sm font-medium text-slate-600 mb-1">Bài làm hôm nay</p>
               <p className="text-2xl font-bold text-slate-900">{stats.attemptsToday}</p>
               <p className="text-xs text-slate-500 mt-1">
                 Trong tổng số {stats.attemptsLast7Days} bài trong 7 ngày
               </p>
             </div>
             <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
+              <p className="text-sm font-medium text-slate-600 mb-1">
                 Tỷ lệ Đạt (7 ngày)
               </p>
               <p className="text-2xl font-bold text-emerald-600">

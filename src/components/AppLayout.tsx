@@ -18,6 +18,10 @@ interface AppLayoutProps {
   children: ReactNode;
   navSections: NavSection[];
   title: string;
+  /** Area shown before the title, e.g. "Quản trị". */
+  breadcrumb?: string;
+  /** Real-state chips on the right of the header (network, TTDT queue). */
+  headerChips?: ReactNode;
   userEmail?: string;
   userRole?: string;
   onLogout: () => void;
@@ -43,11 +47,11 @@ function NavLink({
       to={to}
       onClick={onClick}
       aria-current={isActive ? 'page' : undefined}
-      className={`group flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
-        isActive ? 'bg-white text-brand-700' : 'text-slate-200 hover:bg-white/10 hover:text-white'
+      className={`group flex items-center px-4 min-h-11 text-sm font-semibold rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+        isActive ? 'bg-brand-700 text-white shadow-[inset_3px_0_0_#33BBED]' : 'text-slate-200 hover:bg-white/10 hover:text-white'
       }`}
     >
-      <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-brand-500' : 'text-slate-300 group-hover:text-white'}`} />
+      <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'}`} />
       {label}
     </Link>
   );
@@ -70,6 +74,8 @@ export default function AppLayout({
   children,
   navSections,
   title,
+  breadcrumb,
+  headerChips,
   userEmail,
   userRole,
   onLogout,
@@ -124,7 +130,7 @@ export default function AppLayout({
         <nav className="flex-1 space-y-4 overflow-y-auto pr-1">
           {navSections.map((section) => (
             <div key={section.id} className="space-y-1">
-              <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-300/80">
+              <p className="px-2 text-xs font-semibold text-slate-300">
                 {section.title}
               </p>
               <div className="space-y-1">
@@ -184,8 +190,12 @@ export default function AppLayout({
             >
               <MenuIcon className="w-6 h-6" />
             </button>
-            <h2 className="text-xl font-bold text-slate-800 truncate">{title}</h2>
+            <div className="min-w-0">
+              {breadcrumb && <p className="text-xs text-slate-500">{breadcrumb} ›</p>}
+              <h2 className="text-xl font-bold text-slate-800 truncate leading-tight">{title}</h2>
+            </div>
           </div>
+          {headerChips && <div className="flex items-center gap-2 shrink-0">{headerChips}</div>}
         </header>
         <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full relative">{children}</div>
       </div>

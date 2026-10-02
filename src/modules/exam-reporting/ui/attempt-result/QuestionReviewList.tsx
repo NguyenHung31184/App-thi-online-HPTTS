@@ -33,13 +33,13 @@ export function QuestionReviewList({ items }: { items: QuestionReviewItem[] }) {
             )}
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
-                <p className="text-xs uppercase text-slate-500 mb-0.5">Học viên đã chọn</p>
+                <p className="text-xs text-slate-500 mb-0.5">Học viên đã chọn</p>
                 <p className={it.correct ? 'text-emerald-700 font-medium' : it.chosen ? 'text-red-700 font-medium' : 'text-slate-400 italic'}>
                   {answerLabel(it.options, it.chosen, it.question_type)}
                 </p>
               </div>
               <div>
-                <p className="text-xs uppercase text-slate-500 mb-0.5">Đáp án đúng</p>
+                <p className="text-xs text-slate-500 mb-0.5">Đáp án đúng</p>
                 <p className="text-emerald-700 font-medium">
                   {answerLabel(it.options, it.answer_key, it.question_type)}
                 </p>

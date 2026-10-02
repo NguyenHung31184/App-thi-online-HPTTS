@@ -1,6 +1,6 @@
 import type { Attempt } from '../../../types';
 import {
-  practicalAttemptExists, selectClassNamesById, selectExamSyncLog, selectPracticalSyncLog, selectTheoryAttemptRef,
+  countWaitingSyncJobs, practicalAttemptExists, selectClassNamesById, selectExamSyncLog, selectPracticalSyncLog, selectTheoryAttemptRef,
 } from '../data/sync-log-repository';
 import { requestSync, syncEnabled, type SyncResult } from '../data/ttdt-sync-client';
 import { withClassNames, type ExamSyncLogEntry, type PracticalSyncLogEntry, type SyncStatus } from '../domain/sync-log';
@@ -51,3 +51,5 @@ export async function retryPracticalSync(practicalAttemptId: string): Promise<{ 
   const result = await syncPracticalAttemptToTtdt(practicalAttemptId);
   return result.success ? { success: true, message: 'Đồng bộ thành công.' } : { success: false, message: result.message ?? 'Đồng bộ thất bại.' };
 }
+
+export const waitingSyncCount = (): Promise<number> => countWaitingSyncJobs();

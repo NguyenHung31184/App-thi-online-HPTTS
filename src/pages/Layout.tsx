@@ -24,8 +24,8 @@ export default function Layout() {
       return [
         {
           id: 'home',
-          title: 'HOME',
-          items: [{ to: '/dashboard', label: 'Dashboard', icon: DashboardIcon }],
+          title: 'Trang chủ',
+          items: [{ to: '/dashboard', label: 'Tổng quan', icon: DashboardIcon }],
         },
         {
           id: 'preview',
@@ -38,16 +38,16 @@ export default function Layout() {
     const sections: NavSection[] = [
       {
         id: 'home',
-        title: 'HOME',
-        items: [{ to: '/dashboard', label: 'Dashboard', icon: DashboardIcon }],
+        title: 'Trang chủ',
+        items: [{ to: '/dashboard', label: 'Tổng quan', icon: DashboardIcon }],
       },
       {
         id: 'student',
-        title: 'STUDENT',
+        title: 'Thí sinh',
         items: [
           { to: '/student/learn', label: 'Học trực tuyến', icon: DashboardIcon },
-          { to: '/student/exams', label: 'Exams', icon: ExamIcon },
-          { to: '/student/results', label: 'Result', icon: GradingIcon },
+          { to: '/student/exams', label: 'Bài thi', icon: ExamIcon },
+          { to: '/student/results', label: 'Kết quả', icon: GradingIcon },
           { to: '/verify-cccd', label: 'Xác thực CCCD', icon: IdCardIcon },
         ],
       },
@@ -56,7 +56,7 @@ export default function Layout() {
     if (isAdmin) {
       sections.push({
         id: 'admin',
-        title: 'ADMIN',
+        title: 'Quản trị',
         items: [{ to: '/admin', label: 'Quản trị', icon: SettingsIcon }],
       });
     }

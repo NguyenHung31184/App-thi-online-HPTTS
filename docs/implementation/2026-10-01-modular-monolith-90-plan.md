@@ -2,8 +2,10 @@
 
 - Ngày lập: 2026-10-01
 - Baseline: commit production `0267b37`
-- Trạng thái hiện tại: khoảng 46/100
+- Trạng thái hiện tại: khoảng 46/100 (ước lượng; con số chính thức lấy từ `scripts/architecture-score.mjs` ở Giai đoạn 0)
 - Mục tiêu: tối thiểu 90/100, giữ nguyên hành vi nghiệp vụ và triển khai tăng dần
+- Rà soát 2026-10-02 (người vận hành đồng ý): bổ sung hiện trạng, bỏ các trang câu hỏi theo đề ghi vào bảng cũ, đổi thứ tự
+  giai đoạn để màn thi làm sau cùng, gán giai đoạn cho mọi service cũ, thêm bước chạy thử migration.
 
 ## 1. Hiện trạng đo được
 
@@ -14,7 +16,24 @@
 - `src/services` còn 21 file, khoảng 3.794 dòng.
 - `src/pages`, `src/components`, `src/services` còn khoảng 16.465 dòng.
 - `ExamTakePage.tsx` còn 1.377 dòng và đang điều phối nhiều trách nhiệm.
-- Boundary check đã chạy trong CI nhưng chưa kiểm soát đầy đủ hướng phụ thuộc giữa các layer.
+- Boundary check đã chạy trong CI nhưng chưa kiểm soát đầy đủ hướng phụ thuộc giữa các layer, và chỉ chặn
+  `lib/supabaseClient`, chưa chặn `platform/supabase/client`.
+
+Bổ sung khi rà soát (2026-10-02, đo không tính file test: 53/133 file, khoảng 5.900/23.758 dòng ≈ 25%):
+
+- Các trang câu hỏi theo đề có ba phần khác nhau:
+  - `/admin/exams/:id/questions` (`AdminQuestionsPage`, 596 dòng) là trang **Kiểm tra ngân hàng câu hỏi** của đề: đọc
+    `question_bank`, kiểm tra blueprint, số lần bốc, mô phỏng bốc thăm, xuất CSV. Còn dùng.
+  - `/admin/exams/:id/questions/new`, `/:qId`, `/import` (`AdminQuestionFormPage` 826 dòng, `AdminQuestionImportPage`
+    669 dòng, `questionService` 301 dòng, `questionImportService` 633 dòng) ghi vào bảng cũ `questions` (750 câu, câu
+    mới nhất 2026-04-21). Đề thi chỉ bốc từ `question_bank`; 60 ngày qua không lượt thi nào dùng bảng cũ; không còn
+    liên kết nào trong app dẫn tới các trang này.
+  - Nút "Câu hỏi (n)" ở trang chi tiết đề đếm bảng cũ (đề QC hiện 0 trong khi ngân hàng có 150 câu).
+- Service không còn consumer: `essayGradingService` (màn chấm tự luận đã bỏ), `occupationService`.
+- Service chưa có giai đoạn nhận trong bản đầu: `dashboardService` (dashboard admin và trang chủ học viên),
+  `examUploadService`, `ttdtDataService` (6 trang dùng), `ocrService`, `questionBankService`.
+- Gọi Supabase trực tiếp ngoài `services/`: `contexts/AuthContext.tsx`, `pages/ExamResultPage.tsx`,
+  `pages/LessonPlayerPage.tsx`.
 
 ## 2. Định nghĩa đạt 90%
 
@@ -30,6 +49,10 @@ Mục tiêu 90% không yêu cầu router, provider và hạ tầng kỹ thuật 
 8. `src/pages` chỉ còn route shell hoặc wrapper không chứa nghiệp vụ.
 9. Các use case quan trọng có unit test; các RPC quan trọng có database integration test.
 10. Boundary rules và architecture score chạy bắt buộc trong CI.
+
+Cách tính điểm: 10 tiêu chí trên là điều kiện đạt/không đạt; các mốc phần trăm ở mục 5 là tỷ lệ dòng mã nghiệp vụ trong
+`src/modules` (không tính test, `src/types/supabase.ts`, `src/app`, `src/platform`, `src/shared`). Script ở Giai đoạn 0
+in cả hai: tỷ lệ dòng mã và số tiêu chí đã đạt. Mã cũ được bỏ hẳn (không chuyển) cũng làm tăng tỷ lệ.
 
 ## 3. Cấu trúc đích
 
@@ -97,6 +120,8 @@ page/component -> Supabase cho nghiệp vụ
 
 ## 5. Các giai đoạn triển khai
 
+Thứ tự đã đổi khi rà soát 2026-10-02: các miền ít rủi ro làm trước, `exam-taking` làm sau cùng.
+
 ### Giai đoạn 0 — Gia cố kiến trúc và đo tự động
 
 Thời gian: 0,5–1 ngày. Mục tiêu dự kiến: 46% -> 50%.
@@ -109,6 +134,7 @@ Thay đổi:
 - Thêm allowlist tạm thời cho page/service cũ; CI không cho tạo thêm legacy business file.
 - Giữ một Supabase client chuẩn tại `platform/supabase/client.ts`.
 - Ghi baseline score vào CI output.
+- Xóa service không còn consumer: `essayGradingService.ts`, `occupationService.ts`.
 
 Điều kiện hoàn thành:
 
@@ -116,9 +142,125 @@ Thay đổi:
 - Score script cho kết quả lặp lại ổn định.
 - Không thay đổi hành vi giao diện hoặc database.
 
-### Giai đoạn 1 — Hoàn thiện `exam-taking` và proctoring
+### Giai đoạn 1 — Tạo `exam-management` và bỏ trang câu hỏi theo đề
 
-Thời gian: 2–3 ngày. Mục tiêu dự kiến: 50% -> 60%.
+Thời gian: 2–3 ngày. Mục tiêu dự kiến: 50% -> 64% (gồm phần mã cũ được bỏ).
+
+Phạm vi:
+
+- Danh sách, tạo, sửa, khóa đề thi.
+- Blueprint và kiểm tra đủ câu.
+- Cửa sổ thi, mã truy cập, số lần thi, chế độ giám sát.
+- Các admin page `AdminExam*`, `AdminWindow*`.
+- `examService.ts`, `examWindowService.ts`.
+- Chuyển trang **Kiểm tra ngân hàng câu hỏi** (`AdminQuestionsPage`) và `questionBankService` vào module; đổi nút
+  "Câu hỏi (n)" thành "Kiểm tra ngân hàng (n câu)" đếm theo `question_bank` của mô-đun (đây là chỗ duy nhất
+  `AdminExamDetailPage` dùng `questionService.listQuestionsByExam`, nên đổi xong thì bỏ được service).
+- Bỏ route `/admin/exams/:id/questions/new`, `/:qId`, `/import` cùng `AdminQuestionFormPage`, `AdminQuestionImportPage`,
+  `questionService.ts`, `questionImportService.ts`. Không thay thế: thêm, sửa, nhập câu hỏi đã có ở Ngân hàng câu hỏi.
+  Không xóa bảng `questions` và 750 câu cũ (giữ trong database; xóa bảng, nếu cần, là một quyết định riêng sau này).
+
+Giao tiếp với `question-bank` chỉ qua `question-bank/public.ts`. Không di chuyển logic ngân hàng câu hỏi sang module quản lý đề.
+
+Điều kiện hoàn thành:
+
+- Toàn bộ route đề thi và cửa sổ thi export từ `exam-management/public.ts`.
+- Không còn page quản lý đề gọi service cũ.
+- Giữ nguyên khóa/mở khóa đề, kiểm tra blueprint, mô phỏng bốc thăm, xuất CSV và dữ liệu của các loại câu hỏi.
+- Không còn route hay mã nào ghi vào bảng `questions`.
+
+### Giai đoạn 2 — Tạo `exam-reporting`
+
+Thời gian: 1,5–2 ngày. Mục tiêu dự kiến: 64% -> 70%.
+
+Phạm vi:
+
+- `AdminReportPage`.
+- `AdminAttemptResultPage`.
+- `reportService.ts`.
+- `dashboardService.ts`: phần thống kê của dashboard admin (phần trang chủ học viên chuyển cùng `exam-taking`).
+- Xuất Excel kết quả và tín hiệu giám sát.
+- Duyệt bằng chứng AI và signed URL.
+
+`exam-reporting` sở hữu read model báo cáo; không đọc repository nội bộ của `exam-taking`. Các RPC/query báo cáo riêng nằm trong `exam-reporting/data`.
+
+Điều kiện hoàn thành:
+
+- Điểm AI được tổng hợp theo lượt thi.
+- Link bằng chứng được ký lại khi xem.
+- Export Excel và bộ lọc giữ nguyên.
+- Monitoring trực tiếp vẫn ở `exam-monitoring`; báo cáo lịch sử ở `exam-reporting`.
+
+### Giai đoạn 3 — Tạo `practical-exams`
+
+Thời gian: 2–3 ngày. Mục tiêu dự kiến: 70% -> 76%.
+
+Phạm vi:
+
+- Template thi thực hành.
+- Phiên thi thực hành.
+- Luồng học viên nộp ảnh/bằng chứng.
+- Luồng giám khảo chấm thi.
+- Các `practical*Service.ts` và admin/student page tương ứng.
+
+Điều kiện hoàn thành:
+
+- Route thực hành do module sở hữu.
+- Upload bằng chứng đi qua adapter platform.
+- Quyền học viên/giám khảo tiếp tục được kiểm tra tại database boundary.
+- Database integration test cho start, submit và grading.
+
+### Giai đoạn 4 — Tạo `learning`
+
+Thời gian: 1–1,5 ngày. Mục tiêu dự kiến: 76% -> 79%.
+
+Phạm vi:
+
+- `StudentLearnPage`.
+- `LessonPlayerPage`.
+- `elearningStudyService.ts`.
+- Tiến độ học và nội dung bài học.
+
+Điều kiện hoàn thành:
+
+- Route học trực tuyến do module sở hữu.
+- Player không gọi trực tiếp Supabase.
+- Có test cho cập nhật tiến độ và chuyển bài.
+
+### Giai đoạn 5 — Identity, CCCD và integrations
+
+Thời gian: 2–3 ngày. Mục tiêu dự kiến: 79% -> 83%.
+
+`identity-access` sở hữu:
+
+- `AuthContext`.
+- Login, chọn vai trò và route guard.
+- Xác thực CCCD.
+- Profile và quyền exam role (`profileService.ts`, `verifyCccdService.ts`, `contexts/AuthContext.tsx`).
+
+`integrations` sở hữu:
+
+- Đồng bộ TTĐT.
+- Nhật ký và retry đồng bộ.
+- OCR orchestration.
+- Admin sync page.
+- `ttdtDataService.ts` (tra lớp, học viên TTĐT cho các form quản trị), `ocrService.ts`, `syncLogService.ts`, `ttdtSyncService.ts`.
+
+Client Supabase, storage transport và media/browser API vẫn thuộc `platform`, không thuộc `identity-access` hay `integrations`.
+
+Điều kiện hoàn thành:
+
+- Route guard có test theo role.
+- Không còn page gọi trực tiếp Supabase cho auth/profile/CCCD.
+- Đồng bộ dùng application use case và durable outbox hiện có.
+
+### Giai đoạn 6 — Hoàn thiện `exam-taking` và proctoring (làm sau cùng)
+
+Thời gian: 2–3 ngày. Mục tiêu dự kiến: 83% -> 90%.
+
+Làm sau cùng vì rủi ro cao nhất: giám sát AI vừa đổi lớn (`0267b37`), buổi thi thử 2026-09-30 vừa phát hiện 2 lỗi
+thật, và sai sót ở đây ảnh hưởng trực tiếp học viên đang thi. Chỉ bắt đầu khi giám sát AI đã qua ít nhất một buổi thi thử
+ổn định, và không triển khai trong ngày có ca thi thật.
 
 Di chuyển:
 
@@ -130,6 +272,8 @@ Di chuyển:
 - `utils/blazeFaceProctor.ts`
 - `utils/mediaPipeFaceProctor.ts`
 - phần nghiệp vụ trong `services/attemptService.ts`
+- `services/examUploadService.ts` thành adapter ở `platform/storage`
+- `pages/DashboardPage.tsx` (trang chủ học viên) và phần học viên của `dashboardService.ts`
 
 Tách `ExamTakePage` thành các use case/hook:
 
@@ -150,109 +294,6 @@ Adapter upload và media browser đặt tại `platform/storage` và `platform/m
 - Giữ nguyên autosave, resume, hết giờ, fullscreen, AI, bằng chứng và nộp bài.
 - Unit test các reducer/state machine; database test các RPC.
 - Kiểm thử thật một kỳ thi thử ở cả `standard`, `strict`, `supervised`.
-
-### Giai đoạn 2 — Tạo `exam-management`
-
-Thời gian: 2–3 ngày. Mục tiêu dự kiến: 60% -> 68%.
-
-Phạm vi:
-
-- Danh sách, tạo, sửa, khóa đề thi.
-- Blueprint và kiểm tra đủ câu.
-- Cửa sổ thi, mã truy cập, số lần thi, chế độ giám sát.
-- Các admin page `AdminExam*`, `AdminWindow*`.
-- `examService.ts`, `examWindowService.ts`.
-
-Giao tiếp với `question-bank` chỉ qua `question-bank/public.ts`. Không di chuyển logic ngân hàng câu hỏi sang module quản lý đề.
-
-Điều kiện hoàn thành:
-
-- Toàn bộ route đề thi và cửa sổ thi export từ `exam-management/public.ts`.
-- Không còn page quản lý đề gọi service cũ.
-- Giữ nguyên khóa/mở khóa đề và dữ liệu của các loại câu hỏi.
-
-### Giai đoạn 3 — Tạo `practical-exams`
-
-Thời gian: 2–3 ngày. Mục tiêu dự kiến: 68% -> 76%.
-
-Phạm vi:
-
-- Template thi thực hành.
-- Phiên thi thực hành.
-- Luồng học viên nộp ảnh/bằng chứng.
-- Luồng giám khảo chấm thi.
-- Các `practical*Service.ts` và admin/student page tương ứng.
-
-Điều kiện hoàn thành:
-
-- Route thực hành do module sở hữu.
-- Upload bằng chứng đi qua adapter platform.
-- Quyền học viên/giám khảo tiếp tục được kiểm tra tại database boundary.
-- Database integration test cho start, submit và grading.
-
-### Giai đoạn 4 — Tạo `exam-reporting`
-
-Thời gian: 1,5–2 ngày. Mục tiêu dự kiến: 76% -> 82%.
-
-Phạm vi:
-
-- `AdminReportPage`.
-- `AdminAttemptResultPage`.
-- `reportService.ts`.
-- Xuất Excel kết quả và tín hiệu giám sát.
-- Duyệt bằng chứng AI và signed URL.
-
-`exam-reporting` sở hữu read model báo cáo; không đọc repository nội bộ của `exam-taking`. Các RPC/query báo cáo riêng nằm trong `exam-reporting/data`.
-
-Điều kiện hoàn thành:
-
-- Điểm AI được tổng hợp theo lượt thi.
-- Link bằng chứng được ký lại khi xem.
-- Export Excel và bộ lọc giữ nguyên.
-- Monitoring trực tiếp vẫn ở `exam-monitoring`; báo cáo lịch sử ở `exam-reporting`.
-
-### Giai đoạn 5 — Tạo `learning`
-
-Thời gian: 1–1,5 ngày. Mục tiêu dự kiến: 82% -> 86%.
-
-Phạm vi:
-
-- `StudentLearnPage`.
-- `LessonPlayerPage`.
-- `elearningStudyService.ts`.
-- Tiến độ học và nội dung bài học.
-
-Điều kiện hoàn thành:
-
-- Route học trực tuyến do module sở hữu.
-- Player không gọi trực tiếp Supabase.
-- Có test cho cập nhật tiến độ và chuyển bài.
-
-### Giai đoạn 6 — Identity, CCCD và integrations
-
-Thời gian: 2–3 ngày. Mục tiêu dự kiến: 86% -> 90%.
-
-`identity-access` sở hữu:
-
-- `AuthContext`.
-- Login, chọn vai trò và route guard.
-- Xác thực CCCD.
-- Profile và quyền exam role.
-
-`integrations` sở hữu:
-
-- Đồng bộ TTĐT.
-- Nhật ký và retry đồng bộ.
-- OCR orchestration.
-- Admin sync page.
-
-Client Supabase, storage transport và media/browser API vẫn thuộc `platform`, không thuộc `identity-access` hay `integrations`.
-
-Điều kiện hoàn thành:
-
-- Route guard có test theo role.
-- Không còn page gọi trực tiếp Supabase cho auth/profile/CCCD.
-- Đồng bộ dùng application use case và durable outbox hiện có.
 
 ### Giai đoạn 7 — Dọn legacy và tổng kiểm thử
 
@@ -286,11 +327,20 @@ Mỗi giai đoạn là một chuỗi commit nhỏ, không trộn thay đổi hà
 
 Nếu giai đoạn cần migration, thứ tự Production là:
 
-1. Commit cục bộ và kiểm tra.
-2. Áp dụng migration tương thích ngược.
-3. Push `main` để Vercel deploy.
-4. Kiểm tra Production.
-5. Chỉ xóa contract/database cũ trong một migration sau khi code mới đã ổn định.
+1. Commit cục bộ và kiểm tra (gồm database test PGlite).
+2. Chạy thử migration trên production trong khối `DO` tự hoàn tác; người vận hành duyệt.
+3. Áp dụng migration tương thích ngược, ghi `supabase_migrations.schema_migrations`.
+4. Push `main` để Vercel deploy.
+5. Kiểm tra Production.
+6. Chỉ xóa contract/database cũ trong một migration sau khi code mới đã ổn định.
+
+Kiểm thử thật:
+
+- Đưa kịch bản Edge của buổi thi thử 2026-09-30 vào repo thành bộ smoke test (không chứa mật khẩu, tài khoản thử lấy từ
+  biến môi trường) để chạy lại sau mỗi giai đoạn: đăng nhập, xác thực CCCD, vào thi, vào lại cùng lượt, nộp bài, bảng
+  giám sát.
+- Thi thử có camera (cả `standard`, `strict`, `supervised`) cần người ngồi trước webcam; lên lịch trước, tránh ngày có ca
+  thi thật; dọn học viên và kỳ thi thử sau mỗi lần.
 
 ## 7. Nguyên tắc giảm rủi ro
 
@@ -308,9 +358,11 @@ Tổng thời gian: 10–15 ngày làm việc, khoảng 60–90 giờ tập trun
 
 | Mốc | Thời gian tích lũy dự kiến |
 |---|---:|
-| 60% | 2–4 ngày |
-| 70% | 5–7 ngày |
-| 80% | 8–10 ngày |
-| 90% | 10–15 ngày |
+| 64% (quản lý đề, bỏ trang câu hỏi theo đề) | 3–4 ngày |
+| 76% (báo cáo, thực hành) | 6–9 ngày |
+| 83% (học trực tuyến, định danh, tích hợp) | 9–12 ngày |
+| 90% (màn thi) | 11–15 ngày |
+
+Bỏ các trang câu hỏi theo đề thay vì chuyển chúng giúp bớt khoảng 1–2 ngày so với ước lượng ban đầu.
 
 Tiến độ phụ thuộc nhiều nhất vào kiểm thử thật luồng thi lý thuyết, camera/AI trên thiết bị học viên và thi thực hành.

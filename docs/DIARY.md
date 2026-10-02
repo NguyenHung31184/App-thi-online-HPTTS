@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-10-02 | Modular monolith: giai đoạn 0, 1a, 1b
+
+### Đã làm
+- Giai đoạn 0 (đã push `ca8f136`): luật ranh giới tầng, allowlist, điểm kiến trúc trong CI. Mốc 25.3%, 4/10 tiêu chí.
+- 1a (`c8c9682`): bỏ trang thêm/sửa/nhập câu hỏi theo đề; chi tiết đề đếm câu trong ngân hàng của mô-đun.
+- 1b (`5578bd7` … `ad99cd0`): module `exam-management` (data, application, queries, 6 trang ui), module `integrations`
+  (danh bạ TTDT), `shared/ui`; xóa 4 service trung gian. Quy tắc thuần vào `domain/` kèm test (148 test).
+- Kết quả: 43.6% mã nghiệp vụ trong module, 22/46 route do module sở hữu, 5/10 tiêu chí.
+- Kiểm tra trên Edge (bản local, chỉ xem): danh sách đề, chi tiết, kiểm tra ngân hàng, sửa đề, danh sách kỳ thi,
+  form sửa kỳ thi (nạp đúng dữ liệu), form tạo kỳ thi; không có lỗi trang.
+
+### Vấn đề gặp
+- Xóa kỳ thi và "Xóa báo cáo thi thử" vẫn là xóa cứng; giữ nguyên khi chuyển code, chờ quyết định.
+
+### Kế hoạch tiếp theo
+- Hỏi người dùng trước khi push các commit 1a, 1b.
+- Bảng giám sát: ưu tiên lượt đang làm (phần giám sát AI đã commit ở `0267b37`).
+- Giai đoạn 2 theo kế hoạch.
+
+---
+
 ## 2026-10-01 | Thi thử trên production, sửa lỗi vào lại tạo lượt mới
 
 ### Đã làm

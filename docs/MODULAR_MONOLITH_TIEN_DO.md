@@ -62,7 +62,7 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 - `f7b3b72` bước 1: luật thi thực hành thuần trong `domain/` kèm test; đổi giờ `datetime-local` sang `src/shared/lib/`.
 - `04c5aa5` bước 2: data, application, adapter `src/platform/storage/exam-uploads.ts`; 3 service thành re-export.
 - `252774c` bước 3: 7 trang vào module, 10 route lấy từ `public.ts`.
-- Bước 4 _(commit cuối của giai đoạn)_: xóa 3 service thực hành; README module.
+- `e08f973` bước 4: xóa 3 service thực hành; README module.
 - Tài liệu: [implementation](implementation/2026-10-02-phase-3-practical-exams-module.md) ·
   [rollback](rollback/2026-10-02-phase-3-practical-exams-module.md)
 
@@ -88,7 +88,10 @@ sau đó revert bình thường rồi push. Các mốc an toàn:
 **Lùi bằng git** (giai đoạn chỉ chuyển code, không có migration):
 
 ```bash
-# Lùi giai đoạn 2
+# Lùi giai đoạn 3
+git revert --no-edit e08f973 252774c 04c5aa5 f7b3b72
+
+# Lùi giai đoạn 2 (phải lùi 3 trước; nếu cần, lùi cả e062e20)
 git revert --no-edit ec14d4b 1f7f11f f4d5bec 35c8398 3db4e2d
 
 # Lùi giai đoạn 1b (phải lùi 2 trước)

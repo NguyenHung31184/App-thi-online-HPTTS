@@ -6,7 +6,7 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ## 2026-10-02 — Module `practical-exams` (giai đoạn 3)
 
-**Commit:** `f7b3b72` (domain), `04c5aa5` (data, application, adapter tải ảnh), `252774c` (7 trang), bước 4 _(commit này: xóa 3 service thực hành)_
+**Commit:** `f7b3b72` (domain), `04c5aa5` (data, application, adapter tải ảnh), `252774c` (7 trang), `e08f973` (xóa 3 service thực hành)
 **Branch:** main
 
 Không đổi database. Rollback: `git revert` theo thứ tự ngược; xem `docs/rollback/2026-10-02-phase-3-practical-exams-module.md` và `docs/MODULAR_MONOLITH_TIEN_DO.md`.

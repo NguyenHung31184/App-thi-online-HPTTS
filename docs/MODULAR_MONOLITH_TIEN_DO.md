@@ -14,9 +14,9 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 | 1a | Bỏ trang thêm/sửa/nhập câu hỏi theo đề | Xong | 2026-10-02 | không đo riêng | Đã push | Không |
 | 1b | Module `exam-management` | Xong | 2026-10-02 | 43,6% · 22/46 route · 5/10 | Đã push | Không |
 | 2 | Module `exam-reporting` | Xong | 2026-10-02 | 54,3% · 25/46 route · 5/10 | Đã push | Không |
-| 3 | Module `practical-exams` | Xong | 2026-10-02 | 62,6% · 34/46 route · 5/10 | Chưa | Không |
-| 4 | Module `learning` | Chưa làm | | | | |
-| 5 | `identity-access` và `integrations` | Chưa làm | | | | |
+| 3 | Module `practical-exams` | Xong | 2026-10-02 | 62,6% · 34/46 route · 5/10 | Đã push | Không |
+| 4 | Module `learning` | Hoãn (phát triển e-learning sau) | | | | |
+| 5 | `identity-access` và `integrations` | Đang làm | 2026-10-02 | | Chưa | Không |
 | 6 | `exam-taking` và giám sát AI (làm sau cùng) | Chưa làm | | | | |
 | 7 | Dọn legacy, tổng kiểm thử | Chưa làm | | | | |
 
@@ -179,4 +179,29 @@ học viên nộp ảnh. Ngoài phạm vi nhưng gọi tới: `DashboardPage`, `
   production; không lỗi trang. Production có 0 kỳ thi, 0 bài làm thực hành: trang chấm và trang học viên nộp ảnh chưa
   thử được bằng dữ liệu thật (cần tạo kỳ thi thử, người vận hành duyệt).
 - [x] Giữ nguyên, chờ quyết định: xóa mẫu, tiêu chí, kỳ thi là xóa cứng (ghi ở "Việc còn mở").
-- [x] Cập nhật tài liệu. Chờ người vận hành cho push.
+- [x] Cập nhật tài liệu. Đã push (`c040039`, CI đạt).
+
+## Giai đoạn 4: module `learning` — hoãn
+
+Người vận hành quyết định ngày 2026-10-02: e-learning phát triển sau. Stash E-LEARNING trong repo sửa đúng các file
+`StudentLearnPage`, `LessonPlayerPage`, `elearningStudyService`; chuyển các file này bây giờ sẽ xung đột khi lấy stash
+ra. Phạm vi khi làm lại: 882 dòng, 2 route, ghi tiến độ khi đóng tab (`fetch keepalive`).
+
+## Giai đoạn 5: `identity-access` và `integrations`
+
+Phạm vi khoảng 1.900 dòng: `AuthContext` (18 file dùng), đăng nhập, chọn vai trò, xác thực CCCD, camera CCCD, chặn
+quyền theo vai trò; đồng bộ TTDT, nhật ký đồng bộ, OCR, trang Nhật ký đồng bộ.
+
+- [x] Chuẩn bị: [implementation](implementation/2026-10-02-phase-5-identity-integrations.md) ·
+  [rollback](rollback/2026-10-02-phase-5-identity-integrations.md)
+- [ ] Bước 1, domain kèm test: vai trò từ `exam_role`, email đăng nhập từ mã học viên, trang đích sau đăng nhập, hai
+  lớp chặn quyền (khu quản trị, khu học viên), chuẩn hóa CCCD, giải thích lỗi đồng bộ, đọc kết quả OCR.
+- [ ] Bước 2, lõi `identity-access`: phiên đăng nhập, profile, gọi kiểm tra CCCD, phiên học viên; `AuthProvider`,
+  `useAuth` qua `public.ts`; 18 file đổi import; xóa `AuthContext`, `profileService`, `verifyCccdService`.
+- [ ] Bước 3, trang đăng nhập, chọn vai trò, xác thực CCCD, camera vào module; route `/start`, `/login`, `/verify-cccd`.
+- [ ] Bước 4, `integrations`: đồng bộ TTDT, nhật ký đồng bộ, OCR, trang `/admin/sync`.
+- [ ] Bước 5, dọn, README, đo điểm.
+- [ ] Edge: đăng xuất, đăng nhập admin, F5 ở trang quản trị không bị đẩy về /login, các trang /start, /login,
+  /verify-cccd hiện đúng, Nhật ký đồng bộ giống production. Không kiểm tra CCCD, thử lại đồng bộ, dọn log trên dữ liệu
+  thật nếu chưa được phép.
+- [ ] Cập nhật tài liệu; hỏi trước khi push. Giai đoạn này đụng đăng nhập của mọi người dùng: push ngoài giờ thi.

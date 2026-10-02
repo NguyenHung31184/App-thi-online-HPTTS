@@ -2,7 +2,8 @@
 
 - Ngày lập: 2026-10-01
 - Baseline: commit production `0267b37`
-- Trạng thái hiện tại: khoảng 46/100 (ước lượng; con số chính thức lấy từ `scripts/architecture-score.mjs` ở Giai đoạn 0)
+- Trạng thái hiện tại: đo bằng `npm run arch:score` ngày 2026-10-02 — 25,3% mã nghiệp vụ trong module, 14/49 route, 4/10
+  tiêu chí (bản đầu ước lượng 46/100)
 - Mục tiêu: tối thiểu 90/100, giữ nguyên hành vi nghiệp vụ và triển khai tăng dần
 - Rà soát 2026-10-02 (người vận hành đồng ý): bổ sung hiện trạng, bỏ các trang câu hỏi theo đề ghi vào bảng cũ, đổi thứ tự
   giai đoạn để màn thi làm sau cùng, gán giai đoạn cho mọi service cũ, thêm bước chạy thử migration.
@@ -124,7 +125,7 @@ Thứ tự đã đổi khi rà soát 2026-10-02: các miền ít rủi ro làm t
 
 ### Giai đoạn 0 — Gia cố kiến trúc và đo tự động
 
-Thời gian: 0,5–1 ngày. Mục tiêu dự kiến: 46% -> 50%.
+Thời gian: 0,5–1 ngày. Kết quả: đo được 25,3%, 4/10 tiêu chí (`docs/implementation/2026-10-02-architecture-phase-0.md`).
 
 Thay đổi:
 

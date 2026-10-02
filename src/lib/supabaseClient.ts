@@ -1,10 +1,2 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-export function isSupabaseConfigured(): boolean {
-  return Boolean(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('your-project'));
-}
+// Legacy import path for code outside the modules; the client lives in src/platform/supabase/client.ts.
+export { supabase, isSupabaseConfigured } from '../platform/supabase/client';

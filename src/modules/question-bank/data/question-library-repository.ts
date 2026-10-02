@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { supabase } from '../../../platform/supabase/client';
 import type { ModuleItem, Occupation } from '../../../types';
 import type {
   ImportSourceKind,

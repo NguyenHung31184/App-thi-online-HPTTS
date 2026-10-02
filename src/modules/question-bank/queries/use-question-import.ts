@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { buildImportTemplate, previewQuestionImport, runQuestionImport, type MarkingChoice, type RunImportInput } from '../application/import-questions';
+import { buildImportTemplate, planWordImport, previewQuestionImport, runQuestionImport, type ImportPreview, type MarkingChoice, type RunImportInput } from '../application/import-questions';
+import type { QuestionDraft } from '../domain/question-draft';
 import { questionBankKeys } from './keys';
 
 export function useImportTemplate() {
@@ -19,4 +21,12 @@ export function useRunQuestionImport(libraryId: string) {
     mutationFn: (input: RunImportInput) => runQuestionImport(input),
     onSuccess: () => client.invalidateQueries({ queryKey: questionBankKeys.workspace(libraryId) }),
   });
+}
+
+/** The import plan after the preview's edits; a Word preview is planned again on every edit, other files as read. */
+export function useImportPlan(preview: ImportPreview | undefined, edits: ReadonlyMap<number, QuestionDraft>) {
+  return useMemo(() => {
+    if (!preview) return undefined;
+    return preview.word ? planWordImport(preview, edits) : preview.plan;
+  }, [edits, preview]);
 }

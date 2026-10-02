@@ -1,0 +1,335 @@
+{
+  "imports": [
+    {
+      "key": "legacy-dependency|src/modules/exam-taking/ui/AvailableTheoryExamsPage|src/contexts/AuthContext",
+      "phase": 5,
+      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
+    },
+    {
+      "key": "legacy-dependency|src/modules/question-bank/application/edit-question|src/utils/mediaUrlValidator",
+      "phase": 7,
+      "reason": "URL check shared with legacy pages; moves to shared or the owning module (phase 7)"
+    },
+    {
+      "key": "legacy-dependency|src/modules/question-bank/application/import-questions|src/utils/mediaUrlValidator",
+      "phase": 7,
+      "reason": "URL check shared with legacy pages; moves to shared or the owning module (phase 7)"
+    },
+    {
+      "key": "domain-dependency|src/modules/question-bank/domain/question-library|src/utils/questionValidation",
+      "phase": 1,
+      "reason": "question rules still used by legacy question pages; move into question-bank domain when they are removed (phase 1)"
+    },
+    {
+      "key": "legacy-dependency|src/modules/question-bank/ui/editor/question-fields|src/components/ZonePositionPicker",
+      "phase": 1,
+      "reason": "still used by the legacy question form; move into question-bank ui when it is removed (phase 1)"
+    },
+    {
+      "key": "legacy-dependency|src/modules/question-bank/ui/editor/WordImportQuestionEditor|src/utils/mediaUrlValidator",
+      "phase": 7,
+      "reason": "URL check shared with legacy pages; moves to shared or the owning module (phase 7)"
+    },
+    {
+      "key": "legacy-dependency|src/modules/question-bank/ui/QuestionLibraryImportsPage|src/contexts/AuthContext",
+      "phase": 5,
+      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
+    },
+    {
+      "key": "legacy-dependency|src/modules/question-bank/ui/QuestionLibraryListPage|src/contexts/AuthContext",
+      "phase": 5,
+      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
+    },
+    {
+      "key": "legacy-dependency|src/modules/question-bank/ui/QuestionSpreadsheetImportPage|src/contexts/AuthContext",
+      "phase": 5,
+      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
+    }
+  ],
+  "legacyFiles": [
+    {
+      "file": "src/components/AppLayout.tsx",
+      "phase": 7
+    },
+    {
+      "file": "src/components/CccdCameraCapture.tsx",
+      "phase": 5
+    },
+    {
+      "file": "src/components/ConfirmationModal.tsx",
+      "phase": 7
+    },
+    {
+      "file": "src/components/EmptyState.tsx",
+      "phase": 7
+    },
+    {
+      "file": "src/components/ExamCard.tsx",
+      "phase": 7
+    },
+    {
+      "file": "src/components/Icons.tsx",
+      "phase": 7
+    },
+    {
+      "file": "src/components/LabelOnImageDrop.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/components/PortraitCameraGuide.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/components/SortableOptionList.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/components/ZonePositionPicker.tsx",
+      "phase": 1
+    },
+    {
+      "file": "src/components/proctoring/AiObjectProctorBurst.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/components/proctoring/ProctoringEvidenceCapture.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/components/proctoring/ViolationAlertModal.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/contexts/AuthContext.tsx",
+      "phase": 5
+    },
+    {
+      "file": "src/pages/DashboardPage.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/pages/ExamIntroPage.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/pages/ExamResultPage.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/pages/ExamTakePage.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/pages/Layout.tsx",
+      "phase": 7
+    },
+    {
+      "file": "src/pages/LessonPlayerPage.tsx",
+      "phase": 4
+    },
+    {
+      "file": "src/pages/LoginPage.tsx",
+      "phase": 5
+    },
+    {
+      "file": "src/pages/PracticalTakePage.tsx",
+      "phase": 3
+    },
+    {
+      "file": "src/pages/RoleSelectPage.tsx",
+      "phase": 5
+    },
+    {
+      "file": "src/pages/StudentExamsPage.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/pages/StudentLearnPage.tsx",
+      "phase": 4
+    },
+    {
+      "file": "src/pages/StudentResultsPage.tsx",
+      "phase": 6
+    },
+    {
+      "file": "src/pages/VerifyCccdPage.tsx",
+      "phase": 5
+    },
+    {
+      "file": "src/pages/admin/AdminAttemptResultPage.tsx",
+      "phase": 2
+    },
+    {
+      "file": "src/pages/admin/AdminDashboardPage.tsx",
+      "phase": 2
+    },
+    {
+      "file": "src/pages/admin/AdminExamDetailPage.tsx",
+      "phase": 1
+    },
+    {
+      "file": "src/pages/admin/AdminExamFormPage.tsx",
+      "phase": 1
+    },
+    {
+      "file": "src/pages/admin/AdminExamsPage.tsx",
+      "phase": 1
+    },
+    {
+      "file": "src/pages/admin/AdminLayout.tsx",
+      "phase": 7
+    },
+    {
+      "file": "src/pages/admin/AdminPracticalGradingDetailPage.tsx",
+      "phase": 3
+    },
+    {
+      "file": "src/pages/admin/AdminPracticalGradingPage.tsx",
+      "phase": 3
+    },
+    {
+      "file": "src/pages/admin/AdminPracticalSessionFormPage.tsx",
+      "phase": 3
+    },
+    {
+      "file": "src/pages/admin/AdminPracticalSessionsPage.tsx",
+      "phase": 3
+    },
+    {
+      "file": "src/pages/admin/AdminPracticalTemplateFormPage.tsx",
+      "phase": 3
+    },
+    {
+      "file": "src/pages/admin/AdminPracticalTemplatesPage.tsx",
+      "phase": 3
+    },
+    {
+      "file": "src/pages/admin/AdminQuestionFormPage.tsx",
+      "phase": 1
+    },
+    {
+      "file": "src/pages/admin/AdminQuestionImportPage.tsx",
+      "phase": 1
+    },
+    {
+      "file": "src/pages/admin/AdminQuestionsPage.tsx",
+      "phase": 1
+    },
+    {
+      "file": "src/pages/admin/AdminReportPage.tsx",
+      "phase": 2
+    },
+    {
+      "file": "src/pages/admin/AdminSyncPage.tsx",
+      "phase": 5
+    },
+    {
+      "file": "src/pages/admin/AdminWindowFormPage.tsx",
+      "phase": 1
+    },
+    {
+      "file": "src/pages/admin/AdminWindowsPage.tsx",
+      "phase": 1
+    },
+    {
+      "file": "src/services/attemptService.ts",
+      "phase": 6
+    },
+    {
+      "file": "src/services/dashboardService.ts",
+      "phase": 2
+    },
+    {
+      "file": "src/services/elearningStudyService.ts",
+      "phase": 4
+    },
+    {
+      "file": "src/services/examService.ts",
+      "phase": 1
+    },
+    {
+      "file": "src/services/examUploadService.ts",
+      "phase": 6
+    },
+    {
+      "file": "src/services/examWindowService.ts",
+      "phase": 1
+    },
+    {
+      "file": "src/services/ocrService.ts",
+      "phase": 5
+    },
+    {
+      "file": "src/services/practicalAttemptService.ts",
+      "phase": 3
+    },
+    {
+      "file": "src/services/practicalSessionService.ts",
+      "phase": 3
+    },
+    {
+      "file": "src/services/practicalTemplateService.ts",
+      "phase": 3
+    },
+    {
+      "file": "src/services/profileService.ts",
+      "phase": 5
+    },
+    {
+      "file": "src/services/questionBankService.ts",
+      "phase": 1
+    },
+    {
+      "file": "src/services/questionImportService.ts",
+      "phase": 1
+    },
+    {
+      "file": "src/services/questionService.ts",
+      "phase": 1
+    },
+    {
+      "file": "src/services/reportService.ts",
+      "phase": 2
+    },
+    {
+      "file": "src/services/syncLogService.ts",
+      "phase": 5
+    },
+    {
+      "file": "src/services/ttdtDataService.ts",
+      "phase": 5
+    },
+    {
+      "file": "src/services/ttdtSyncService.ts",
+      "phase": 5
+    },
+    {
+      "file": "src/services/verifyCccdService.ts",
+      "phase": 5
+    },
+    {
+      "file": "src/utils/adminAccess.ts",
+      "phase": 5
+    },
+    {
+      "file": "src/utils/blazeFaceProctor.ts",
+      "phase": 6
+    },
+    {
+      "file": "src/utils/examImageCompress.ts",
+      "phase": 6
+    },
+    {
+      "file": "src/utils/mediaPipeFaceProctor.ts",
+      "phase": 6
+    },
+    {
+      "file": "src/utils/mediaUrlValidator.ts",
+      "phase": 7
+    },
+    {
+      "file": "src/utils/questionValidation.ts",
+      "phase": 1
+    }
+  ]
+}

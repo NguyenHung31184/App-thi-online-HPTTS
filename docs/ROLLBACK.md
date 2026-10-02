@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-02 — Modular monolith giai đoạn 0 (luật kiến trúc, điểm đo)
+
+**Commit:** _(commit này)_
+**Branch:** main
+
+Không đổi giao diện hay database. Rollback: `git revert`; xem `docs/rollback/2026-10-02-architecture-phase-0.md`.
+
+---
+
 ## 2026-09-30 — Vào lại kỳ thi thì làm tiếp lượt đang mở
 
 **Commit:** _(commit này)_

@@ -32,6 +32,8 @@ This ledger is the entry point for people and coding agents continuing the proje
 
 Found in the 2026-09-30 trial exam: entering again created a new attempt; fix `docs/implementation/2026-10-01-resume-in-progress-attempt.md` (migration applied 2026-10-01).
 
+Modular monolith plan `docs/implementation/2026-10-01-modular-monolith-90-plan.md`: phase 0 done 2026-10-02 (`docs/implementation/2026-10-02-architecture-phase-0.md`; baseline 25.3%, 4/10).
+
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.
 
 Removed 2026-09-28: the manual essay grading screen, `docs/implementation/2026-09-28-remove-essay-grading-screen.md`.

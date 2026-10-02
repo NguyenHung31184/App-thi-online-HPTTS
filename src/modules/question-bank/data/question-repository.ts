@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { supabase } from '../../../platform/supabase/client';
 import type { DrawPoolQuestion } from '../domain/blueprint-coverage';
 import type { QuestionPayload, StoredQuestion } from '../domain/question-draft';
 import type { QuestionStatus } from '../domain/question-library';

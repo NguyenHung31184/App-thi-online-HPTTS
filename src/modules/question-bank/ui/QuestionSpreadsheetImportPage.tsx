@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
-import { planWordImport, type ImportProgress, type MarkingChoice } from '../application/import-questions';
+import type { ImportProgress, MarkingChoice } from '../application/import-questions';
 import type { QuestionDraft, QuestionPayload } from '../domain/question-draft';
 import { imageKey, rowLabel, type SkippedRow } from '../domain/question-import';
 import { ANSWER_MARKINGS, MARKING_LABELS } from '../domain/word-questions';
-import { useImportTemplate, usePreviewQuestionImport, useRunQuestionImport } from '../queries/use-question-import';
+import { useImportPlan, useImportTemplate, usePreviewQuestionImport, useRunQuestionImport } from '../queries/use-question-import';
 import { saveFile } from './download';
 import { useLibraryContext } from './library-context';
 import { difficultyLabels, errorMessage, fieldClass, focusRing, questionTypeLabels } from './labels';
@@ -85,10 +85,7 @@ export default function QuestionSpreadsheetImportPage() {
   const [edits, setEdits] = useState<Map<number, QuestionDraft>>(() => new Map());
   const [editingLine, setEditingLine] = useState<number | null>(null);
   const listUrl = `/admin/question-libraries/${library.id}/questions`;
-  const plan = useMemo(() => {
-    if (!preview.data) return undefined;
-    return preview.data.word ? planWordImport(preview.data, edits) : preview.data.plan;
-  }, [edits, preview.data]);
+  const plan = useImportPlan(preview.data, edits);
   const word = preview.data?.word ?? null;
   const unit = word ? 'câu' : 'dòng';
   const reviewCount = plan?.ready.filter((row) => row.needsReview).length ?? 0;

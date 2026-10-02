@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchLiveAttempts } from '../data/live-monitor-repository';
+import { loadLiveAttempts } from '../application/live-monitor';
 import { groupByClass } from '../domain/live-status';
 
 const REFRESH_MS = 15_000;
@@ -12,7 +12,7 @@ export const examMonitoringKeys = {
 export function useLiveExamMonitor() {
   return useQuery({
     queryKey: examMonitoringKeys.live,
-    queryFn: fetchLiveAttempts,
+    queryFn: loadLiveAttempts,
     select: groupByClass,
     refetchInterval: REFRESH_MS,
     refetchIntervalInBackground: false,

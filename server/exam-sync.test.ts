@@ -7,7 +7,7 @@ import { deliverGrade, processSyncJob, type SyncJob } from './exam-sync';
 const config = { url: 'https://ttdt.example/grades', apiKey: 'test-key' };
 const job: SyncJob = { id: 'job', source: 'theory', attempt_id: 'attempt', lease_token: 'lease' };
 
-function fakeDatabase() {
+function fakeDatabase(overrides: Record<string, unknown> = {}) {
   const log = vi.fn(async () => ({ error: null }));
   const update = vi.fn(() => ({ eq: async () => ({ error: null }) }));
   const rpc = vi.fn(async () => ({ data: true, error: null }));
@@ -16,6 +16,10 @@ function fakeDatabase() {
     profiles: { student_id:'student-code' },
     exams: { module_id:'module',title:'Exam',pass_threshold:0.7 },
     exam_windows: { class_id:'class',is_trial:false },
+    practical_attempts: { id:'field',user_id:null,student_id:'ttdt-student',status:'graded',total_score:82,is_disqualified:false,session_id:'session',graded_at:'2026-10-09T03:00:00Z' },
+    practical_exam_sessions: { class_id:'class',template_id:'template' },
+    practical_exam_templates: { module_id:'module',pass_score:70 },
+    ...overrides,
   };
   const admin = {
     from: (table: string) => {
@@ -58,6 +62,20 @@ describe('TTDT delivery', () => {
     expect(JSON.parse(send.mock.calls[0][1].body)).toMatchObject({final_exam_score:8,student_id:'student-code'});
     expect(log).toHaveBeenCalledWith(expect.objectContaining({status:'success'}));
     expect(rpc).toHaveBeenCalledWith('finish_exam_sync_job',expect.objectContaining({p_success:true}));
+  });
+  it('sends a field-graded practical total on 10 under the TTDT student id', async () => {
+    const { admin } = fakeDatabase();
+    const send = vi.fn().mockResolvedValue(new Response('{"success":true}'));
+    vi.stubGlobal('fetch',send);
+    expect((await processSyncJob(admin,{ ...job,source:'practical',attempt_id:'field' },config)).success).toBe(true);
+    expect(JSON.parse(send.mock.calls[0][1].body)).toMatchObject({ source:'practical',student_id:'ttdt-student',final_exam_score:8.2,passed:true,disqualified:false });
+  });
+  it('sends 0 and not passed for a disqualified practical attempt', async () => {
+    const { admin } = fakeDatabase({ practical_attempts: { id:'field',user_id:null,student_id:'s',status:'graded',total_score:75,is_disqualified:true,session_id:'session' } });
+    const send = vi.fn().mockResolvedValue(new Response('{"success":true}'));
+    vi.stubGlobal('fetch',send);
+    await processSyncJob(admin,{ ...job,source:'practical',attempt_id:'field' },config);
+    expect(JSON.parse(send.mock.calls[0][1].body)).toMatchObject({ final_exam_score:0,passed:false,disqualified:true });
   });
   it('reports an expired lease instead of declaring delivery complete', async () => {
     const { admin,rpc } = fakeDatabase();

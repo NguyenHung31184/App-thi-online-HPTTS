@@ -67,6 +67,7 @@ beforeAll(async () => {
     CREATE TABLE exam_access_failures(user_id uuid,window_id uuid,failure_count int,last_failed_at timestamptz,PRIMARY KEY(user_id,window_id));`);
   await db.exec(await migration('20260930160000_resume_in_progress_attempt.sql'));
   await db.exec(await migration('20260930160140_ai_proctoring_policy.sql'));
+  await db.exec(await migration('20261003090000_practical_field_grading_sync.sql'));
   await sql('INSERT INTO profiles VALUES($1,$1,\'student\',NULL),($2,$2,\'student\',NULL),($3,NULL,\'teacher\',\'teacher\')',[student,other,teacher]);
   await sql('INSERT INTO enrollments(student_id,class_id) VALUES($1,$2)',[student,classId]);
   await sql("INSERT INTO exams(id,title,duration_minutes,module_id) VALUES($1,'Exam',1,$2)",[exam,moduleId]);
@@ -204,6 +205,17 @@ describe('durable sync queue', () => {
     await sql("INSERT INTO exam_sync_jobs(source,attempt_id,target_key,completed_at,status) SELECT source,$1,target_key,completed_at+interval '1 second','success' FROM exam_sync_jobs",[other]);
     expect(await sql('SELECT * FROM claim_exam_sync_job()')).toEqual([]);
     expect((await sql('SELECT status FROM exam_sync_jobs WHERE attempt_id=$1',[id]))[0].status).toBe('superseded');
+  });
+  it('queues a field-graded practical attempt under its TTDT student id', async () => {
+    const [a] = await sql<{id:string}>("INSERT INTO practical_attempts(session_id,student_id,status) VALUES($1,'ttdt-student','grading') RETURNING id",[sessionId]);
+    await sql("UPDATE practical_attempts SET status='graded',total_score=82,graded_at=now() WHERE id=$1",[a.id]);
+    expect((await sql('SELECT source,target_key FROM exam_sync_jobs WHERE attempt_id=$1',[a.id]))[0])
+      .toEqual({source:'practical',target_key:`practical:ttdt-student:${classId}:${moduleId}`});
+  });
+  it('does not queue a student who was not eligible to sit', async () => {
+    const [a] = await sql<{id:string}>("INSERT INTO practical_attempts(session_id,student_id,status) VALUES($1,'ttdt-student','not_eligible') RETURNING id",[sessionId]);
+    expect(await sql('SELECT 1 FROM exam_sync_jobs WHERE attempt_id=$1',[a.id])).toEqual([]);
+    await expect(sql("INSERT INTO practical_attempts(session_id,status) VALUES($1,'grading')",[sessionId])).rejects.toThrow('owner_check');
   });
   it('does not expose claims to student callers', async () => {
     await login(student);

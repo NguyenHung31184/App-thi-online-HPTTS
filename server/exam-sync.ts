@@ -13,12 +13,19 @@ export async function prepareSync(admin: SupabaseClient, source: 'theory' | 'pra
   if (error) throw new Error(error.message);
   if (!attempt) throw new SyncError(404, 'Không tìm thấy bài làm.');
   if (attempt.status !== (source === 'theory' ? 'completed' : 'graded')) throw new SyncError(409, 'Bài thi chưa chấm xong.');
-  const { data: profile, error: profileError } = await admin.from('profiles').select('student_id').eq('id', attempt.user_id).maybeSingle();
+  const { data: profile, error: profileError } = attempt.user_id
+    ? await admin.from('profiles').select('student_id').eq('id', attempt.user_id).maybeSingle()
+    : { data: null, error: null };
   if (profileError) throw new Error(profileError.message);
+  // Field grading in Sổ chuyên cần stores the TTDT student id; its older screens put it in user_id.
+  const studentId: string | null = source === 'practical'
+    ? attempt.student_id ?? profile?.student_id ?? (profile ? null : attempt.user_id ?? null)
+    : profile?.student_id ?? null;
   let moduleId: string | null = null;
   let classId: string | null = null;
   let title: string | null = null;
   let passThreshold = 0.7;
+  let passScore = 70;
   let trial = false;
   if (source === 'theory') {
     const [examResult, windowResult] = await Promise.all([
@@ -32,24 +39,26 @@ export async function prepareSync(admin: SupabaseClient, source: 'theory' | 'pra
   } else {
     const { data: session, error: sessionError } = await admin.from('practical_exam_sessions').select('class_id,template_id').eq('id', attempt.session_id).single();
     if (sessionError) throw new Error(sessionError.message);
-    const { data: template, error: templateError } = await admin.from('practical_exam_templates').select('module_id').eq('id', session.template_id).single();
+    const { data: template, error: templateError } = await admin.from('practical_exam_templates').select('module_id,pass_score').eq('id', session.template_id).single();
     if (templateError) throw new Error(templateError.message);
     moduleId = template.module_id; classId = session.class_id;
+    passScore = Number(template.pass_score ?? 70);
   }
-  if (!trial && (!moduleId || !classId || !profile?.student_id)) throw new SyncError(422, 'Thiếu mã mô-đun, lớp hoặc học viên để đồng bộ TTDT.');
+  if (!trial && (!moduleId || !classId || !studentId)) throw new SyncError(422, 'Thiếu mã mô-đun, lớp hoặc học viên để đồng bộ TTDT.');
   const score = Number(source === 'theory' ? attempt.score ?? 0 : attempt.total_score ?? 0);
   if (!Number.isFinite(score)) throw new SyncError(422, 'Điểm thi không hợp lệ.');
   const disqualified = Boolean(source === 'theory' ? attempt.disqualified : attempt.is_disqualified);
   return {
-    table, ownerId: String(attempt.user_id), trial,
-    targetKey: [source, profile?.student_id ?? attempt.user_id, classId, moduleId].filter((x) => x != null).join(':'),
+    table, ownerId: String(attempt.user_id ?? ''), trial,
+    targetKey: [source, studentId ?? attempt.user_id, classId, moduleId].filter((x) => x != null).join(':'),
     completedAt: source === 'theory' ? new Date(Number(attempt.completed_at)).toISOString() : attempt.graded_at,
     payload: {
-      attempt_id: attemptId, source, enrollment_id: null, student_id: profile?.student_id,
+      attempt_id: attemptId, source, enrollment_id: null, student_id: studentId,
       class_id: classId, module_id: moduleId,
-      final_exam_score: disqualified ? 0 : source === 'theory' ? Number((score * 10).toFixed(1)) : score,
+      // Theory scores are 0–1, practical totals 0–100; TTDT keeps both on 10.
+      final_exam_score: disqualified ? 0 : Number((source === 'theory' ? score * 10 : score / 10).toFixed(1)),
       raw_score: Number(source === 'theory' ? attempt.raw_score ?? 0 : attempt.total_score ?? 0),
-      passed: !disqualified && (source === 'theory' ? score >= passThreshold : score > 0), disqualified,
+      passed: !disqualified && (source === 'theory' ? score >= passThreshold : score >= passScore), disqualified,
     },
     log: source === 'theory'
       ? { attempt_id: attemptId, module_id: moduleId, exam_title: title, window_id: attempt.window_id, class_id: classId }

@@ -1,5 +1,5 @@
 export { getQuestionLibraries, getQuestionLibraryWorkspace } from './application/manage-question-library';
-export { checkExamBlueprint, countDrawableQuestions } from './application/check-exam-blueprint';
+export { checkExamBlueprint, countDrawableQuestions, listModuleQuestions } from './application/check-exam-blueprint';
 export { validateQuestion, type QuestionIssue, type ValidationResult } from './domain/question-validation';
 export type { BlueprintCoverage } from './domain/blueprint-coverage';
 export { questionBankKeys } from './queries/keys';

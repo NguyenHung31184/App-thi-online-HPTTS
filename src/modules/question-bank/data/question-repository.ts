@@ -2,6 +2,7 @@ import { supabase } from '../../../platform/supabase/client';
 import type { DrawPoolQuestion } from '../domain/blueprint-coverage';
 import type { QuestionPayload, StoredQuestion } from '../domain/question-draft';
 import type { QuestionStatus } from '../domain/question-library';
+import type { QuestionBankItem } from '../../../types';
 
 const QUESTION_BUCKET = 'exam-uploads';
 const QUESTION_COLUMNS = 'id, library_id, occupation_id, module_id, question_type, stem, options, answer_key, points, topic, difficulty, status, image_url, media_url, rubric';
@@ -220,4 +221,16 @@ export async function findDominantCourse(libraryId: string): Promise<string | nu
     if (!best || count > (counts.get(best) ?? 0)) best = course;
   }
   return best;
+}
+
+/** Every non-deleted question of a module, oldest first (exam-management's bank check page). */
+export async function listModuleQuestionRows(moduleId: string): Promise<QuestionBankItem[]> {
+  const { data, error } = await supabase
+    .from('question_bank')
+    .select('*')
+    .eq('module_id', moduleId)
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as QuestionBankItem[];
 }

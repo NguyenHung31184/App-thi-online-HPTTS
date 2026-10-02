@@ -73,7 +73,7 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 - `1ee72df` bước 2: lõi đăng nhập trong `identity-access`; 16 file đổi import; hai layout dùng hàm chặn quyền.
 - `bbbfe50` bước 3: trang đăng nhập, chọn vai trò, xác thực CCCD vào module; OCR vào `integrations`.
 - `a62467e` bước 4: đồng bộ TTDT, nhật ký đồng bộ, trang `/admin/sync` vào `integrations`.
-- Bước 5 _(commit cuối của giai đoạn)_: README, tài liệu.
+- `0987c09` bước 5: README, tài liệu.
 - Tài liệu: [implementation](implementation/2026-10-02-phase-5-identity-integrations.md) ·
   [rollback](rollback/2026-10-02-phase-5-identity-integrations.md)
 

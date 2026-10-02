@@ -3,7 +3,7 @@ import { useParams, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../modules/identity-access/public';
 import { getAttempt, getAttemptWindowContext, fetchStartExamPhotoSignedUrl } from '../services/attemptService';
 import { getExam } from '../modules/exam-management/public';
-import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
+import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../modules/integrations/public';
 import { supabase } from '../lib/supabaseClient';
 import type { Attempt, Exam } from '../types';
 

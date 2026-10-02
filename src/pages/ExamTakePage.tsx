@@ -22,7 +22,7 @@ import {
   type AiViolationKind,
 } from '../modules/exam-taking/public';
 import { getExam } from '../modules/exam-management/public';
-import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
+import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../modules/integrations/public';
 import { uploadExamFileViaEdge } from '../services/examUploadService';
 import { SortableOptionList } from '../components/SortableOptionList';
 import { LabelOnImageDrop } from '../components/LabelOnImageDrop';

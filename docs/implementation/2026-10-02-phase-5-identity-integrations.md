@@ -56,6 +56,12 @@ page in `identity-access` needs it; `services/ocrService.ts` is deleted. Edge: `
 identical to production; typed CCCD shows "Vui lòng nhập số CCCD." then "Vui lòng nhập họ và tên…", then the review
 step with the number without spaces; the server check was not sent.
 
+Step 4 notes: the theory retry checks that the attempt and its exam exist through `integrations/data` (messages
+unchanged) and sends only the attempt id, as the server sync always did; the window and profile lookups of the old page
+are gone. The practical retry checks the practical attempt the same way (no import of `practical-exams`, which itself
+uses `integrations`). Edge, local build with `VITE_TTDT_SYNC_ENABLED=1` as on Vercel: theory tab, practical tab and
+"Chỉ hiện lỗi" identical to production; "Hướng dẫn" shows the `module_id` help. No retry, no cleanup.
+
 ## Checks (each step)
 
 `npm run check:boundaries`, `npm run arch:score`, `npm test`, `npx tsc -b`, `npm run lint`, `npm run build`.

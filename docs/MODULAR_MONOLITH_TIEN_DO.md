@@ -203,7 +203,10 @@ quyền theo vai trò; đồng bộ TTDT, nhật ký đồng bộ, OCR, trang Nh
 - [x] Bước 3, trang đăng nhập, chọn vai trò, xác thực CCCD, camera vào module; route `/start`, `/login`, `/verify-cccd`.
   OCR chuyển sang `integrations` cùng bước (trang CCCD cần nó). Edge: 3 trang giống production; nhập tay báo đúng lỗi
   thiếu số, thiếu tên; số CCCD bỏ khoảng trắng; không gửi kiểm tra thật.
-- [ ] Bước 4, `integrations`: đồng bộ TTDT, nhật ký đồng bộ, OCR, trang `/admin/sync`.
+- [x] Bước 4, `integrations`: đồng bộ TTDT, nhật ký đồng bộ, trang `/admin/sync` (OCR đã chuyển ở bước 3). Xóa
+  `ttdtSyncService`, `syncLogService`, `AdminSyncPage`; `practical-exams` gọi đồng bộ qua `integrations/public`. Edge
+  (bật `VITE_TTDT_SYNC_ENABLED` cho bản local như Vercel): tab Lý thuyết, Thực hành, Chỉ hiện lỗi giống production;
+  "Hướng dẫn" đúng. Không bấm Thử lại, Dọn log.
 - [ ] Bước 5, dọn, README, đo điểm.
 - [ ] Edge: đăng xuất, đăng nhập admin, F5 ở trang quản trị không bị đẩy về /login, các trang /start, /login,
   /verify-cccd hiện đúng, Nhật ký đồng bộ giống production. Không kiểm tra CCCD, thử lại đồng bộ, dọn log trên dữ liệu

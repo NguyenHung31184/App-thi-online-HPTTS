@@ -22,7 +22,7 @@ import {
   TemplatesPage as PracticalTemplatesPage,
 } from './modules/practical-exams/public';
 import { AdminDashboardPage, AttemptResultPage, ReportPage } from './modules/exam-reporting/public';
-import AdminSyncPage from './pages/admin/AdminSyncPage';
+import { SyncLogPage } from './modules/integrations/public';
 import ExamTakePage from './pages/ExamTakePage';
 import ExamIntroPage from './pages/ExamIntroPage';
 import ExamResultPage from './pages/ExamResultPage';
@@ -89,7 +89,7 @@ function App() {
             <Route path="practical-grading/:attemptId" element={<PracticalGradingDetailPage />} />
             <Route path="report" element={<ReportPage />} />
             <Route path="attempts/:attemptId/result" element={<AttemptResultPage />} />
-            <Route path="sync" element={<AdminSyncPage />} />
+            <Route path="sync" element={<SyncLogPage />} />
           </Route>
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />

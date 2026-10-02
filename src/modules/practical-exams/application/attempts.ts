@@ -7,8 +7,7 @@ import {
 import { ttdtSyncBlocker, weightedTotal } from '../domain/grading';
 import type { PhotoOptions } from '../domain/inputs';
 import type { PracticalSessionWithTemplate } from '../domain/sessions';
-// Legacy until integrations takes the TTDT sync (phase 5); listed in scripts/architecture-allowlist.json.
-import { isTtdtSyncConfigured, syncPracticalAttemptToTtdt, type SyncResult } from '../../../services/ttdtSyncService';
+import { isTtdtSyncConfigured, syncPracticalAttemptToTtdt, type SyncResult } from '../../integrations/public';
 
 export const createPracticalAttempt = (sessionId: string, accessCode: string): Promise<PracticalAttempt> => callStartAttempt(sessionId, accessCode);
 export const submitPracticalAttempt = (attemptId: string): Promise<PracticalAttempt> => callSubmitAttempt(attemptId);

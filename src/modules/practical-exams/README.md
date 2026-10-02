@@ -11,8 +11,7 @@ photos, and teacher grading with the TTDT sync of the grade.
   the enrollment and the evidence (database tests in `tests/exam-database.test.ts`). Deleting a template, criterion or
   session is a hard delete kept from before the move.
 - Storage: evidence photos go to `exam-uploads` through `src/platform/storage/exam-uploads.ts`.
-- Application: `templates.ts`, `sessions.ts`, `attempts.ts`. The TTDT sync still calls `services/ttdtSyncService` until
-  `integrations` takes it (phase 5, in the allowlist).
+- Application: `templates.ts`, `sessions.ts`, `attempts.ts`; the TTDT sync of a grade goes through `integrations/public`.
 - Other modules: `integrations` (classes, a student's classes) through `public.ts`.
 
 See `docs/implementation/2026-10-01-modular-monolith-90-plan.md` (phase 3).

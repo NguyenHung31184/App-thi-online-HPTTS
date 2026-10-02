@@ -29,13 +29,16 @@ export default function TemplatesPage() {
           <Link to="/admin/practical-sessions" className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">
             Kỳ thi thực hành
           </Link>
+          <Link to="/admin/practical-templates/import" className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">
+            Nhập từ file
+          </Link>
           <Link to="/admin/practical-templates/new" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
             Thêm mẫu
           </Link>
         </div>
       </div>
       <p className="text-slate-600 text-sm mb-4">
-        Mẫu thi thực hành gồm các tiêu chí chấm (max_score, weight). Sau khi tạo mẫu, thêm tiêu chí rồi tạo kỳ thi.
+        Mẫu đánh giá gồm các bước thao tác, khung thời gian và tiêu chí chấm tại sân. Tạo mới, hoặc nhập từ file Excel theo mẫu hay Word phiếu chấm.
       </p>
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
         <table className="min-w-full divide-y divide-slate-200">
@@ -87,7 +90,7 @@ export default function TemplatesPage() {
         isLoading={remove.isPending}
         confirmText="Xóa"
       >
-        {confirmDelete ? `Xóa mẫu "${confirmDelete.title}"? Các tiêu chí và kỳ thi liên quan sẽ bị ảnh hưởng.` : ''}
+        {confirmDelete ? `Xóa mẫu "${confirmDelete.title}"? Mẫu rời khỏi danh sách; kỳ thi và điểm đã chấm theo mẫu vẫn được giữ.` : ''}
       </ConfirmationModal>
     </div>
   );

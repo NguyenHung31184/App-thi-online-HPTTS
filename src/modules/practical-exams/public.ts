@@ -17,6 +17,7 @@ export type {
 export type { PracticalSessionWithTemplate } from './domain/sessions';
 export { default as TemplatesPage } from './ui/TemplatesPage';
 export { default as TemplateFormPage } from './ui/template-form/TemplateFormPage';
+export { default as TemplateImportPage } from './ui/template-import/TemplateImportPage';
 export { default as SessionsPage } from './ui/SessionsPage';
 export { default as SessionFormPage } from './ui/SessionFormPage';
 export { default as GradingListPage } from './ui/GradingListPage';

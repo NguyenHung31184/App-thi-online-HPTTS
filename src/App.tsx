@@ -19,6 +19,7 @@ import {
   SessionFormPage as PracticalSessionFormPage,
   SessionsPage as PracticalSessionsPage,
   TemplateFormPage as PracticalTemplateFormPage,
+  TemplateImportPage as PracticalTemplateImportPage,
   TemplatesPage as PracticalTemplatesPage,
 } from './modules/practical-exams/public';
 import { AdminDashboardPage, AttemptResultPage, ReportPage } from './modules/exam-reporting/public';
@@ -81,6 +82,7 @@ function App() {
             <Route path="windows/:id" element={<WindowFormPage />} />
             <Route path="practical-templates" element={<PracticalTemplatesPage />} />
             <Route path="practical-templates/new" element={<PracticalTemplateFormPage />} />
+            <Route path="practical-templates/import" element={<PracticalTemplateImportPage />} />
             <Route path="practical-templates/:id" element={<PracticalTemplateFormPage />} />
             <Route path="practical-sessions" element={<PracticalSessionsPage />} />
             <Route path="practical-sessions/new" element={<PracticalSessionFormPage />} />

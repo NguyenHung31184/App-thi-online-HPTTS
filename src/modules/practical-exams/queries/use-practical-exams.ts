@@ -13,6 +13,7 @@ import {
   addDefaultCriterion, createPracticalTemplate, deletePracticalCriteria, deletePracticalTemplate, getPracticalTemplate, listCriteriaByTemplate,
   listPracticalTemplates, updatePracticalCriteria, updatePracticalTemplate,
 } from '../application/templates';
+import { buildExcelTemplate, createTemplateFromDraft, readTemplateFile, type TemplateDraft } from '../application/import-template';
 import type { CreatePracticalSessionInput, CreatePracticalTemplateInput, PhotoOptions, UpdateCriteriaInput, UpdatePracticalSessionInput, UpdatePracticalTemplateInput } from '../domain/inputs';
 import type { PracticalSessionWithTemplate } from '../domain/sessions';
 
@@ -187,3 +188,29 @@ export function useSyncGrade() {
 }
 
 export const useTtdtSyncEnabled = (): boolean => ttdtSyncEnabled();
+
+// Import from a file
+
+/** Reads the chosen file into a draft (nothing saved). */
+export function useReadTemplateFile() {
+  return useMutation({ mutationFn: (file: File) => readTemplateFile(file) });
+}
+
+export function useCreateTemplateFromDraft() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (args: { draft: TemplateDraft; title: string; moduleId: string | null; passScore: number }) =>
+      createTemplateFromDraft(args.draft, { ...args, createdBy: null }),
+    onSuccess: invalidate,
+  });
+}
+
+/** Saves the Excel template to fill in. */
+export function downloadExcelTemplate(): void {
+  const url = URL.createObjectURL(buildExcelTemplate());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'mau-de-thi-thuc-hanh.xlsx';
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

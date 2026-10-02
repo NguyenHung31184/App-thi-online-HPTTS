@@ -30,3 +30,4 @@ export { default as QuestionEditorPage } from './ui/editor/QuestionEditorPage';
 export { default as QuestionSpreadsheetImportPage } from './ui/QuestionSpreadsheetImportPage';
 export { default as QuestionImportReviewPage } from './ui/QuestionImportReviewPage';
 export { default as LegacyQuestionBankRedirect } from './ui/LegacyQuestionBankRedirect';
+export { readDocxBlocks, type DocBlock, type DocxParts } from './domain/docx-reader';

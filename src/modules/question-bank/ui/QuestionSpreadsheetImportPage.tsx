@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../identity-access/public';
 import type { ImportProgress, MarkingChoice } from '../application/import-questions';
 import type { QuestionDraft, QuestionPayload } from '../domain/question-draft';
 import { imageKey, rowLabel, type SkippedRow } from '../domain/question-import';

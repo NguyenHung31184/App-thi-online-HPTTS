@@ -196,8 +196,10 @@ quyền theo vai trò; đồng bộ TTDT, nhật ký đồng bộ, OCR, trang Nh
   [rollback](rollback/2026-10-02-phase-5-identity-integrations.md)
 - [x] Bước 1, domain kèm test: vai trò từ `exam_role`, email đăng nhập từ mã học viên, trang đích sau đăng nhập, hai
   lớp chặn quyền (khu quản trị, khu học viên), chuẩn hóa CCCD, giải thích lỗi đồng bộ, đọc kết quả OCR.
-- [ ] Bước 2, lõi `identity-access`: phiên đăng nhập, profile, gọi kiểm tra CCCD, phiên học viên; `AuthProvider`,
-  `useAuth` qua `public.ts`; 18 file đổi import; xóa `AuthContext`, `profileService`, `verifyCccdService`.
+- [x] Bước 2, lõi `identity-access`: phiên đăng nhập, profile, gọi kiểm tra CCCD, phiên học viên; `AuthProvider`,
+  `useAuth` qua `public.ts`; 16 file đổi import; xóa `profileService`, `verifyCccdService`. `contexts/AuthContext.tsx`
+  còn là file chuyển tiếp cho 2 trang e-learning (stash E-LEARNING, giai đoạn 4). Hai layout dùng hàm chặn quyền có
+  test. Edge: chưa đăng nhập bị đẩy về `/login` / `/start`; admin vào được mọi trang, F5 không bị đẩy ra.
 - [ ] Bước 3, trang đăng nhập, chọn vai trò, xác thực CCCD, camera vào module; route `/start`, `/login`, `/verify-cccd`.
 - [ ] Bước 4, `integrations`: đồng bộ TTDT, nhật ký đồng bộ, OCR, trang `/admin/sync`.
 - [ ] Bước 5, dọn, README, đo điểm.

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../identity-access/public';
 import { ExamCard } from '../../../shared/ui/ExamCard';
 import { useAvailableTheoryWindows, useStartTheoryAttempt } from '../queries/use-theory-attempt';
 

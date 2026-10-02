@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../identity-access/public';
 import type { ImportSourceKind } from '../domain/question-library';
 import { useStageQuestionImport } from '../queries/use-question-library';
 import { useLibraryContext } from './library-context';

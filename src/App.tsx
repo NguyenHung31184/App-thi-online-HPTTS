@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider } from './modules/identity-access/public';
 import LoginPage from './pages/LoginPage';
 import Layout from './pages/Layout';
 import VerifyCccdPage from './pages/VerifyCccdPage';

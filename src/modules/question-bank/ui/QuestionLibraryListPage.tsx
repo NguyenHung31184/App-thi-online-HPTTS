@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../identity-access/public';
 import { useCreateQuestionLibrary, useModuleOptions, useOccupationOptions, useQuestionLibraries } from '../queries/use-question-library';
 import { errorMessage, focusRing, libraryCourse, moduleLabel } from './labels';
 import { EmptyState, ErrorState, LoadingState } from './states';

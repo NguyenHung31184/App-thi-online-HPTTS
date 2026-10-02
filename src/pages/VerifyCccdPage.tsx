@@ -5,8 +5,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { analyzeCccdByImageFile, isOcrConfigured } from '../services/ocrService';
-import { verifyCccdForExam } from '../services/verifyCccdService';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, verifyCccdForExam } from '../modules/identity-access/public';
 import type { OcrCccdResult } from '../types';
 import CccdCameraCapture from '../components/CccdCameraCapture';
 
@@ -162,12 +161,7 @@ export default function VerifyCccdPage() {
     setError('');
     setLoading(true);
     try {
-      const result = await verifyCccdForExam({
-        id_card_number: ocrData.id_card_number,
-        name: ocrData.full_name ?? ocrData.name,
-        dob: ocrData.dob ?? ocrData.date_of_birth,
-        exam_account_email: user?.email ?? undefined,
-      });
+      const result = await verifyCccdForExam(ocrData, user?.email ?? undefined);
 
       if (!result.success) {
         setError(result.error || 'Kiểm tra CCCD thất bại.');

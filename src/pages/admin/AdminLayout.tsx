@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { teacherCanOpen } from '../../modules/identity-access/public';
+import { adminAreaAccess, useAuth } from '../../modules/identity-access/public';
 import AppLayout, { type NavSection } from '../../components/AppLayout';
 import {
   ExamIcon,
@@ -98,23 +97,15 @@ export default function AdminLayout() {
 
   const title = useMemo(() => getAdminTitle(location.pathname), [location.pathname]);
 
-  if (loading) {
+  const access = adminAreaAccess({ loading, user, pathname: location.pathname });
+  if (access.kind === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-slate-500">Đang tải...</p>
       </div>
     );
   }
-
-  if (!user) return <Navigate to="/login" replace />;
-  const role = (user as { role?: string }).role;
-  if (role !== 'admin' && role !== 'teacher') {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  if (isTeacher && !teacherCanOpen(location.pathname)) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
+  if (access.kind === 'redirect' || !user) return <Navigate to={access.kind === 'redirect' ? access.to : '/login'} replace />;
 
   return (
     <AppLayout

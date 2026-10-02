@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { studentAreaAccess, useAuth } from '../modules/identity-access/public';
 import AppLayout, { type NavSection } from '../components/AppLayout';
 import { DashboardIcon, IdCardIcon, SettingsIcon, ExamIcon, GradingIcon } from '../components/Icons';
 
@@ -69,17 +69,15 @@ export default function Layout() {
     return viewTitles[path] ?? 'App Thi Online';
   }, [location.pathname]);
 
-  if (loading) {
+  const access = studentAreaAccess({ loading, user, studentSession });
+  if (access.kind === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-slate-500">Đang tải...</p>
       </div>
     );
   }
-
-  if (!user && !studentSession) {
-    return <Navigate to="/start" replace />;
-  }
+  if (access.kind === 'redirect') return <Navigate to={access.to} replace />;
 
   const displayEmail =
     user?.email ?? studentSession?.student_code ?? studentSession?.student_id ?? 'Thí sinh';

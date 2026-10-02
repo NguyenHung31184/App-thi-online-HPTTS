@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../modules/identity-access/public';
 import { getAttempt, getAttemptWindowContext, fetchStartExamPhotoSignedUrl } from '../services/attemptService';
 import { getExam } from '../modules/exam-management/public';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';

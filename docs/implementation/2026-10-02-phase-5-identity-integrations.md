@@ -44,6 +44,13 @@
 
 Kept as is (to decide separately): "Dọn log lỗi cũ" deletes failed sync logs older than 30 days (hard delete).
 
+Step 2 notes: `useAuth()` no longer returns the raw Supabase `session` (no file used it); the Supabase types stay in
+`identity-access/data`. `src/contexts/AuthContext.tsx` remains as a re-export for `StudentLearnPage` and
+`LessonPlayerPage`, which the E-LEARNING stash changes (phase 4). Edge, local build: signed out, `/admin/report` goes to
+`/login` and `/dashboard` to `/start`; `/start`, `/login`, `/verify-cccd` render; as admin, dashboard, windows, sync,
+practical grading and `/dashboard` open, and F5 on `/admin/windows` stays there. Sign-out was not clicked: Supabase's
+sign-out would also end the production tab's session.
+
 ## Checks (each step)
 
 `npm run check:boundaries`, `npm run arch:score`, `npm test`, `npx tsc -b`, `npm run lint`, `npm run build`.

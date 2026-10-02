@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../identity-access/public';
 import { studentAttemptBlocker } from '../domain/sessions';
 import {
   useCriteria, useDeletePhoto, usePhotos, usePracticalAttempt, useSessionWithTemplate, useSubmitAttempt, useUploadPhoto,

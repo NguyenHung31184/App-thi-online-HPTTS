@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../modules/identity-access/public';
 import type { Attempt } from '../types';
 
 interface AttemptWithExam extends Attempt {

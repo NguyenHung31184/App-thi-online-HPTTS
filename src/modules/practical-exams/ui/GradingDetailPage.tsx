@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../identity-access/public';
 import { canSyncToTtdt, scoreRange, scoresByCriteria } from '../domain/grading';
 import {
   useCriteria, useGradeAttempt, usePhotos, usePracticalAttempt, useScores, useSessionWithTemplate, useSyncGrade, useTtdtSyncEnabled,

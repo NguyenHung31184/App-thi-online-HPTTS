@@ -1,24 +1,9 @@
 {
   "imports": [
     {
-      "key": "legacy-dependency|src/modules/exam-taking/ui/AvailableTheoryExamsPage|src/contexts/AuthContext",
-      "phase": 5,
-      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
-    },
-    {
       "key": "legacy-service|src/modules/practical-exams/application/attempts|src/services/ttdtSyncService",
       "phase": 5,
       "reason": "TTDT sync of a practical grade; moves to integrations (phase 5)"
-    },
-    {
-      "key": "legacy-dependency|src/modules/practical-exams/ui/GradingDetailPage|src/contexts/AuthContext",
-      "phase": 5,
-      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
-    },
-    {
-      "key": "legacy-dependency|src/modules/practical-exams/ui/PracticalTakePage|src/contexts/AuthContext",
-      "phase": 5,
-      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
     },
     {
       "key": "legacy-dependency|src/modules/question-bank/application/edit-question|src/utils/mediaUrlValidator",
@@ -34,21 +19,6 @@
       "key": "legacy-dependency|src/modules/question-bank/ui/editor/WordImportQuestionEditor|src/utils/mediaUrlValidator",
       "phase": 7,
       "reason": "URL check shared with legacy pages; moves to shared or the owning module (phase 7)"
-    },
-    {
-      "key": "legacy-dependency|src/modules/question-bank/ui/QuestionLibraryImportsPage|src/contexts/AuthContext",
-      "phase": 5,
-      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
-    },
-    {
-      "key": "legacy-dependency|src/modules/question-bank/ui/QuestionLibraryListPage|src/contexts/AuthContext",
-      "phase": 5,
-      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
-    },
-    {
-      "key": "legacy-dependency|src/modules/question-bank/ui/QuestionSpreadsheetImportPage|src/contexts/AuthContext",
-      "phase": 5,
-      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
     }
   ],
   "legacyFiles": [
@@ -94,7 +64,7 @@
     },
     {
       "file": "src/contexts/AuthContext.tsx",
-      "phase": 5
+      "phase": 4
     },
     {
       "file": "src/pages/DashboardPage.tsx",
@@ -169,19 +139,11 @@
       "phase": 5
     },
     {
-      "file": "src/services/profileService.ts",
-      "phase": 5
-    },
-    {
       "file": "src/services/syncLogService.ts",
       "phase": 5
     },
     {
       "file": "src/services/ttdtSyncService.ts",
-      "phase": 5
-    },
-    {
-      "file": "src/services/verifyCccdService.ts",
       "phase": 5
     },
     {

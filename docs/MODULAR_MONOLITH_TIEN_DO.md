@@ -104,7 +104,7 @@ Mỗi bước một commit, không đổi database, không đổi giao diện:
 - [x] Chuẩn bị: file implementation và rollback của giai đoạn 2, dòng ledger.
   [implementation](implementation/2026-10-02-phase-2-exam-reporting-module.md) ·
   [rollback](rollback/2026-10-02-phase-2-exam-reporting-module.md)
-- [ ] Bước 1, domain: tách hàm thuần (lọc báo cáo, tổng hợp điểm AI theo lượt, dựng dòng Excel kết quả và vi phạm, số
+- [x] Bước 1, domain: tách hàm thuần (lọc báo cáo, tổng hợp điểm AI theo lượt, dựng dòng Excel kết quả và vi phạm, số
   liệu dashboard) ra `exam-reporting/domain`, có unit test chụp hành vi hiện tại.
 - [ ] Bước 2, data và application: `report-repository`, `dashboard-repository`, `evidence-storage` (ký URL bằng chứng
   và ảnh lúc vào thi; module không import `src/services`). Use case ở `application/`. `reportService`,

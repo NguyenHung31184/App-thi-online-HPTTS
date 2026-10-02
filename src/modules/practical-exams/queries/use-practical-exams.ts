@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PracticalAttempt, PracticalExamCriteria, PracticalExamSession } from '../../../types';
-import { listClasses } from '../../integrations/public';
+import { listClasses, listModulesWithCourses } from '../../integrations/public';
 import {
   deletePracticalPhoto, getPracticalAttempt, gradePracticalAttempt, listPracticalAttemptsBySession, listPracticalPhotos, listPracticalScores,
   submitPracticalAttempt, syncGradeToTtdt, ttdtSyncEnabled, uploadPracticalPhoto,
@@ -30,6 +30,7 @@ export const practicalKeys = {
   photos: (attemptId: string) => [...practicalKeys.all, 'photos', attemptId] as const,
   scores: (attemptId: string) => [...practicalKeys.all, 'scores', attemptId] as const,
   classes: () => [...practicalKeys.all, 'classes'] as const,
+  modules: () => [...practicalKeys.all, 'ttdt-modules'] as const,
 };
 
 function useInvalidate() {
@@ -38,6 +39,11 @@ function useInvalidate() {
 }
 
 // Templates and criteria
+
+/** TTDT modules grouped by course, for the template's grade target. */
+export function useTtdtModules() {
+  return useQuery({ queryKey: practicalKeys.modules(), queryFn: listModulesWithCourses, staleTime: 5 * 60_000 });
+}
 
 export function usePracticalTemplates() {
   return useQuery({ queryKey: practicalKeys.templates(), queryFn: listPracticalTemplates });

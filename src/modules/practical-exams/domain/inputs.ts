@@ -1,10 +1,12 @@
-import type { PracticalSessionMode } from '../../../types';
+import type { PracticalCriterionKind, PracticalSessionMode } from '../../../types';
 
 export interface CreatePracticalTemplateInput {
   title: string;
   description?: string;
   duration_minutes?: number | null;
   module_id?: string | null;
+  pass_score?: number;
+  config?: Record<string, unknown>;
   created_by?: string | null;
 }
 
@@ -13,6 +15,8 @@ export interface UpdatePracticalTemplateInput {
   description?: string;
   duration_minutes?: number | null;
   module_id?: string | null;
+  pass_score?: number;
+  config?: Record<string, unknown>;
 }
 
 export interface CreateCriteriaInput {
@@ -23,6 +27,9 @@ export interface CreateCriteriaInput {
   max_score: number;
   weight?: number;
   score_step?: number | null;
+  step_key?: string | null;
+  kind?: PracticalCriterionKind;
+  deductions?: { label: string; points: number }[];
 }
 
 export interface UpdateCriteriaInput {
@@ -32,6 +39,9 @@ export interface UpdateCriteriaInput {
   max_score?: number;
   weight?: number;
   score_step?: number | null;
+  step_key?: string | null;
+  kind?: PracticalCriterionKind;
+  deductions?: { label: string; points: number }[];
 }
 
 export interface CreatePracticalSessionInput {

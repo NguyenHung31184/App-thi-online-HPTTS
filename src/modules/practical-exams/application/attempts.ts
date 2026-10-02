@@ -59,7 +59,7 @@ export const ttdtSyncEnabled = (): boolean => isTtdtSyncConfigured();
 
 /** Sends a graded attempt to TTDT once the student and the module are known. */
 export async function syncGradeToTtdt(attempt: PracticalAttempt, session: PracticalSessionWithTemplate): Promise<SyncResult> {
-  const studentId = await selectProfileStudentId(attempt.user_id);
+  const studentId = attempt.student_id ?? (attempt.user_id ? await selectProfileStudentId(attempt.user_id) : null);
   const blocker = ttdtSyncBlocker(studentId, session.template?.module_id ?? null);
   if (blocker) return { success: false, message: blocker };
   return syncPracticalAttemptToTtdt(attempt.id, attempt.total_score ?? 0, {

@@ -236,10 +236,17 @@ export interface PracticalExamTemplate {
   duration_minutes?: number | null;
   /** FK đến modules.id trong TTDT — dùng để đồng bộ điểm thực hành đúng mô-đun. */
   module_id?: string | null;
+  /** Pass mark on 100 (default 70); TTDT receives the total / 10. */
+  pass_score?: number;
+  /** Field grading set-up (steps, time bands, PPE, disqualifying faults); see practical-exams/domain/field-config. */
+  config?: Record<string, unknown>;
+  is_deleted?: boolean;
   created_at?: string;
   updated_at?: string;
   created_by?: string | null;
 }
+
+export type PracticalCriterionKind = 'score' | 'time';
 
 export interface PracticalExamCriteria {
   id: string;
@@ -250,6 +257,12 @@ export interface PracticalExamCriteria {
   max_score: number;
   weight: number;
   score_step?: number | null;
+  /** Step of the field grading screen this criterion belongs to. */
+  step_key?: string | null;
+  kind?: PracticalCriterionKind;
+  /** Quick deductions: [{ label, points }]. */
+  deductions?: unknown;
+  is_deleted?: boolean;
   created_at?: string;
 }
 
@@ -264,15 +277,20 @@ export interface PracticalExamSession {
   access_code: string;
   /** Cách tổ chức kỳ thi: student_upload (HV tự upload) hoặc teacher_grading (GV chấm trực tiếp). */
   mode?: PracticalSessionMode;
+  is_deleted?: boolean;
   created_at?: string;
 }
 
-export type PracticalAttemptStatus = 'pending_upload' | 'submitted' | 'grading' | 'graded';
+/** not_eligible: missing protective equipment, did not sit (field grading). */
+export type PracticalAttemptStatus = 'pending_upload' | 'submitted' | 'grading' | 'graded' | 'not_eligible';
 
 export interface PracticalAttempt {
   id: string;
   session_id: string;
-  user_id: string;
+  /** Exam app account; null for field grading, which sets student_id. */
+  user_id: string | null;
+  /** TTDT students.id (field grading in Sổ chuyên cần). */
+  student_id?: string | null;
   status: PracticalAttemptStatus;
   total_score?: number | null;
   submitted_at?: string | null;

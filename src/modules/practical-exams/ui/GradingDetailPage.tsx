@@ -61,7 +61,7 @@ export default function GradingDetailPage() {
         </button>
       </div>
       <p className="text-slate-600 text-sm mb-2">
-        Kỳ: {session.template?.title} — User: {attempt.user_id.slice(0, 8)}... — Trạng thái: {attempt.status}
+        Kỳ: {session.template?.title} — User: {(attempt.user_id ?? attempt.student_id ?? '').slice(0, 8)}... — Trạng thái: {attempt.status}
         {attempt.synced_to_ttdt_at && <span className="text-green-600 ml-2">Đã đồng bộ TTDT</span>}
       </p>
       {error && <p className="text-red-600 text-sm mb-2">{error}</p>}

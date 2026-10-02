@@ -68,6 +68,7 @@ beforeAll(async () => {
   await db.exec(await migration('20260930160000_resume_in_progress_attempt.sql'));
   await db.exec(await migration('20260930160140_ai_proctoring_policy.sql'));
   await db.exec(await migration('20261003090000_practical_field_grading_sync.sql'));
+  await db.exec(await migration('20261003100000_practical_field_config.sql'));
   await sql('INSERT INTO profiles VALUES($1,$1,\'student\',NULL),($2,$2,\'student\',NULL),($3,NULL,\'teacher\',\'teacher\')',[student,other,teacher]);
   await sql('INSERT INTO enrollments(student_id,class_id) VALUES($1,$2)',[student,classId]);
   await sql("INSERT INTO exams(id,title,duration_minutes,module_id) VALUES($1,'Exam',1,$2)",[exam,moduleId]);
@@ -216,6 +217,11 @@ describe('durable sync queue', () => {
     const [a] = await sql<{id:string}>("INSERT INTO practical_attempts(session_id,student_id,status) VALUES($1,'ttdt-student','not_eligible') RETURNING id",[sessionId]);
     expect(await sql('SELECT 1 FROM exam_sync_jobs WHERE attempt_id=$1',[a.id])).toEqual([]);
     await expect(sql("INSERT INTO practical_attempts(session_id,status) VALUES($1,'grading')",[sessionId])).rejects.toThrow('owner_check');
+  });
+  it('keeps field grading set-up as an object and deductions as lists', async () => {
+    const [t] = await sql<{config:unknown;is_deleted:boolean;pass_score:string}>('SELECT config,is_deleted,pass_score FROM practical_exam_templates WHERE id=$1',[exam]);
+    expect(t).toEqual({config:{},is_deleted:false,pass_score:'70'});
+    await expect(sql("UPDATE practical_exam_templates SET config='[]'::jsonb WHERE id=$1",[exam])).rejects.toThrow('check constraint');
   });
   it('does not expose claims to student callers', async () => {
     await login(student);

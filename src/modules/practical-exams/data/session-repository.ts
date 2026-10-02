@@ -5,7 +5,7 @@ import type { CreatePracticalSessionInput, UpdatePracticalSessionInput } from '.
 export type SessionWithTemplateRow = PracticalExamSession & { practical_exam_templates: PracticalExamTemplate | null };
 
 export async function selectSessions(filters?: { template_id?: string; class_id?: string }): Promise<PracticalExamSession[]> {
-  let query = supabase.from('practical_exam_sessions').select('*').order('start_at', { ascending: false });
+  let query = supabase.from('practical_exam_sessions').select('*').eq('is_deleted', false).order('start_at', { ascending: false });
   if (filters?.template_id) query = query.eq('template_id', filters.template_id);
   if (filters?.class_id) query = query.eq('class_id', filters.class_id);
   const { data, error } = await query;
@@ -37,6 +37,7 @@ export async function selectOpenUploadSessions(now: number, classIds: string[]):
     .from('practical_exam_sessions')
     .select('*, practical_exam_templates (*)')
     .eq('mode', 'student_upload')
+    .eq('is_deleted', false)
     .lte('start_at', now)
     .gte('end_at', now)
     .order('start_at', { ascending: false });
@@ -78,8 +79,8 @@ export async function updateSessionRow(id: string, input: UpdatePracticalSession
   return data as PracticalExamSession;
 }
 
-/** Hard delete, kept from before the move. */
+/** Soft delete: attempts and grades of the session keep their rows. */
 export async function deleteSessionRow(id: string): Promise<void> {
-  const { error } = await supabase.from('practical_exam_sessions').delete().eq('id', id);
+  const { error } = await supabase.from('practical_exam_sessions').update({ is_deleted: true }).eq('id', id);
   if (error) throw error;
 }

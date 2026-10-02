@@ -52,7 +52,7 @@ export default function GradingListPage() {
             {attempts.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-700">
-                  User {a.user_id.slice(0, 8)}... — {a.status}
+                  User {(a.user_id ?? a.student_id ?? '').slice(0, 8)}... — {a.status}
                   {a.total_score != null && ` — ${a.total_score} điểm`}
                 </span>
                 <Link to={`/admin/practical-grading/${a.id}`} className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">

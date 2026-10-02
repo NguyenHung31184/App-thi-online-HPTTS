@@ -13,7 +13,7 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 | 0 | Luật kiến trúc, allowlist, điểm đo | Xong | 2026-10-02 | 25,3% · 14/49 route · 4/10 | Đã push | Không |
 | 1a | Bỏ trang thêm/sửa/nhập câu hỏi theo đề | Xong | 2026-10-02 | không đo riêng | Đã push | Không |
 | 1b | Module `exam-management` | Xong | 2026-10-02 | 43,6% · 22/46 route · 5/10 | Đã push | Không |
-| 2 | Module `exam-reporting` | Chưa làm | | | | Không dự kiến |
+| 2 | Module `exam-reporting` | Đang làm | 2026-10-02 | | Chưa | Không |
 | 3 | Module `practical-exams` | Chưa làm | | | | |
 | 4 | Module `learning` | Chưa làm | | | | |
 | 5 | `identity-access` và `integrations` | Chưa làm | | | | |
@@ -101,7 +101,9 @@ Phần thuộc giai đoạn này, đo ngày 2026-10-02, tổng 2.263 dòng:
 
 Mỗi bước một commit, không đổi database, không đổi giao diện:
 
-- [ ] Chuẩn bị: file implementation và rollback của giai đoạn 2, dòng ledger.
+- [x] Chuẩn bị: file implementation và rollback của giai đoạn 2, dòng ledger.
+  [implementation](implementation/2026-10-02-phase-2-exam-reporting-module.md) ·
+  [rollback](rollback/2026-10-02-phase-2-exam-reporting-module.md)
 - [ ] Bước 1, domain: tách hàm thuần (lọc báo cáo, tổng hợp điểm AI theo lượt, dựng dòng Excel kết quả và vi phạm, số
   liệu dashboard) ra `exam-reporting/domain`, có unit test chụp hành vi hiện tại.
 - [ ] Bước 2, data và application: `report-repository`, `dashboard-repository`, `evidence-storage` (ký URL bằng chứng

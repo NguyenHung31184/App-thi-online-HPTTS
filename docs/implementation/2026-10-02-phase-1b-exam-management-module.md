@@ -21,6 +21,11 @@
    - `services/examService.ts`, `services/examWindowService.ts` become re-exports of `exam-management/public.ts` so
      every consumer keeps working; `services/questionBankService.ts` keeps only its two used functions as re-exports.
      Removed unused code: `validateExamAndCreateSnapshot` and seven unused question-bank service functions.
+   Before step 2 (prerequisites so the moved pages do not call legacy code):
+   - `ConfirmationModal` and `EmptyState` move to `src/shared/ui/` (generic, no business rules).
+   - New module `integrations` with the TTDT directory (`services/ttdtDataService.ts` → `modules/integrations`:
+     classes, modules, modules by course, a student's classes; `course_modules` parsing in `domain/`, tested); the
+     service becomes a re-export. The rest of `integrations` (sync, OCR) stays in phase 5.
 2. **Pages into the module.** `AdminExamsPage`, `AdminExamFormPage`, `AdminExamDetailPage`, `AdminQuestionsPage` (bank
    check), `AdminWindowsPage`, `AdminWindowFormPage` move to `exam-management/ui/`, reading and writing through
    `queries/` hooks; routes in `App.tsx` take them from `public.ts`.

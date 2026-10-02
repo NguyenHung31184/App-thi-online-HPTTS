@@ -152,9 +152,11 @@ học viên nộp ảnh. Ngoài phạm vi nhưng gọi tới: `DashboardPage`, `
   `datetime-local` chuyển sang `src/shared/lib/`.
 - [x] Bước 2, data, application, adapter tải ảnh `src/platform/storage/`; 3 service thành re-export. Đồng bộ điểm sang
   TTDT vẫn gọi `ttdtSyncService` (chuyển ở giai đoạn 5, ghi trong allowlist).
-- [ ] Bước 3, 7 trang vào `practical-exams/ui`, 10 route lấy từ `public.ts`; `DashboardPage`, `AdminSyncPage` import qua
+- [x] Bước 3, 7 trang vào `practical-exams/ui`, 10 route lấy từ `public.ts`; `DashboardPage`, `AdminSyncPage` import qua
   `public.ts`.
 - [ ] Bước 4, dọn: xóa 3 service, trang cũ; allowlist; README; đo điểm.
-- [ ] Edge, chỉ xem: danh sách và form mẫu, kỳ thi, danh sách chấm, một trang chấm (không lưu, không đồng bộ).
+- [x] Edge, chỉ xem: danh sách mẫu, sửa mẫu (7 tiêu chí), thêm mẫu, danh sách kỳ thi, thêm kỳ thi, danh sách chấm giống
+  production; không lỗi trang. Production có 0 kỳ thi, 0 bài làm thực hành: trang chấm và trang học viên nộp ảnh chưa
+  thử được bằng dữ liệu thật (cần tạo kỳ thi thử, người vận hành duyệt).
 - [ ] Giữ nguyên, chờ quyết định: xóa mẫu, tiêu chí, kỳ thi là xóa cứng.
 - [ ] Cập nhật tài liệu; hỏi trước khi push.

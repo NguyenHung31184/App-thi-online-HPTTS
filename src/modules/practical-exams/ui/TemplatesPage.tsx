@@ -1,55 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  listPracticalTemplates,
-  deletePracticalTemplate,
-} from '../../services/practicalTemplateService';
-import type { PracticalExamTemplate } from '../../types';
-import ConfirmationModal from '../../shared/ui/ConfirmationModal';
+import ConfirmationModal from '../../../shared/ui/ConfirmationModal';
+import { useDeleteTemplate, usePracticalTemplates } from '../queries/use-practical-exams';
 
-export default function AdminPracticalTemplatesPage() {
-  const [templates, setTemplates] = useState<PracticalExamTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+export default function TemplatesPage() {
+  const { data: templates = [], isLoading, error: loadError } = usePracticalTemplates();
+  const remove = useDeleteTemplate();
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await listPracticalTemplates();
-      setTemplates(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi tải danh sách mẫu.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  const handleDelete = async (id: string, title: string) => {
-    setConfirmDelete({ id, title });
-  };
-
-  const doDelete = async () => {
+  const doDelete = () => {
     if (!confirmDelete) return;
-    try {
-      setDeleting(true);
-      await deletePracticalTemplate(confirmDelete.id);
-      setTemplates((prev) => prev.filter((t) => t.id !== confirmDelete.id));
-      setConfirmDelete(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi xóa mẫu.');
-    } finally {
-      setDeleting(false);
-    }
+    remove.mutate(confirmDelete.id, {
+      onSuccess: () => setConfirmDelete(null),
+      onError: (e) => setDeleteError(e instanceof Error ? e.message : 'Lỗi xóa mẫu.'),
+    });
   };
 
-  if (loading) return <p className="text-slate-500">Đang tải...</p>;
+  const error = deleteError || (loadError ? (loadError instanceof Error ? loadError.message : 'Lỗi tải danh sách mẫu.') : '');
+  if (isLoading) return <p className="text-slate-500">Đang tải...</p>;
   if (error) return <p className="text-red-600">{error}</p>;
 
   return (
@@ -57,16 +26,10 @@ export default function AdminPracticalTemplatesPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-semibold text-slate-800">Mẫu thi thực hành</h1>
         <div className="flex gap-2">
-          <Link
-            to="/admin/practical-sessions"
-            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
-          >
+          <Link to="/admin/practical-sessions" className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">
             Kỳ thi thực hành
           </Link>
-          <Link
-            to="/admin/practical-templates/new"
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-          >
+          <Link to="/admin/practical-templates/new" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
             Thêm mẫu
           </Link>
         </div>
@@ -102,17 +65,10 @@ export default function AdminPracticalTemplatesPage() {
                   <td className="px-4 py-2 text-slate-600 max-w-xs truncate">{t.description || '—'}</td>
                   <td className="px-4 py-2 text-slate-600">{t.duration_minutes ?? '—'}</td>
                   <td className="px-4 py-2 text-right">
-                    <Link
-                      to={`/admin/practical-templates/${t.id}`}
-                      className="text-slate-600 hover:text-slate-900 mr-3"
-                    >
+                    <Link to={`/admin/practical-templates/${t.id}`} className="text-slate-600 hover:text-slate-900 mr-3">
                       Sửa / Tiêu chí
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(t.id, t.title)}
-                      className="text-red-600 hover:underline"
-                    >
+                    <button type="button" onClick={() => setConfirmDelete({ id: t.id, title: t.title })} className="text-red-600 hover:underline">
                       Xóa
                     </button>
                   </td>
@@ -128,12 +84,10 @@ export default function AdminPracticalTemplatesPage() {
         onClose={() => setConfirmDelete(null)}
         onConfirm={doDelete}
         title="Xóa mẫu thi thực hành"
-        isLoading={deleting}
+        isLoading={remove.isPending}
         confirmText="Xóa"
       >
-        {confirmDelete
-          ? `Xóa mẫu "${confirmDelete.title}"? Các tiêu chí và kỳ thi liên quan sẽ bị ảnh hưởng.`
-          : ''}
+        {confirmDelete ? `Xóa mẫu "${confirmDelete.title}"? Các tiêu chí và kỳ thi liên quan sẽ bị ảnh hưởng.` : ''}
       </ConfirmationModal>
     </div>
   );

@@ -34,6 +34,19 @@ delete; a student removing a photo before submitting deletes its row (the file s
 Database tests already cover start, code check, enrollment check, evidence required at submit, evidence locked after
 submit and teacher grading (`tests/exam-database.test.ts`, "practical authorization").
 
+Two small differences, both noted here on purpose:
+
+- New template form: the old page switched to the edit layout as soon as the title was not empty, so the title input
+  was replaced after the first character and lost focus. The new page keeps one form until the template is created.
+- Student page: after "Nộp bài" the attempt reloads as submitted and the page shows "Bài làm đã nộp." (what a reload
+  showed before); the old page stayed on the upload screen with nothing changed.
+
+## Edge check 2026-10-02 (local build against production, read only)
+
+Template list, edit template (7 criteria, same field values), new template (typing keeps the input), session list,
+new session, grading list: same text and fields as production, no page errors. Production has 1 template, 0 sessions,
+0 practical attempts, so the grading page and the student upload page could not be compared on real data.
+
 ## Checks (each step)
 
 `npm run check:boundaries`, `npm run arch:score`, `npm test`, `npx tsc -b`, `npm run lint`, `npm run build`.

@@ -11,6 +11,16 @@
       "reason": "TTDT sync of a practical grade; moves to integrations (phase 5)"
     },
     {
+      "key": "legacy-dependency|src/modules/practical-exams/ui/GradingDetailPage|src/contexts/AuthContext",
+      "phase": 5,
+      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
+    },
+    {
+      "key": "legacy-dependency|src/modules/practical-exams/ui/PracticalTakePage|src/contexts/AuthContext",
+      "phase": 5,
+      "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
+    },
+    {
       "key": "legacy-dependency|src/modules/question-bank/application/edit-question|src/utils/mediaUrlValidator",
       "phase": 7,
       "reason": "URL check shared with legacy pages; moves to shared or the owning module (phase 7)"
@@ -115,10 +125,6 @@
       "phase": 5
     },
     {
-      "file": "src/pages/PracticalTakePage.tsx",
-      "phase": 3
-    },
-    {
       "file": "src/pages/RoleSelectPage.tsx",
       "phase": 5
     },
@@ -141,30 +147,6 @@
     {
       "file": "src/pages/admin/AdminLayout.tsx",
       "phase": 7
-    },
-    {
-      "file": "src/pages/admin/AdminPracticalGradingDetailPage.tsx",
-      "phase": 3
-    },
-    {
-      "file": "src/pages/admin/AdminPracticalGradingPage.tsx",
-      "phase": 3
-    },
-    {
-      "file": "src/pages/admin/AdminPracticalSessionFormPage.tsx",
-      "phase": 3
-    },
-    {
-      "file": "src/pages/admin/AdminPracticalSessionsPage.tsx",
-      "phase": 3
-    },
-    {
-      "file": "src/pages/admin/AdminPracticalTemplateFormPage.tsx",
-      "phase": 3
-    },
-    {
-      "file": "src/pages/admin/AdminPracticalTemplatesPage.tsx",
-      "phase": 3
     },
     {
       "file": "src/pages/admin/AdminSyncPage.tsx",

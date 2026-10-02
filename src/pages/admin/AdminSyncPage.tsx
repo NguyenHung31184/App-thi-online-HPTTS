@@ -3,8 +3,7 @@ import { listExamSyncLog, listPracticalSyncLog, cleanupOldSyncLogs } from '../..
 import { supabase } from '../../lib/supabaseClient';
 import { getAttempt } from '../../services/attemptService';
 import { getExam, getExamWindow } from '../../modules/exam-management/public';
-import { getPracticalAttempt } from '../../services/practicalAttemptService';
-import { getPracticalSessionWithTemplate } from '../../services/practicalSessionService';
+import { getPracticalAttempt, getPracticalSessionWithTemplate } from '../../modules/practical-exams/public';
 import {
   syncAttemptToTtdt,
   syncPracticalAttemptToTtdt,

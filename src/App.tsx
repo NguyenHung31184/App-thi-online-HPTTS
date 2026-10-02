@@ -15,18 +15,20 @@ import {
   WindowFormPage,
   WindowsPage,
 } from './modules/exam-management/public';
-import AdminPracticalTemplatesPage from './pages/admin/AdminPracticalTemplatesPage';
-import AdminPracticalTemplateFormPage from './pages/admin/AdminPracticalTemplateFormPage';
-import AdminPracticalSessionsPage from './pages/admin/AdminPracticalSessionsPage';
-import AdminPracticalSessionFormPage from './pages/admin/AdminPracticalSessionFormPage';
-import AdminPracticalGradingPage from './pages/admin/AdminPracticalGradingPage';
-import AdminPracticalGradingDetailPage from './pages/admin/AdminPracticalGradingDetailPage';
+import {
+  GradingDetailPage as PracticalGradingDetailPage,
+  GradingListPage as PracticalGradingListPage,
+  PracticalTakePage,
+  SessionFormPage as PracticalSessionFormPage,
+  SessionsPage as PracticalSessionsPage,
+  TemplateFormPage as PracticalTemplateFormPage,
+  TemplatesPage as PracticalTemplatesPage,
+} from './modules/practical-exams/public';
 import { AdminDashboardPage, AttemptResultPage, ReportPage } from './modules/exam-reporting/public';
 import AdminSyncPage from './pages/admin/AdminSyncPage';
 import ExamTakePage from './pages/ExamTakePage';
 import ExamIntroPage from './pages/ExamIntroPage';
 import ExamResultPage from './pages/ExamResultPage';
-import PracticalTakePage from './pages/PracticalTakePage';
 import StudentExamsPage from './pages/StudentExamsPage';
 import StudentResultsPage from './pages/StudentResultsPage';
 import StudentLearnPage from './pages/StudentLearnPage';
@@ -80,14 +82,14 @@ function App() {
             <Route path="windows" element={<WindowsPage />} />
             <Route path="windows/new" element={<WindowFormPage />} />
             <Route path="windows/:id" element={<WindowFormPage />} />
-            <Route path="practical-templates" element={<AdminPracticalTemplatesPage />} />
-            <Route path="practical-templates/new" element={<AdminPracticalTemplateFormPage />} />
-            <Route path="practical-templates/:id" element={<AdminPracticalTemplateFormPage />} />
-            <Route path="practical-sessions" element={<AdminPracticalSessionsPage />} />
-            <Route path="practical-sessions/new" element={<AdminPracticalSessionFormPage />} />
-            <Route path="practical-sessions/:id" element={<AdminPracticalSessionFormPage />} />
-            <Route path="practical-grading" element={<AdminPracticalGradingPage />} />
-            <Route path="practical-grading/:attemptId" element={<AdminPracticalGradingDetailPage />} />
+            <Route path="practical-templates" element={<PracticalTemplatesPage />} />
+            <Route path="practical-templates/new" element={<PracticalTemplateFormPage />} />
+            <Route path="practical-templates/:id" element={<PracticalTemplateFormPage />} />
+            <Route path="practical-sessions" element={<PracticalSessionsPage />} />
+            <Route path="practical-sessions/new" element={<PracticalSessionFormPage />} />
+            <Route path="practical-sessions/:id" element={<PracticalSessionFormPage />} />
+            <Route path="practical-grading" element={<PracticalGradingListPage />} />
+            <Route path="practical-grading/:attemptId" element={<PracticalGradingDetailPage />} />
             <Route path="report" element={<ReportPage />} />
             <Route path="attempts/:attemptId/result" element={<AttemptResultPage />} />
             <Route path="sync" element={<AdminSyncPage />} />

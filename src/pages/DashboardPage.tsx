@@ -7,11 +7,11 @@ import {
 } from '../modules/exam-management/public';
 import { startExamAttempt } from '../services/attemptService';
 import {
+  createPracticalAttempt,
   getAllowedPracticalSessions,
   getPracticalSession,
-} from '../services/practicalSessionService';
-import { createPracticalAttempt } from '../services/practicalAttemptService';
-import type { PracticalSessionWithTemplate } from '../services/practicalSessionService';
+  type PracticalSessionWithTemplate,
+} from '../modules/practical-exams/public';
 import { getAdminDashboardStats, type AdminDashboardStats } from '../modules/exam-reporting/public';
 
 export default function DashboardPage() {

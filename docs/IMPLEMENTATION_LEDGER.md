@@ -32,7 +32,7 @@ This ledger is the entry point for people and coding agents continuing the proje
 
 Found in the 2026-09-30 trial exam: entering again created a new attempt; fix `docs/implementation/2026-10-01-resume-in-progress-attempt.md` (migration applied 2026-10-01).
 
-Modular monolith plan `docs/implementation/2026-10-01-modular-monolith-90-plan.md`: phase 0 done 2026-10-02 (`docs/implementation/2026-10-02-architecture-phase-0.md`; baseline 25.3%, 4/10); phase 1a done (`docs/implementation/2026-10-02-phase-1a-retire-per-exam-questions.md`); phase 1b done (`docs/implementation/2026-10-02-phase-1b-exam-management-module.md`; 43.5%, 5/10, 22/46 routes). Window delete and "Xóa báo cáo thi thử" are still hard deletes, to decide.
+Modular monolith plan `docs/implementation/2026-10-01-modular-monolith-90-plan.md`: progress, commits and rollback per phase in `docs/MODULAR_MONOLITH_TIEN_DO.md` (phases 0, 1a, 1b done; 43.6%, 5/10, 22/46 routes).
 
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.
 

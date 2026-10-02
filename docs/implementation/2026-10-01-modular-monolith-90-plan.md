@@ -4,6 +4,7 @@
 - Baseline: commit production `0267b37`
 - Trạng thái hiện tại: đo bằng `npm run arch:score` ngày 2026-10-02 — 25,3% mã nghiệp vụ trong module, 14/49 route, 4/10
   tiêu chí (bản đầu ước lượng 46/100)
+- Tiến độ, commit và cách rollback từng giai đoạn: `docs/MODULAR_MONOLITH_TIEN_DO.md`
 - Mục tiêu: tối thiểu 90/100, giữ nguyên hành vi nghiệp vụ và triển khai tăng dần
 - Rà soát 2026-10-02 (người vận hành đồng ý): bổ sung hiện trạng, bỏ các trang câu hỏi theo đề ghi vào bảng cũ, đổi thứ tự
   giai đoạn để màn thi làm sau cùng, gán giai đoạn cho mọi service cũ, thêm bước chạy thử migration.

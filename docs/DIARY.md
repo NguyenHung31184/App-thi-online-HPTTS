@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-10-02 (tối) | Điểm TTDT tháng 3–4, nhật ký đồng bộ, thi thực hành chấm tại sân
+
+**Đã làm**
+- Bỏ nút "Dọn lỗi cũ (30 ngày)" (không có quyền xóa nên chưa từng xóa được). Gửi lại 66 bài tháng 3–4 TTDT đang trống
+  điểm (6 bài TTDT có điểm khác giữ nguyên theo người vận hành); TTDT có đủ 66.
+- Phát hiện và sửa `exam_sync_log.module_id` kiểu uuid: từ 29/09 mọi lần gửi lý thuyết ghi nhật ký lỗi và bị gửi lại
+  liên tục. Migration `20261002160000` đã áp dụng; hàng đợi về thành công. Lịch `exam-maintenance` đang chạy mỗi phút.
+- Thực hành chấm tại sân (Sổ chuyên cần): `practical_attempts.student_id`, trạng thái `not_eligible`, điểm đạt; tổng
+  /100 gửi TTDT /10 (`20261003090000`). Mẫu đề có cấu hình chấm tại sân, mô-đun TTDT, xóa mềm (`20261003100000`).
+  Đã tạo đề RTG Khóa 43 theo phiếu chấm. Đã push (`c103b7d`), CI đạt.
+- Thử trọn luồng với lớp thử trong TTDT: 94/100 → 9,4; loại thi → 0 và phải thi lại; thiếu bảo hộ → không gửi.
+
+**Vấn đề gặp**: chép phiên production sang app local làm mất phiên production (xoay refresh token). Sổ chuyên cần tự
+đăng xuất toàn cục khi tải hồ sơ chậm (đã sửa bên Sổ chuyên cần).
+
+**Tiếp theo**: giáo viên RTG xem lại lỗi trừ nhanh; diễn tập 08/10; xóa mềm lớp thử sau diễn tập. Ghi nhận: bucket
+`exam-uploads` đang công khai và policy cho mọi tài khoản đọc toàn bộ; xử lý sau ngày thi.
+
 ## 2026-10-02 (chiều) | Modular monolith: file theo dõi tiến độ, giai đoạn 2
 
 ### Đã làm

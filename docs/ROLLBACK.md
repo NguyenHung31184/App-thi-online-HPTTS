@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-02 — Nhật ký đồng bộ, gửi điểm thực hành chấm tại sân, mẫu đề thực hành
+
+**Commit:** `2a89559` (bỏ nút dọn log), `666e5e2` (module_id text), `0f967f3` (gửi điểm thực hành), `b6dad9e` (mẫu đề), đã push tới `c103b7d`.
+**Branch:** main
+
+Ba migration đã áp dụng (`20261002160000`, `20261003090000`, `20261003100000`), chỉ sửa tiến (forward repair). Code:
+Promote bản Vercel `7b79aa6` hoặc `git revert` theo thứ tự ngược. Xem `docs/rollback/2026-10-02-exam-sync-log-module-id.md`,
+`docs/rollback/2026-10-03-practical-field-grading-sync.md`, `docs/rollback/2026-10-03-practical-field-config.md`.
+
 ## 2026-10-02 — `identity-access` và `integrations` (giai đoạn 5)
 
 **Commit:** `5df8605` (domain), `1ee72df` (lõi đăng nhập), `bbbfe50` (trang đăng nhập, CCCD; OCR), `a62467e` (đồng bộ TTDT, nhật ký), `0987c09` (README, tài liệu)

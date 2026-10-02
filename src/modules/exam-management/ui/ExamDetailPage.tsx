@@ -1,51 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getExam, lockExam, unlockExam } from '../../services/examService';
-import { countDrawableQuestions } from '../../modules/question-bank/public';
-import type { Exam } from '../../types';
+import { useDrawableQuestionCount, useExam, useLockExam, useUnlockExam } from '../queries/use-exam-management';
 
-export default function AdminExamDetailPage() {
+export default function ExamDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [exam, setExam] = useState<Exam | null>(null);
-  const [questionCount, setQuestionCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [locking, setLocking] = useState(false);
+  const examQuery = useExam(id);
+  const exam = examQuery.data ?? null;
+  // Same pool the exam draws from: published questions of the exam's module in the question bank.
+  const questionCount = useDrawableQuestionCount(exam?.module_id).data ?? 0;
+  const lockExam = useLockExam();
+  const unlockExam = useUnlockExam();
+  const locking = lockExam.isPending || unlockExam.isPending;
   const [lockMessage, setLockMessage] = useState('');
   const [lockMessageOk, setLockMessageOk] = useState(false);
-  const [error, setError] = useState('');
   const [guideOpen, setGuideOpen] = useState(false);
-
-  const load = async () => {
-    if (!id) return;
-    setLoading(true);
-    setError('');
-    try {
-      const examData = await getExam(id);
-      setExam(examData ?? null);
-      // Same pool the exam draws from: published questions of the exam's module in the question bank.
-      setQuestionCount(examData?.module_id ? await countDrawableQuestions(examData.module_id) : 0);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi tải đề thi.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, [id]);
+  const loading = examQuery.isPending;
+  const error = examQuery.error ? (examQuery.error instanceof Error ? examQuery.error.message : 'Lỗi tải đề thi.') : '';
 
   const handleLock = async () => {
     if (!id) return;
-    setLocking(true);
     setLockMessage('');
     try {
-      const result = await lockExam(id);
+      const result = await lockExam.mutateAsync(id);
       if (result.ok) {
         setLockMessageOk(true);
         setLockMessage('Đề thi đã được khóa. Câu hỏi không thể thay đổi cho đến khi mở khóa.');
-        await load();
       } else {
         setLockMessageOk(false);
         setLockMessage(result.message);
@@ -53,25 +33,19 @@ export default function AdminExamDetailPage() {
     } catch (e) {
       setLockMessageOk(false);
       setLockMessage(e instanceof Error ? e.message : 'Lỗi khóa đề.');
-    } finally {
-      setLocking(false);
     }
   };
 
   const handleUnlock = async () => {
     if (!id) return;
-    setLocking(true);
     setLockMessage('');
     try {
-      await unlockExam(id);
+      await unlockExam.mutateAsync(id);
       setLockMessageOk(true);
       setLockMessage('Đề thi đã được mở khóa. Bạn có thể chỉnh sửa câu hỏi.');
-      await load();
     } catch (e) {
       setLockMessageOk(false);
       setLockMessage(e instanceof Error ? e.message : 'Lỗi mở khóa đề.');
-    } finally {
-      setLocking(false);
     }
   };
 

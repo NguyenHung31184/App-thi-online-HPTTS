@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-02 — Module `exam-management` (giai đoạn 1b)
+
+**Commit:** `5578bd7` (bước 1: data, application), `fd9caf5` và `c4832af` (chuẩn bị: `shared/ui`, module `integrations`), bước 2 _(commit này: 6 trang Đề thi, Kỳ thi, Kiểm tra ngân hàng vào module)_
+**Branch:** main
+
+Chỉ chuyển code, không đổi database, giao diện giữ nguyên. Rollback: `git revert` theo thứ tự ngược; xem `docs/rollback/2026-10-02-phase-1b-exam-management-module.md`.
+
+---
+
 ## 2026-10-02 — Bỏ trang thêm/sửa/nhập câu hỏi theo đề (giai đoạn 1a)
 
 **Commit:** _(commit này)_

@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { listExams, deleteExam } from '../../services/examService';
-import type { Exam } from '../../types';
-import ConfirmationModal from '../../shared/ui/ConfirmationModal';
-import EmptyState from '../../shared/ui/EmptyState';
+import ConfirmationModal from '../../../shared/ui/ConfirmationModal';
+import EmptyState from '../../../shared/ui/EmptyState';
+import { useDeleteExam, useExams } from '../queries/use-exam-management';
 
 function LockBadge({ locked }: { locked: boolean }) {
   if (locked) {
@@ -31,7 +30,7 @@ interface ActionBtnProps {
   onClick?: () => void;
   title: string;
   color?: 'default' | 'blue' | 'indigo' | 'red';
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 function ActionBtn({ to, onClick, title, color = 'default', children }: ActionBtnProps) {
@@ -47,39 +46,24 @@ function ActionBtn({ to, onClick, title, color = 'default', children }: ActionBt
   return <button type="button" onClick={onClick} title={title} className={cls}>{children}</button>;
 }
 
-export default function AdminExamsPage() {
-  const [exams, setExams] = useState<Exam[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+export default function ExamsPage() {
+  const examsQuery = useExams();
+  const exams = examsQuery.data ?? [];
+  const loading = examsQuery.isPending;
+  const removeExam = useDeleteExam();
+  const deleting = removeExam.isPending;
+  const [deleteError, setDeleteError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await listExams();
-      setExams(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi tải danh sách đề thi.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
+  const error = deleteError || (examsQuery.error ? (examsQuery.error instanceof Error ? examsQuery.error.message : 'Lỗi tải danh sách đề thi.') : '');
 
   const doDelete = async () => {
     if (!confirmDelete) return;
     try {
-      setDeleting(true);
-      await deleteExam(confirmDelete.id);
-      setExams((prev) => prev.filter((e) => e.id !== confirmDelete.id));
+      setDeleteError('');
+      await removeExam.mutateAsync(confirmDelete.id);
       setConfirmDelete(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi xóa đề thi.');
-    } finally {
-      setDeleting(false);
+      setDeleteError(e instanceof Error ? e.message : 'Lỗi xóa đề thi.');
     }
   };
 
@@ -147,7 +131,7 @@ export default function AdminExamsPage() {
 
               {/* Card footer: icon actions */}
               <div className="px-3 pb-3 flex items-center justify-end gap-1 border-t border-slate-100 pt-2">
-                <ActionBtn to={`/admin/exams/${exam.id}/questions`} title="Câu hỏi" color="default">
+                <ActionBtn to={`/admin/exams/${exam.id}/questions`} title="Kiểm tra ngân hàng" color="default">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h10" />
                   </svg>

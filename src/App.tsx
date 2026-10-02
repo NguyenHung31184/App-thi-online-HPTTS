@@ -7,12 +7,14 @@ import VerifyCccdPage from './pages/VerifyCccdPage';
 import RoleSelectPage from './pages/RoleSelectPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminLayout from './pages/admin/AdminLayout';
-import AdminExamsPage from './pages/admin/AdminExamsPage';
-import AdminExamFormPage from './pages/admin/AdminExamFormPage';
-import AdminExamDetailPage from './pages/admin/AdminExamDetailPage';
-import AdminQuestionsPage from './pages/admin/AdminQuestionsPage';
-import AdminWindowsPage from './pages/admin/AdminWindowsPage';
-import AdminWindowFormPage from './pages/admin/AdminWindowFormPage';
+import {
+  BankCheckPage,
+  ExamDetailPage,
+  ExamFormPage,
+  ExamsPage,
+  WindowFormPage,
+  WindowsPage,
+} from './modules/exam-management/public';
 import AdminPracticalTemplatesPage from './pages/admin/AdminPracticalTemplatesPage';
 import AdminPracticalTemplateFormPage from './pages/admin/AdminPracticalTemplateFormPage';
 import AdminPracticalSessionsPage from './pages/admin/AdminPracticalSessionsPage';
@@ -56,8 +58,8 @@ function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboardPage />} />
-            <Route path="exams" element={<AdminExamsPage />} />
-            <Route path="exams/new" element={<AdminExamFormPage />} />
+            <Route path="exams" element={<ExamsPage />} />
+            <Route path="exams/new" element={<ExamFormPage />} />
             <Route path="questions" element={<Navigate to="/admin/question-libraries" replace />} />
             <Route path="question-libraries" element={<QuestionLibraryListPage />} />
             <Route path="question-libraries/imports/:jobId" element={<QuestionImportReviewPage />} />
@@ -74,12 +76,12 @@ function App() {
             <Route path="questions/occupation/:occupationId/new" element={<LegacyQuestionBankRedirect target="new" />} />
             <Route path="questions/occupation/:occupationId/import" element={<LegacyQuestionBankRedirect target="import" />} />
             <Route path="questions/occupation/:occupationId/questions/:qId" element={<LegacyQuestionBankRedirect target="question" />} />
-            <Route path="exams/:id" element={<AdminExamDetailPage />} />
-            <Route path="exams/:id/edit" element={<AdminExamFormPage />} />
-            <Route path="exams/:id/questions" element={<AdminQuestionsPage />} />
-            <Route path="windows" element={<AdminWindowsPage />} />
-            <Route path="windows/new" element={<AdminWindowFormPage />} />
-            <Route path="windows/:id" element={<AdminWindowFormPage />} />
+            <Route path="exams/:id" element={<ExamDetailPage />} />
+            <Route path="exams/:id/edit" element={<ExamFormPage />} />
+            <Route path="exams/:id/questions" element={<BankCheckPage />} />
+            <Route path="windows" element={<WindowsPage />} />
+            <Route path="windows/new" element={<WindowFormPage />} />
+            <Route path="windows/:id" element={<WindowFormPage />} />
             <Route path="practical-templates" element={<AdminPracticalTemplatesPage />} />
             <Route path="practical-templates/new" element={<AdminPracticalTemplateFormPage />} />
             <Route path="practical-templates/:id" element={<AdminPracticalTemplateFormPage />} />

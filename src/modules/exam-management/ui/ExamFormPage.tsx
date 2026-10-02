@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getExam, createExam, updateExam } from '../../services/examService';
-import { listModulesWithCourses, type ModuleWithCourse } from '../../services/ttdtDataService';
-import type { BlueprintRule } from '../../types';
+import type { ModuleWithCourse } from '../../integrations/public';
+import type { BlueprintRule } from '../../../types';
+import { useCreateExam, useFetchExam, useTtdtModulesWithCourses, useUpdateExam } from '../queries/use-exam-management';
 
 const DIFFICULTY_OPTIONS = [
   { value: 'easy', label: 'Dễ' },
@@ -10,7 +10,7 @@ const DIFFICULTY_OPTIONS = [
   { value: 'hard', label: 'Khó' },
 ];
 
-export default function AdminExamFormPage() {
+export default function ExamFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
@@ -24,19 +24,17 @@ export default function AdminExamFormPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const [modules, setModules] = useState<ModuleWithCourse[]>([]);
+  const modulesQuery = useTtdtModulesWithCourses();
+  const modules = useMemo<ModuleWithCourse[]>(() => modulesQuery.data ?? [], [modulesQuery.data]);
   const [loadedExamMissingModule, setLoadedExamMissingModule] = useState(false);
-
-  useEffect(() => {
-    listModulesWithCourses()
-      .then((list) => setModules(list))
-      .catch(() => setModules([]));
-  }, []);
+  const fetchExam = useFetchExam();
+  const createExam = useCreateExam();
+  const updateExam = useUpdateExam();
 
   useEffect(() => {
     if (!isEdit || !id) return;
     let cancelled = false;
-    getExam(id).then((exam) => {
+    fetchExam(id).then((exam) => {
       if (cancelled || !exam) return;
       setTitle(exam.title);
       setDescription(exam.description ?? '');
@@ -54,6 +52,8 @@ export default function AdminExamFormPage() {
       }
     }).catch(() => setError('Không tải được đề thi.'));
     return () => { cancelled = true; };
+    // fetchExam is a new function each render; loading once per exam id is the intent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,10 +72,10 @@ export default function AdminExamFormPage() {
       if (Number.isNaN(pt) || pt < 0 || pt > 1) { setError('Ngưỡng đạt phải trong khoảng 0 đến 1.'); setLoading(false); return; }
 
       if (isEdit && id) {
-        await updateExam(id, { title: titleTrim, description, duration_minutes, pass_threshold: pt, module_id: module_id.trim() || null, blueprint: rules });
+        await updateExam.mutateAsync({ id, input: { title: titleTrim, description, duration_minutes, pass_threshold: pt, module_id: module_id.trim() || null, blueprint: rules } });
         navigate('/admin/exams');
       } else {
-        const exam = await createExam({ title: titleTrim, description, duration_minutes, pass_threshold: pt, blueprint: rules, module_id: module_id.trim() || undefined });
+        const exam = await createExam.mutateAsync({ title: titleTrim, description, duration_minutes, pass_threshold: pt, blueprint: rules, module_id: module_id.trim() || undefined });
         navigate(`/admin/exams/${exam.id}`);
       }
     } catch (err) {

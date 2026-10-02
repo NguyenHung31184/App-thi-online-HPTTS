@@ -1,6 +1,6 @@
 # Modular monolith phase 1b: `exam-management` module
 
-- Status: in progress 2026-10-02 (step 1 committed).
+- Status: in progress 2026-10-02 (steps 1 and 2 committed).
 - Date: 2026-10-02
 - Database: none. Behaviour unchanged (moves only).
 - Rollback: `docs/rollback/2026-10-02-phase-1b-exam-management-module.md`
@@ -29,6 +29,12 @@
 2. **Pages into the module.** `AdminExamsPage`, `AdminExamFormPage`, `AdminExamDetailPage`, `AdminQuestionsPage` (bank
    check), `AdminWindowsPage`, `AdminWindowFormPage` move to `exam-management/ui/`, reading and writing through
    `queries/` hooks; routes in `App.tsx` take them from `public.ts`.
+   Done: `ExamsPage`, `ExamFormPage`, `ExamDetailPage`, `bank-check/BankCheckPage` (split into the blueprint panel,
+   preview and draw dialogs, CSV download), `WindowsPage`, `WindowFormPage` (split into `window-form/ExamPickerSection`
+   and `window-form/WindowRuleSections`). Pure rules moved to `domain/` with tests: `bank-check.ts` (blueprint count,
+   simulated draw, CSV), `window-status.ts` (window status, grouping by class), `window-form.ts` (datetime-local values,
+   exam labels, access code, save checks in their old order). Screens and messages unchanged. Result: 43.5% of business
+   code in modules, 22/46 routes owned by a module.
 3. **Consumers and facades.** Other pages (`ExamTakePage`, `ExamIntroPage`, `ExamResultPage`, `DashboardPage`,
    `AdminReportPage`, `AdminSyncPage`) import from `exam-management/public.ts`; the three service facades are deleted.
 

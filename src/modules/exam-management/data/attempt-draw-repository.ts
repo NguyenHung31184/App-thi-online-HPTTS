@@ -6,3 +6,10 @@ export async function selectDrawnQuestionIds(examId: string): Promise<(string[] 
   if (error) return [];
   return ((data ?? []) as { question_ids: string[] | null }[]).map((row) => row.question_ids);
 }
+
+/** Attempts already made in a window (any student). */
+export async function countAttemptsOfWindow(windowId: string): Promise<number> {
+  const { count, error } = await supabase.from('attempts').select('id', { count: 'exact', head: true }).eq('window_id', windowId);
+  if (error) throw error;
+  return count ?? 0;
+}

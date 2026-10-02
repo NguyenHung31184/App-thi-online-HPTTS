@@ -1,30 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { listExamWindows, deleteExamWindow, deleteAllTrialAttempts } from '../../services/examWindowService';
-import { listExams } from '../../services/examService';
-import { listClasses } from '../../services/ttdtDataService';
-import type { ExamWindow } from '../../types';
-import ConfirmationModal from '../../shared/ui/ConfirmationModal';
-import EmptyState from '../../shared/ui/EmptyState';
+import ConfirmationModal from '../../../shared/ui/ConfirmationModal';
+import EmptyState from '../../../shared/ui/EmptyState';
+import { classGroupStatus, groupWindowsByClass, windowStatus, UNKNOWN_CLASS, type WindowStatus } from '../domain/window-status';
+import { useDeleteAllTrialAttempts, useDeleteExamWindow, useExams, useExamWindows, useTtdtClasses } from '../queries/use-exam-management';
 
-type WindowStatus = 'active' | 'upcoming' | 'ended';
-
-function getWindowStatus(startAt: number, endAt: number): WindowStatus {
-  const now = Date.now();
-  if (now < startAt) return 'upcoming';
-  if (now > endAt) return 'ended';
-  return 'active';
-}
-
-function classGroupStatus(windows: ExamWindow[]): WindowStatus {
-  const statuses = windows.map((w) => getWindowStatus(w.start_at, w.end_at));
-  if (statuses.includes('active')) return 'active';
-  if (statuses.includes('upcoming')) return 'upcoming';
-  return 'ended';
-}
-
-function StatusBadge({ startAt, endAt }: { startAt: number; endAt: number }) {
-  const status = getWindowStatus(startAt, endAt);
+function StatusBadge({ startAt, endAt, now }: { startAt: number; endAt: number; now: number }) {
+  const status = windowStatus(startAt, endAt, now);
   const config = {
     active: { label: 'Đang diễn ra', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
     upcoming: { label: 'Sắp tới', cls: 'bg-amber-100 text-amber-800 border-amber-200' },
@@ -64,95 +46,49 @@ function formatTime(ts: number) {
   return new Date(ts).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-const STATUS_ORDER: Record<WindowStatus, number> = { active: 0, upcoming: 1, ended: 2 };
-
-export default function AdminWindowsPage() {
-  const [windows, setWindows] = useState<ExamWindow[]>([]);
-  const [exams, setExams] = useState<Record<string, string>>({});
-  const [classes, setClasses] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+export default function WindowsPage() {
+  const windowsQuery = useExamWindows();
+  const examsQuery = useExams();
+  const classesQuery = useTtdtClasses();
+  const removeWindow = useDeleteExamWindow();
+  const removeTrialAttempts = useDeleteAllTrialAttempts();
+  // Window status is read against the time the page opened, as the list is not refreshed every minute.
+  const [now] = useState(() => Date.now());
+  const windows = useMemo(() => windowsQuery.data ?? [], [windowsQuery.data]);
+  const exams = useMemo(() => Object.fromEntries((examsQuery.data ?? []).map((e) => [e.id, e.title])), [examsQuery.data]);
+  const classes = useMemo(() => Object.fromEntries((classesQuery.data ?? []).map((c) => [c.id, c.name])), [classesQuery.data]);
+  const loading = windowsQuery.isPending || examsQuery.isPending || classesQuery.isPending;
+  const [actionError, setActionError] = useState('');
+  const loadFailure = windowsQuery.error ?? examsQuery.error;
+  const error = actionError || (loadFailure ? (loadFailure instanceof Error ? loadFailure.message : 'Lỗi tải danh sách kỳ thi.') : '');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const deleting = removeWindow.isPending;
   const [confirmDeleteTrialReports, setConfirmDeleteTrialReports] = useState(false);
-  const [deletingTrialReports, setDeletingTrialReports] = useState(false);
+  const deletingTrialReports = removeTrialAttempts.isPending;
   const [trialDeleteResult, setTrialDeleteResult] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [winList, examList, classList] = await Promise.all([
-        listExamWindows(),
-        listExams(),
-        listClasses(),
-      ]);
-      setWindows(winList);
-      setExams(Object.fromEntries(examList.map((e) => [e.id, e.title])));
-      setClasses(Object.fromEntries(classList.map((c) => [c.id, c.name])));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi tải danh sách kỳ thi.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
   const doDeleteTrialReports = async () => {
-    setDeletingTrialReports(true);
     try {
-      const count = await deleteAllTrialAttempts();
+      const count = await removeTrialAttempts.mutateAsync();
       setTrialDeleteResult(`Đã xóa ${count} báo cáo thi thử.`);
       setConfirmDeleteTrialReports(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi xóa báo cáo thi thử.');
-    } finally {
-      setDeletingTrialReports(false);
+      setActionError(e instanceof Error ? e.message : 'Lỗi xóa báo cáo thi thử.');
     }
   };
 
   const doDelete = async () => {
     if (!confirmDeleteId) return;
     try {
-      setDeleting(true);
-      await deleteExamWindow(confirmDeleteId);
-      setWindows((prev) => prev.filter((w) => w.id !== confirmDeleteId));
+      await removeWindow.mutateAsync(confirmDeleteId);
       setConfirmDeleteId(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi xóa.');
-    } finally {
-      setDeleting(false);
+      setActionError(e instanceof Error ? e.message : 'Lỗi xóa.');
     }
   };
 
-  // Nhóm kỳ thi theo lớp, sắp xếp nhóm: đang thi → sắp thi → đã kết thúc
-  const groups = useMemo(() => {
-    const map = new Map<string, ExamWindow[]>();
-    for (const w of windows) {
-      const key = w.class_id ?? '__unknown__';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(w);
-    }
-    // Trong mỗi nhóm: sắp xếp active → upcoming → ended, cùng status thì mới nhất lên đầu
-    for (const [, list] of map) {
-      list.sort((a, b) => {
-        const sa = STATUS_ORDER[getWindowStatus(a.start_at, a.end_at)];
-        const sb = STATUS_ORDER[getWindowStatus(b.start_at, b.end_at)];
-        if (sa !== sb) return sa - sb;
-        return b.start_at - a.start_at;
-      });
-    }
-    // Sắp xếp nhóm: đang thi → sắp thi → đã kết thúc, cùng status thì theo tên lớp
-    return [...map.entries()].sort(([aId, aList], [bId, bList]) => {
-      const sa = STATUS_ORDER[classGroupStatus(aList)];
-      const sb = STATUS_ORDER[classGroupStatus(bList)];
-      if (sa !== sb) return sa - sb;
-      const nameA = classes[aId] ?? '';
-      const nameB = classes[bId] ?? '';
-      return nameA.localeCompare(nameB, 'vi');
-    });
-  }, [windows, classes]);
+  // Grouped by class: running classes first, then upcoming, then ended.
+  const groups = useMemo(() => groupWindowsByClass(windows, classes, now), [windows, classes, now]);
 
   return (
     <div>
@@ -209,8 +145,8 @@ export default function AdminWindowsPage() {
 
       <div className="space-y-8">
         {groups.map(([classId, list]) => {
-          const className = classes[classId] ?? (classId === '__unknown__' ? 'Chưa rõ lớp' : classId);
-          const groupStatus = classGroupStatus(list);
+          const className = classes[classId] ?? (classId === UNKNOWN_CLASS ? 'Chưa rõ lớp' : classId);
+          const groupStatus = classGroupStatus(list, now);
           return (
             <div key={classId}>
               {/* Class section header */}
@@ -237,7 +173,7 @@ export default function AdminWindowsPage() {
                             Thử
                           </span>
                         )}
-                        <StatusBadge startAt={w.start_at} endAt={w.end_at} />
+                        <StatusBadge startAt={w.start_at} endAt={w.end_at} now={now} />
                       </div>
                       <h3 className="text-sm font-semibold text-slate-900 line-clamp-2 leading-snug">
                         {exams[w.exam_id] ?? 'Kỳ thi'}

@@ -142,18 +142,6 @@
       "phase": 2
     },
     {
-      "file": "src/pages/admin/AdminExamDetailPage.tsx",
-      "phase": 1
-    },
-    {
-      "file": "src/pages/admin/AdminExamFormPage.tsx",
-      "phase": 1
-    },
-    {
-      "file": "src/pages/admin/AdminExamsPage.tsx",
-      "phase": 1
-    },
-    {
       "file": "src/pages/admin/AdminLayout.tsx",
       "phase": 7
     },
@@ -182,24 +170,12 @@
       "phase": 3
     },
     {
-      "file": "src/pages/admin/AdminQuestionsPage.tsx",
-      "phase": 1
-    },
-    {
       "file": "src/pages/admin/AdminReportPage.tsx",
       "phase": 2
     },
     {
       "file": "src/pages/admin/AdminSyncPage.tsx",
       "phase": 5
-    },
-    {
-      "file": "src/pages/admin/AdminWindowFormPage.tsx",
-      "phase": 1
-    },
-    {
-      "file": "src/pages/admin/AdminWindowsPage.tsx",
-      "phase": 1
     },
     {
       "file": "src/services/attemptService.ts",

@@ -3,6 +3,7 @@ import { listAvailableTheoryWindows } from '../../exam-taking/public';
 import {
   deleteExamWindowRow, deleteTrialWindowAttempts, insertExamWindow, selectExamWindow, selectExamWindows, updateExamWindowRow,
 } from '../data/exam-window-repository';
+import { countAttemptsOfWindow } from '../data/attempt-draw-repository';
 import {
   windowExamIdAfterUpdate, windowRowFromInput, type CreateExamWindowInput, type ExamWindowWithExam, type UpdateExamWindowInput,
 } from '../domain/exam-inputs';
@@ -42,4 +43,9 @@ export function deleteAllTrialAttempts(): Promise<number> {
 /** Open windows the current student may enter. */
 export function getAllowedWindows(): Promise<ExamWindowWithExam[]> {
   return listAvailableTheoryWindows() as Promise<ExamWindowWithExam[]>;
+}
+
+/** Attempts made in a window; a trial window with attempts cannot become a real one. */
+export function countAttemptsForWindow(windowId: string): Promise<number> {
+  return countAttemptsOfWindow(windowId);
 }

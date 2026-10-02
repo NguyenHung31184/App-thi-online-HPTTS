@@ -100,11 +100,9 @@ mục 6 của kế hoạch.
   (`src/modules/exam-management/data/exam-window-repository.ts`). Chờ người vận hành quyết định.
 - Giai đoạn 6 chỉ bắt đầu sau một buổi thi thử có giám sát AI chạy ổn định, không làm trong ngày có ca thi thật.
 - Kịch bản Edge của buổi thi thử 2026-09-30 chưa đưa vào repo thành smoke test.
-- Lỗi có từ trước, tìm thấy khi kiểm tra giai đoạn 2: tab "Tín hiệu giám sát" của Báo cáo không lọc theo đề hay kỳ
-  thi. Bộ lọc `attempts.exam_id` / `attempts.window_id` đặt trên bảng nhúng nên không bỏ dòng nào, và PostgREST
-  cắt ở 1.000 dòng: đề nào cũng hiện 1.000 tín hiệu mới nhất của mọi đề (đề QC có 15 bài nhưng file Excel vi phạm
-  có 168 lượt thi). Production và bản mới giống nhau. Sửa riêng sau khi xong giai đoạn 2 (cần `!inner` hoặc lọc
-  theo danh sách lượt thi, và phân trang).
+- Đã sửa (ngoài kế hoạch, sau giai đoạn 2): tab "Tín hiệu giám sát" trước đây không lọc theo đề hay kỳ thi và dừng ở
+  1.000 dòng. Xem [implementation](implementation/2026-10-02-report-signals-filter.md) ·
+  [rollback](rollback/2026-10-02-report-signals-filter.md).
 
 ## Giai đoạn 2: module `exam-reporting`
 

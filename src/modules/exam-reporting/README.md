@@ -15,7 +15,7 @@ Live monitoring of running exams stays in `exam-monitoring`; the dashboard embed
 - Other modules: `exam-management` (exams, windows) and `integrations` (class names) for the report filters,
   `exam-monitoring` for the live board, all through `public.ts`.
 
-Known issue, kept from before the move: the signals tab does not filter by exam or window and stops at 1,000 rows
-(see `docs/implementation/2026-10-02-phase-2-exam-reporting-module.md`).
+Signals are read with `attempts!inner` and in pages of 1,000, so the tab shows only the chosen exam or window
+(`docs/implementation/2026-10-02-report-signals-filter.md`).
 
 See `docs/implementation/2026-10-01-modular-monolith-90-plan.md` (phase 2).

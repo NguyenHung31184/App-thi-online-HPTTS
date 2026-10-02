@@ -63,16 +63,29 @@ export async function selectCompletedAttempts(filters: ReportFilters): Promise<C
   return (data ?? []) as CompletedAttemptRecord[];
 }
 
+const PAGE_SIZE = 1000;
+
+/**
+ * Signals of the attempts of an exam or a window, newest first. `attempts!inner` makes the filter drop the other logs
+ * (a plain embed only blanks the embedded row), and pages go past PostgREST's 1,000-row cap.
+ */
 export async function selectAuditLogs(filters: ReportFilters): Promise<AuditLogRecord[]> {
-  let query = supabase
-    .from('attempt_audit_logs')
-    .select('id, attempt_id, event, metadata, created_at, attempts (user_id, exam_id, window_id, exams (title), exam_windows (class_id))')
-    .order('created_at', { ascending: false });
-  if (filters.exam_id) query = query.eq('attempts.exam_id', filters.exam_id);
-  if (filters.window_id) query = query.eq('attempts.window_id', filters.window_id);
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []) as AuditLogRecord[];
+  const rows: AuditLogRecord[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    let query = supabase
+      .from('attempt_audit_logs')
+      .select('id, attempt_id, event, metadata, created_at, attempts!inner (user_id, exam_id, window_id, exams (title), exam_windows (class_id))')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (filters.exam_id) query = query.eq('attempts.exam_id', filters.exam_id);
+    if (filters.window_id) query = query.eq('attempts.window_id', filters.window_id);
+    const { data, error } = await query;
+    if (error) throw error;
+    const page = (data ?? []) as unknown as AuditLogRecord[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return rows;
+  }
 }
 
 export async function reviewIncident(logId: string, decision: 'confirmed' | 'rejected'): Promise<void> {

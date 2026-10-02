@@ -19,12 +19,11 @@
 
 ### Vấn đề gặp
 - Phiên đăng nhập production trong Edge hết hạn; người dùng đăng nhập lại.
-- Lỗi có sẵn: tab "Tín hiệu giám sát" không lọc theo đề/kỳ thi và dừng ở 1.000 dòng (production cũng vậy). Ghi lại,
-  chưa sửa.
+- Lỗi có sẵn: tab "Tín hiệu giám sát" không lọc theo đề/kỳ thi và dừng ở 1.000 dòng (production cũng vậy). Đã sửa
+  bằng `attempts!inner` và đọc theo trang; số trên Edge khớp đếm trực tiếp trong database (QC 170, đề lớn 2.276).
 
 ### Kế hoạch tiếp theo
 - Hỏi người dùng trước khi push giai đoạn 2.
-- Sửa lọc tín hiệu giám sát (việc riêng).
 - Giai đoạn 3 (`practical-exams`).
 
 ---

@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-02 — Báo cáo: tín hiệu giám sát lọc đúng theo đề, kỳ thi
+
+**Commit:** _(commit này)_
+**Branch:** main
+
+Không đổi database. Rollback: `git revert`; xem `docs/rollback/2026-10-02-report-signals-filter.md`.
+
+---
+
 ## 2026-10-02 — Module `exam-reporting` (giai đoạn 2)
 
 **Commit:** `3db4e2d` (domain), `35c8398` (data, application), `f4d5bec` (trang kết quả một lượt thi), `1f7f11f` (Báo cáo, Dashboard admin), `ec14d4b` (xóa `reportService`, `dashboardService`)

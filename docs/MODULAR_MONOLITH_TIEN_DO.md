@@ -13,8 +13,8 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 | 0 | Luật kiến trúc, allowlist, điểm đo | Xong | 2026-10-02 | 25,3% · 14/49 route · 4/10 | Đã push | Không |
 | 1a | Bỏ trang thêm/sửa/nhập câu hỏi theo đề | Xong | 2026-10-02 | không đo riêng | Đã push | Không |
 | 1b | Module `exam-management` | Xong | 2026-10-02 | 43,6% · 22/46 route · 5/10 | Đã push | Không |
-| 2 | Module `exam-reporting` | Xong | 2026-10-02 | 54,3% · 25/46 route · 5/10 | Chưa | Không |
-| 3 | Module `practical-exams` | Chưa làm | | | | |
+| 2 | Module `exam-reporting` | Xong | 2026-10-02 | 54,3% · 25/46 route · 5/10 | Đã push | Không |
+| 3 | Module `practical-exams` | Đang làm | 2026-10-02 | | Chưa | Không |
 | 4 | Module `learning` | Chưa làm | | | | |
 | 5 | `identity-access` và `integrations` | Chưa làm | | | | |
 | 6 | `exam-taking` và giám sát AI (làm sau cùng) | Chưa làm | | | | |
@@ -139,4 +139,22 @@ Mỗi bước một commit, không đổi database, không đổi giao diện:
   Không bấm duyệt sự việc AI trên dữ liệu thật nếu chưa được cho phép.
 - [x] Điều kiện xong: điểm AI tổng hợp theo lượt; link bằng chứng ký lại khi xem; Excel và bộ lọc giữ nguyên; giám sát
   trực tiếp vẫn ở `exam-monitoring`.
-- [x] Cập nhật file này, `ROLLBACK.md`, `DIARY.md`. Chờ người vận hành cho push.
+- [x] Cập nhật file này, `ROLLBACK.md`, `DIARY.md`. Đã push (`2259f3f`, CI đạt); sửa lọc tín hiệu `e062e20` đã push.
+
+## Giai đoạn 3: module `practical-exams`
+
+Phạm vi đo ngày 2026-10-02, tổng 1.781 dòng: 3 service thực hành, 6 trang admin (mẫu, tiêu chí, kỳ thi, chấm), trang
+học viên nộp ảnh. Ngoài phạm vi nhưng gọi tới: `DashboardPage`, `AdminSyncPage`.
+
+- [x] Chuẩn bị: [implementation](implementation/2026-10-02-phase-3-practical-exams-module.md) ·
+  [rollback](rollback/2026-10-02-phase-3-practical-exams-module.md)
+- [ ] Bước 1, domain: tổng điểm có hệ số, tiêu chí mới, kiểm tra form kỳ thi, quyền học viên với bài làm, nhãn; đổi giờ
+  `datetime-local` chuyển sang `src/shared/lib/`.
+- [ ] Bước 2, data, application, adapter tải ảnh `src/platform/storage/`; 3 service thành re-export. Đồng bộ điểm sang
+  TTDT vẫn gọi `ttdtSyncService` (chuyển ở giai đoạn 5, ghi trong allowlist).
+- [ ] Bước 3, 7 trang vào `practical-exams/ui`, 10 route lấy từ `public.ts`; `DashboardPage`, `AdminSyncPage` import qua
+  `public.ts`.
+- [ ] Bước 4, dọn: xóa 3 service, trang cũ; allowlist; README; đo điểm.
+- [ ] Edge, chỉ xem: danh sách và form mẫu, kỳ thi, danh sách chấm, một trang chấm (không lưu, không đồng bộ).
+- [ ] Giữ nguyên, chờ quyết định: xóa mẫu, tiêu chí, kỳ thi là xóa cứng.
+- [ ] Cập nhật tài liệu; hỏi trước khi push.

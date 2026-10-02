@@ -150,7 +150,7 @@ học viên nộp ảnh. Ngoài phạm vi nhưng gọi tới: `DashboardPage`, `
   [rollback](rollback/2026-10-02-phase-3-practical-exams-module.md)
 - [x] Bước 1, domain: tổng điểm có hệ số, tiêu chí mới, kiểm tra form kỳ thi, quyền học viên với bài làm, nhãn; đổi giờ
   `datetime-local` chuyển sang `src/shared/lib/`.
-- [ ] Bước 2, data, application, adapter tải ảnh `src/platform/storage/`; 3 service thành re-export. Đồng bộ điểm sang
+- [x] Bước 2, data, application, adapter tải ảnh `src/platform/storage/`; 3 service thành re-export. Đồng bộ điểm sang
   TTDT vẫn gọi `ttdtSyncService` (chuyển ở giai đoạn 5, ghi trong allowlist).
 - [ ] Bước 3, 7 trang vào `practical-exams/ui`, 10 route lấy từ `public.ts`; `DashboardPage`, `AdminSyncPage` import qua
   `public.ts`.

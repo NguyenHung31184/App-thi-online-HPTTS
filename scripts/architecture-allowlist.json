@@ -6,6 +6,11 @@
       "reason": "useAuth from the legacy context; moves to identity-access (phase 5)"
     },
     {
+      "key": "legacy-service|src/modules/practical-exams/application/attempts|src/services/ttdtSyncService",
+      "phase": 5,
+      "reason": "TTDT sync of a practical grade; moves to integrations (phase 5)"
+    },
+    {
       "key": "legacy-dependency|src/modules/question-bank/application/edit-question|src/utils/mediaUrlValidator",
       "phase": 7,
       "reason": "URL check shared with legacy pages; moves to shared or the owning module (phase 7)"

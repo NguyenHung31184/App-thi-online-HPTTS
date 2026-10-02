@@ -200,7 +200,9 @@ quyền theo vai trò; đồng bộ TTDT, nhật ký đồng bộ, OCR, trang Nh
   `useAuth` qua `public.ts`; 16 file đổi import; xóa `profileService`, `verifyCccdService`. `contexts/AuthContext.tsx`
   còn là file chuyển tiếp cho 2 trang e-learning (stash E-LEARNING, giai đoạn 4). Hai layout dùng hàm chặn quyền có
   test. Edge: chưa đăng nhập bị đẩy về `/login` / `/start`; admin vào được mọi trang, F5 không bị đẩy ra.
-- [ ] Bước 3, trang đăng nhập, chọn vai trò, xác thực CCCD, camera vào module; route `/start`, `/login`, `/verify-cccd`.
+- [x] Bước 3, trang đăng nhập, chọn vai trò, xác thực CCCD, camera vào module; route `/start`, `/login`, `/verify-cccd`.
+  OCR chuyển sang `integrations` cùng bước (trang CCCD cần nó). Edge: 3 trang giống production; nhập tay báo đúng lỗi
+  thiếu số, thiếu tên; số CCCD bỏ khoảng trắng; không gửi kiểm tra thật.
 - [ ] Bước 4, `integrations`: đồng bộ TTDT, nhật ký đồng bộ, OCR, trang `/admin/sync`.
 - [ ] Bước 5, dọn, README, đo điểm.
 - [ ] Edge: đăng xuất, đăng nhập admin, F5 ở trang quản trị không bị đẩy về /login, các trang /start, /login,

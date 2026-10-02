@@ -51,6 +51,11 @@ Step 2 notes: `useAuth()` no longer returns the raw Supabase `session` (no file 
 practical grading and `/dashboard` open, and F5 on `/admin/windows` stays there. Sign-out was not clicked: Supabase's
 sign-out would also end the production tab's session.
 
+Step 3 notes: OCR moved into `integrations` in this step (`data/ocr-proxy.ts`, `application/ocr.ts`) because the CCCD
+page in `identity-access` needs it; `services/ocrService.ts` is deleted. Edge: `/start`, `/login`, `/verify-cccd`
+identical to production; typed CCCD shows "Vui lòng nhập số CCCD." then "Vui lòng nhập họ và tên…", then the review
+step with the number without spaces; the server check was not sent.
+
 ## Checks (each step)
 
 `npm run check:boundaries`, `npm run arch:score`, `npm test`, `npx tsc -b`, `npm run lint`, `npm run build`.

@@ -1,10 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { AuthProvider } from './modules/identity-access/public';
-import LoginPage from './pages/LoginPage';
+import { AuthProvider, LoginPage, RoleSelectPage, VerifyCccdPage } from './modules/identity-access/public';
 import Layout from './pages/Layout';
-import VerifyCccdPage from './pages/VerifyCccdPage';
-import RoleSelectPage from './pages/RoleSelectPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import {

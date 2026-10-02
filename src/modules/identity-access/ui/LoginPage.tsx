@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../modules/identity-access/public';
+import { landingPathAfterLogin, loginEmail } from '../domain/access';
+import { useAuth } from '../queries/auth-context';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -14,25 +15,10 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const username = email.trim();
-    const loginEmail = username.includes('@') ? username : `${username}@hptts.vn`;
-    const { error: err, user } = await signIn(loginEmail, password);
+    const { error: err, user } = await signIn(loginEmail(email), password);
     setLoading(false);
-    if (err) {
-      setError(err);
-    } else {
-      const role = user?.role;
-      if (role === 'admin') {
-        // Admin: vào thẳng khu quản trị với sidebar đầy đủ (Đề thi, Kỳ thi, Báo cáo, Đồng bộ điểm...)
-        navigate('/admin/dashboard', { replace: true });
-      } else if (role === 'teacher' || role === 'proctor') {
-        // Giáo viên: vào khu quản trị với sidebar giới hạn (Dashboard, Đề thi, Soạn câu hỏi, Báo cáo), bỏ qua CCCD
-        navigate('/admin/dashboard', { replace: true });
-      } else {
-        // Mặc định: thí sinh → đi thẳng đến bước xác thực CCCD
-        navigate('/verify-cccd', { replace: true });
-      }
-    }
+    if (err) setError(err);
+    else navigate(landingPathAfterLogin(user?.role), { replace: true });
   };
 
   return (

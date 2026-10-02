@@ -1,79 +1,15 @@
 /**
- * Màn xác thực CCCD trước khi thi — tận dụng server OCR (proxy Chatbot).
- * Luồng: chụp/upload ảnh → upload lên Storage lấy URL → gọi OCR → hiển thị kết quả → Kiểm tra → gọi verify-cccd-for-exam.
+ * CCCD check before an exam: photo (camera or file) → OCR through the server proxy → server check against the class
+ * lists. Typing the number and name skips the photo and goes through the same server check.
  */
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { analyzeCccdByImageFile, isOcrConfigured } from '../services/ocrService';
-import { useAuth, verifyCccdForExam } from '../modules/identity-access/public';
-import type { OcrCccdResult } from '../types';
-import CccdCameraCapture from '../components/CccdCameraCapture';
-
-interface ManualCccdFallbackProps {
-  manualCccd: string;
-  setManualCccd: (v: string) => void;
-  manualName: string;
-  setManualName: (v: string) => void;
-  manualDob: string;
-  setManualDob: (v: string) => void;
-  onSubmit: () => void;
-  submitLabel: string;
-}
-
-/** Nhập CCCD + họ tên khi OCR lỗi — cùng API verify-cccd-for-exam như sau khi đọc ảnh. */
-function ManualCccdFallbackSection({
-  manualCccd,
-  setManualCccd,
-  manualName,
-  setManualName,
-  manualDob,
-  setManualDob,
-  onSubmit,
-  submitLabel,
-}: ManualCccdFallbackProps) {
-  return (
-    <div className="mt-4 pt-4 border-t border-slate-200">
-      <p className="text-slate-600 text-sm font-medium mb-1">Không đọc được ảnh / lỗi OCR?</p>
-      <p className="text-slate-500 text-xs mb-3">
-        Nhập <strong>số CCCD</strong> và <strong>họ tên đầy đủ</strong> đúng như trên thẻ. Ngày sinh (nếu có) giúp TTDT đối chiếu chặt hơn. Dữ liệu được gửi lên server giống hệt bước sau khi đọc ảnh thành công.
-      </p>
-      <div className="space-y-2">
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="Số CCCD (12 số)"
-          value={manualCccd}
-          onChange={(e) => setManualCccd(e.target.value)}
-          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-        />
-        <input
-          type="text"
-          autoComplete="name"
-          placeholder="Họ và tên đầy đủ (bắt buộc)"
-          value={manualName}
-          onChange={(e) => setManualName(e.target.value)}
-          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-        />
-        <input
-          type="text"
-          autoComplete="bday"
-          placeholder="Ngày sinh (tùy chọn, VD: 11/05/1984)"
-          value={manualDob}
-          onChange={(e) => setManualDob(e.target.value)}
-          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-        />
-        <button
-          type="button"
-          onClick={onSubmit}
-          className="w-full py-2.5 border-2 border-indigo-500 text-indigo-700 font-medium rounded-lg hover:bg-indigo-50 text-sm"
-        >
-          {submitLabel}
-        </button>
-      </div>
-    </div>
-  );
-}
+import type { OcrCccdResult } from '../../../../types';
+import { manualCccdInput, verifyFailure } from '../../domain/cccd';
+import { useAuth } from '../../queries/auth-context';
+import { useOcrAvailable, useReadCccdCard, useVerifyCccd } from '../../queries/use-cccd-check';
+import CccdCameraCapture from './CccdCameraCapture';
+import { ManualCccdFallbackSection } from './ManualCccdFallback';
 
 export default function VerifyCccdPage() {
   const navigate = useNavigate();
@@ -90,6 +26,9 @@ export default function VerifyCccdPage() {
   const [manualDob, setManualDob] = useState('');
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const ocrAvailable = useOcrAvailable();
+  const readCard = useReadCccdCard();
+  const verify = useVerifyCccd();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -105,19 +44,19 @@ export default function VerifyCccdPage() {
     setStep('upload');
   };
 
-  /** Bước 1: Đọc ảnh thành base64 rồi gửi thẳng lên scan-id-card (Gemini) — không cần upload Storage trước. */
+  /** Step 1: the photo goes straight to the OCR proxy, no Storage upload first. */
   const handleRunOcr = async () => {
     if (!imageFile) return;
     setError('');
     setLoading(true);
     try {
-      if (!isOcrConfigured()) {
+      if (!ocrAvailable) {
         setError('Chưa cấu hình dịch vụ đọc CCCD. Vui lòng nhập tay số CCCD bên dưới.');
         setLoading(false);
         return;
       }
 
-      const result = await analyzeCccdByImageFile(imageFile);
+      const result = await readCard.mutateAsync(imageFile);
       if (!result.success || !result.data) {
         setError(result.error || 'Không đọc được thông tin từ ảnh CCCD.');
         setLoading(false);
@@ -132,45 +71,28 @@ export default function VerifyCccdPage() {
     setLoading(false);
   };
 
-  /** Nhập tay CCCD + họ tên → cùng bước kiểm tra TTDT như sau OCR. */
+  /** Typed CCCD and name go through the same server check as after OCR. */
   const handleUseManualCccd = () => {
-    const cccd = manualCccd.replace(/\s/g, '').trim();
-    const fullName = manualName.replace(/\s+/g, ' ').trim();
     setError('');
-    if (!cccd) {
-      setError('Vui lòng nhập số CCCD.');
+    const typed = manualCccdInput(manualCccd, manualName, manualDob);
+    if ('error' in typed) {
+      setError(typed.error);
       return;
     }
-    if (!fullName) {
-      setError('Vui lòng nhập họ và tên đầy đủ (đúng như trên thẻ).');
-      return;
-    }
-    setOcrData({
-      id_card_number: cccd,
-      full_name: fullName,
-      name: fullName,
-      dob: manualDob.trim() || undefined,
-      date_of_birth: manualDob.trim() || undefined,
-    });
+    setOcrData(typed.data);
     setStep('ocr');
   };
 
-  /** Bước 2: Gọi TTDT verify-cccd-for-exam với số CCCD đã đọc hoặc nhập tay. */
+  /** Step 2: the server checks the CCCD read or typed against the TTDT class lists. */
   const handleVerify = async () => {
     if (!ocrData?.id_card_number) return;
     setError('');
     setLoading(true);
     try {
-      const result = await verifyCccdForExam(ocrData, user?.email ?? undefined);
-
-      if (!result.success) {
-        setError(result.error || 'Kiểm tra CCCD thất bại.');
-        setLoading(false);
-        return;
-      }
-
-      if (!result.data?.valid) {
-        setError(result.data?.message || 'Số CCCD không thuộc danh sách được thi.');
+      const result = await verify.mutateAsync({ card: ocrData, examAccountEmail: user?.email ?? undefined });
+      const failure = verifyFailure(result);
+      if (failure || !result.data) {
+        setError(failure ?? 'Kiểm tra CCCD thất bại.');
         setLoading(false);
         return;
       }

@@ -27,10 +27,6 @@
       "phase": 7
     },
     {
-      "file": "src/components/CccdCameraCapture.tsx",
-      "phase": 5
-    },
-    {
       "file": "src/components/ExamCard.tsx",
       "phase": 7
     },
@@ -91,14 +87,6 @@
       "phase": 4
     },
     {
-      "file": "src/pages/LoginPage.tsx",
-      "phase": 5
-    },
-    {
-      "file": "src/pages/RoleSelectPage.tsx",
-      "phase": 5
-    },
-    {
       "file": "src/pages/StudentExamsPage.tsx",
       "phase": 6
     },
@@ -109,10 +97,6 @@
     {
       "file": "src/pages/StudentResultsPage.tsx",
       "phase": 6
-    },
-    {
-      "file": "src/pages/VerifyCccdPage.tsx",
-      "phase": 5
     },
     {
       "file": "src/pages/admin/AdminLayout.tsx",
@@ -133,10 +117,6 @@
     {
       "file": "src/services/examUploadService.ts",
       "phase": 6
-    },
-    {
-      "file": "src/services/ocrService.ts",
-      "phase": 5
     },
     {
       "file": "src/services/syncLogService.ts",

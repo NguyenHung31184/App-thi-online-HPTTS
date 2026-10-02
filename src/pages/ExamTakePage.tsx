@@ -26,7 +26,7 @@ import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncSer
 import { uploadExamFileViaEdge } from '../services/examUploadService';
 import { SortableOptionList } from '../components/SortableOptionList';
 import { LabelOnImageDrop } from '../components/LabelOnImageDrop';
-import ConfirmationModal from '../components/ConfirmationModal';
+import ConfirmationModal from '../shared/ui/ConfirmationModal';
 import { CheckCircle } from 'lucide-react';
 import { ProctoringEvidenceCapture, type ProctoringEvidenceCaptureRef, type EvidenceKind } from '../components/proctoring/ProctoringEvidenceCapture';
 import { AiObjectProctorBurst, type AiDetectionDetails } from '../components/proctoring/AiObjectProctorBurst';

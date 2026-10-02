@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listExams, deleteExam } from '../../services/examService';
 import type { Exam } from '../../types';
-import ConfirmationModal from '../../components/ConfirmationModal';
-import EmptyState from '../../components/EmptyState';
+import ConfirmationModal from '../../shared/ui/ConfirmationModal';
+import EmptyState from '../../shared/ui/EmptyState';
 
 function LockBadge({ locked }: { locked: boolean }) {
   if (locked) {

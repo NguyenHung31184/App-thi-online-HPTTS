@@ -4,8 +4,8 @@ import { listExamWindows, deleteExamWindow, deleteAllTrialAttempts } from '../..
 import { listExams } from '../../services/examService';
 import { listClasses } from '../../services/ttdtDataService';
 import type { ExamWindow } from '../../types';
-import ConfirmationModal from '../../components/ConfirmationModal';
-import EmptyState from '../../components/EmptyState';
+import ConfirmationModal from '../../shared/ui/ConfirmationModal';
+import EmptyState from '../../shared/ui/EmptyState';
 
 type WindowStatus = 'active' | 'upcoming' | 'ended';
 

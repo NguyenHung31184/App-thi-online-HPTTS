@@ -6,7 +6,7 @@ import {
   getPracticalSessionWithTemplate,
 } from '../../services/practicalSessionService';
 import type { PracticalExamSession } from '../../types';
-import ConfirmationModal from '../../components/ConfirmationModal';
+import ConfirmationModal from '../../shared/ui/ConfirmationModal';
 
 export default function AdminPracticalSessionsPage() {
   const [sessions, setSessions] = useState<PracticalExamSession[]>([]);

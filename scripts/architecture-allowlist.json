@@ -46,14 +46,6 @@
       "phase": 5
     },
     {
-      "file": "src/components/ConfirmationModal.tsx",
-      "phase": 7
-    },
-    {
-      "file": "src/components/EmptyState.tsx",
-      "phase": 7
-    },
-    {
       "file": "src/components/ExamCard.tsx",
       "phase": 7
     },

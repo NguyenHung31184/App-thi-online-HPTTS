@@ -5,7 +5,7 @@ import {
   deletePracticalTemplate,
 } from '../../services/practicalTemplateService';
 import type { PracticalExamTemplate } from '../../types';
-import ConfirmationModal from '../../components/ConfirmationModal';
+import ConfirmationModal from '../../shared/ui/ConfirmationModal';
 
 export default function AdminPracticalTemplatesPage() {
   const [templates, setTemplates] = useState<PracticalExamTemplate[]>([]);

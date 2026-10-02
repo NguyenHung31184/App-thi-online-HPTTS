@@ -10,7 +10,7 @@ import {
   deletePracticalCriteria,
 } from '../../services/practicalTemplateService';
 import type { PracticalExamCriteria } from '../../types';
-import ConfirmationModal from '../../components/ConfirmationModal';
+import ConfirmationModal from '../../shared/ui/ConfirmationModal';
 
 export default function AdminPracticalTemplateFormPage() {
   const { id } = useParams<{ id: string }>();

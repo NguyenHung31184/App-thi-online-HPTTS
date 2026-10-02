@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { teacherCanOpen } from '../../utils/adminAccess';
+import { teacherCanOpen } from '../../modules/identity-access/public';
 import AppLayout, { type NavSection } from '../../components/AppLayout';
 import {
   ExamIcon,

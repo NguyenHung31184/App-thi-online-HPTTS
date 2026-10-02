@@ -185,10 +185,6 @@
       "phase": 5
     },
     {
-      "file": "src/utils/adminAccess.ts",
-      "phase": 5
-    },
-    {
       "file": "src/utils/blazeFaceProctor.ts",
       "phase": 6
     },

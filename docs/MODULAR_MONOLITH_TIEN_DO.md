@@ -194,7 +194,7 @@ quyền theo vai trò; đồng bộ TTDT, nhật ký đồng bộ, OCR, trang Nh
 
 - [x] Chuẩn bị: [implementation](implementation/2026-10-02-phase-5-identity-integrations.md) ·
   [rollback](rollback/2026-10-02-phase-5-identity-integrations.md)
-- [ ] Bước 1, domain kèm test: vai trò từ `exam_role`, email đăng nhập từ mã học viên, trang đích sau đăng nhập, hai
+- [x] Bước 1, domain kèm test: vai trò từ `exam_role`, email đăng nhập từ mã học viên, trang đích sau đăng nhập, hai
   lớp chặn quyền (khu quản trị, khu học viên), chuẩn hóa CCCD, giải thích lỗi đồng bộ, đọc kết quả OCR.
 - [ ] Bước 2, lõi `identity-access`: phiên đăng nhập, profile, gọi kiểm tra CCCD, phiên học viên; `AuthProvider`,
   `useAuth` qua `public.ts`; 18 file đổi import; xóa `AuthContext`, `profileService`, `verifyCccdService`.

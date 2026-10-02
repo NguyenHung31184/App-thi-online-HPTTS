@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import type { WindowProctoringMode } from '../domain/exam-inputs';
-import { examsWithoutModule, fromDatetimeLocal, randomAccessCode, toDatetimeLocal, windowFormError } from '../domain/window-form';
+import { fromDatetimeLocal, toDatetimeLocal } from '../../../shared/lib/datetime-local';
+import { examsWithoutModule, randomAccessCode, windowFormError } from '../domain/window-form';
 import {
   useCreateExamWindow,
   useExams,

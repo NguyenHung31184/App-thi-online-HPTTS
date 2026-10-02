@@ -190,16 +190,8 @@
       "phase": 4
     },
     {
-      "file": "src/services/examService.ts",
-      "phase": 1
-    },
-    {
       "file": "src/services/examUploadService.ts",
       "phase": 6
-    },
-    {
-      "file": "src/services/examWindowService.ts",
-      "phase": 1
     },
     {
       "file": "src/services/ocrService.ts",
@@ -222,19 +214,11 @@
       "phase": 5
     },
     {
-      "file": "src/services/questionBankService.ts",
-      "phase": 1
-    },
-    {
       "file": "src/services/reportService.ts",
       "phase": 2
     },
     {
       "file": "src/services/syncLogService.ts",
-      "phase": 5
-    },
-    {
-      "file": "src/services/ttdtDataService.ts",
       "phase": 5
     },
     {

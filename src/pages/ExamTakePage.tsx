@@ -21,7 +21,7 @@ import {
   type AiProctoringState,
   type AiViolationKind,
 } from '../modules/exam-taking/public';
-import { getExam } from '../services/examService';
+import { getExam } from '../modules/exam-management/public';
 import { syncAttemptToTtdt, isTtdtSyncConfigured } from '../services/ttdtSyncService';
 import { uploadExamFileViaEdge } from '../services/examUploadService';
 import { SortableOptionList } from '../components/SortableOptionList';

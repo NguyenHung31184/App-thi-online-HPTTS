@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { listExams } from '../../services/examService';
-import { listExamWindows } from '../../services/examWindowService';
-import { listClasses } from '../../services/ttdtDataService';
+import { listExams, listExamWindows } from '../../modules/exam-management/public';
+import { listClasses } from '../../modules/integrations/public';
 import {
   listAttemptsForReport,
   listViolationsForReport,

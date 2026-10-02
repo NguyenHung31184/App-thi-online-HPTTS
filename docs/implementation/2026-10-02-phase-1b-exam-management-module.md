@@ -1,6 +1,6 @@
 # Modular monolith phase 1b: `exam-management` module
 
-- Status: in progress 2026-10-02 (steps 1 and 2 committed).
+- Status: done 2026-10-02 (steps 1–3 committed, not pushed yet).
 - Date: 2026-10-02
 - Database: none. Behaviour unchanged (moves only).
 - Rollback: `docs/rollback/2026-10-02-phase-1b-exam-management-module.md`
@@ -37,6 +37,9 @@
    code in modules, 22/46 routes owned by a module.
 3. **Consumers and facades.** Other pages (`ExamTakePage`, `ExamIntroPage`, `ExamResultPage`, `DashboardPage`,
    `AdminReportPage`, `AdminSyncPage`) import from `exam-management/public.ts`; the three service facades are deleted.
+   Done: those pages plus `StudentLearnPage`, `AdminPracticalSessionFormPage`, `practicalSessionService` and
+   `elearningStudyService` import `exam-management` or `integrations` from `public.ts`. Deleted `examService`,
+   `examWindowService`, `questionBankService` and `ttdtDataService` (they had become re-exports only).
 
 Kept as is (behaviour, to decide separately): deleting a window is a hard delete, and "Xóa báo cáo thi thử" hard-deletes
 the attempts of trial windows. Both are against the soft-delete convention; they are recorded here and in the ledger

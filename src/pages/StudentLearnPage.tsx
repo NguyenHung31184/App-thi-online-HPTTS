@@ -8,7 +8,7 @@ import {
   getMyProgress,
   type ModuleWithLessons,
 } from '../services/elearningStudyService';
-import { listClasses } from '../services/ttdtDataService';
+import { listClasses } from '../modules/integrations/public';
 import type { ClassItem, ElearningLessonBlock, ElearningProgress } from '../types';
 
 /**

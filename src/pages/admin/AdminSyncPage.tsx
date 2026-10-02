@@ -2,8 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { listExamSyncLog, listPracticalSyncLog, cleanupOldSyncLogs } from '../../services/syncLogService';
 import { supabase } from '../../lib/supabaseClient';
 import { getAttempt } from '../../services/attemptService';
-import { getExam } from '../../services/examService';
-import { getExamWindow } from '../../services/examWindowService';
+import { getExam, getExamWindow } from '../../modules/exam-management/public';
 import { getPracticalAttempt } from '../../services/practicalAttemptService';
 import { getPracticalSessionWithTemplate } from '../../services/practicalSessionService';
 import {

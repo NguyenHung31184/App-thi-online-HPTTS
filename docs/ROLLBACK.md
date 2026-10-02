@@ -6,7 +6,7 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ## 2026-10-02 — Module `exam-management` (giai đoạn 1b)
 
-**Commit:** `5578bd7` (bước 1: data, application), `fd9caf5` và `c4832af` (chuẩn bị: `shared/ui`, module `integrations`), bước 2 _(commit này: 6 trang Đề thi, Kỳ thi, Kiểm tra ngân hàng vào module)_
+**Commit:** `5578bd7` (bước 1: data, application), `fd9caf5` và `c4832af` (chuẩn bị: `shared/ui`, module `integrations`), `b786e65` (bước 2: 6 trang Đề thi, Kỳ thi, Kiểm tra ngân hàng vào module), bước 3 _(commit này: các trang khác import từ `public.ts`, xóa 4 service trung gian)_
 **Branch:** main
 
 Chỉ chuyển code, không đổi database, giao diện giữ nguyên. Rollback: `git revert` theo thứ tự ngược; xem `docs/rollback/2026-10-02-phase-1b-exam-management-module.md`.

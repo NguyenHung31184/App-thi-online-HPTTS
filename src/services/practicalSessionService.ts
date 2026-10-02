@@ -4,7 +4,7 @@ import type {
   PracticalExamTemplate,
   PracticalSessionMode,
 } from '../types';
-import { getClassIdsByStudentId } from './ttdtDataService';
+import { getClassIdsByStudentId } from '../modules/integrations/public';
 
 export interface PracticalSessionWithTemplate extends PracticalExamSession {
   template?: PracticalExamTemplate | null;

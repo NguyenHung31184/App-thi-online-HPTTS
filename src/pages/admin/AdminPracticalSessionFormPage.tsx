@@ -6,7 +6,7 @@ import {
   updatePracticalSession,
 } from '../../services/practicalSessionService';
 import { listPracticalTemplates } from '../../services/practicalTemplateService';
-import { listClasses } from '../../services/ttdtDataService';
+import { listClasses } from '../../modules/integrations/public';
 
 function toDatetimeLocal(ts: number): string {
   const d = new Date(ts);

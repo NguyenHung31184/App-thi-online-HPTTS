@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import type { ElearningLesson, ElearningLessonBlock, ElearningProgress } from '../types';
-import { getClassIdsByStudentId } from './ttdtDataService';
+import { getClassIdsByStudentId } from '../modules/integrations/public';
 
 export interface ModuleWithLessons {
   module_id: string;

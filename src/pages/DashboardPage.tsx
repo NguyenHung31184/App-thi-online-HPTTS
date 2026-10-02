@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   getAllowedWindows,
   type ExamWindowWithExam,
-} from '../services/examWindowService';
+} from '../modules/exam-management/public';
 import { startExamAttempt } from '../services/attemptService';
 import {
   getAllowedPracticalSessions,

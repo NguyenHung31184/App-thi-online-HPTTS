@@ -106,7 +106,7 @@ Mỗi bước một commit, không đổi database, không đổi giao diện:
   [rollback](rollback/2026-10-02-phase-2-exam-reporting-module.md)
 - [x] Bước 1, domain: tách hàm thuần (lọc báo cáo, tổng hợp điểm AI theo lượt, dựng dòng Excel kết quả và vi phạm, số
   liệu dashboard) ra `exam-reporting/domain`, có unit test chụp hành vi hiện tại.
-- [ ] Bước 2, data và application: `report-repository`, `dashboard-repository`, `evidence-storage` (ký URL bằng chứng
+- [x] Bước 2, data và application: `report-repository`, `dashboard-repository`, `evidence-storage` (ký URL bằng chứng
   và ảnh lúc vào thi; module không import `src/services`). Use case ở `application/`. `reportService`,
   `dashboardService` tạm chỉ re-export.
 - [ ] Bước 3, trang kết quả một lượt thi: 8 truy vấn trực tiếp vào `attempt-result-repository`, đọc bảng cũ

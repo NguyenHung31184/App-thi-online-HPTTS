@@ -1,6 +1,7 @@
 # Theory sync log: `module_id` as text
 
-- Status: written 2026-10-02, waiting for the operator's approval to apply.
+- Status: applied 2026-10-02 after the operator's approval; version `20261002160000` recorded. Within about 30
+  minutes 60 of the 66 pending jobs were `success` with their log rows; the rest follow on their retry time.
 - Database: `supabase/migrations/20261002160000_exam_sync_log_module_id_text.sql`.
 - Rollback: `docs/rollback/2026-10-02-exam-sync-log-module-id.md`
 - Found by: `docs/implementation/2026-10-02-ttdt-resend-and-sync-log-cleanup.md` (step 2).

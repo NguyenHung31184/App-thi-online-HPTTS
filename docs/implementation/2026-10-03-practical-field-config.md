@@ -1,6 +1,6 @@
 # Practical templates: field grading set-up, TTDT module, soft delete
 
-- Status: code and tests 2026-10-02; migration waiting for the operator's approval (with B0).
+- Status: migration applied 2026-10-02 with B0 after a dry run and the operator's approval; code not pushed yet.
 - Database: `supabase/migrations/20261003100000_practical_field_config.sql`.
 - Rollback: `docs/rollback/2026-10-03-practical-field-config.md`
 - Plan: `So_chuyen_can/docs/implementation/2026-10-02-ke-hoach-cham-thuc-hanh-va-modular.md` (B1). The operator wants
@@ -29,3 +29,14 @@
 - Edge, local build after applying: create the RTG Khóa 43 template from the score sheet (8 criteria, 100 points),
   steps, time bands, faults; reopen and check everything was kept; delete a throwaway template and check it leaves the
   list but stays in the table.
+
+## Results (2026-10-02)
+
+- Dry run of B0 and B1 together on production: 14 new columns, the existing template unchanged, everything undone by
+  the raise. Applied; versions `20261003090000`, `20261003100000` recorded.
+- Edge, local build on the production database (operator approved creating it): template "Vận hành cần trục giàn RTG –
+  Khóa 43 (phiếu chấm 2026)" (`f4a4b816…`), module `mod1773151802309`, pass mark 70; 4 steps (the third a timed cycle
+  with a photo after each lowering, the last with a photo of the parked spreader); bands 3:30 / 5:00 / 6:30 for
+  20 / 10 / 5 points, average of cycles; default protective equipment (4) and disqualifying faults (10); 8 criteria
+  from the score sheet totalling 100, each with its step, the time criterion as `time`, quick deductions drafted from
+  the sheet for the RTG teachers to correct. Read back after reload and in the database. No page errors.

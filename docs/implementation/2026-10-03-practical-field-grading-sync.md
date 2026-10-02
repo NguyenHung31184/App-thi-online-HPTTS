@@ -1,6 +1,7 @@
 # Practical grades from Sổ chuyên cần through the server queue
 
-- Status: code and tests 2026-10-02; migration waiting for the operator's approval.
+- Status: migration applied 2026-10-02 after a dry run and the operator's approval; code not pushed yet (needed before
+  the first field grading).
 - Database: `supabase/migrations/20261003090000_practical_field_grading_sync.sql`.
 - Rollback: `docs/rollback/2026-10-03-practical-field-grading-sync.md`
 - Plan: `So_chuyen_can/docs/implementation/2026-10-02-ke-hoach-cham-thuc-hanh-va-modular.md` (B0). Deadline: RTG

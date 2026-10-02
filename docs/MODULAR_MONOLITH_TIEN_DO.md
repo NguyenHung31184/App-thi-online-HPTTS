@@ -16,7 +16,7 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 | 2 | Module `exam-reporting` | Xong | 2026-10-02 | 54,3% · 25/46 route · 5/10 | Đã push | Không |
 | 3 | Module `practical-exams` | Xong | 2026-10-02 | 62,6% · 34/46 route · 5/10 | Đã push | Không |
 | 4 | Module `learning` | Hoãn (phát triển e-learning sau) | | | | |
-| 5 | `identity-access` và `integrations` | Xong | 2026-10-02 | 72% · 38/46 route · 5/10 | Chưa | Không |
+| 5 | `identity-access` và `integrations` | Xong | 2026-10-02 | 72% · 38/46 route · 5/10 | Đã push (`2a89559`, CI đạt) | Không |
 | 6 | `exam-taking` và giám sát AI (làm sau cùng) | Chưa làm | | | | |
 | 7 | Dọn legacy, tổng kiểm thử | Chưa làm | | | | |
 

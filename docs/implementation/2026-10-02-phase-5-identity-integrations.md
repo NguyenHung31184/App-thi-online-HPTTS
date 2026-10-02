@@ -1,6 +1,6 @@
 # Modular monolith phase 5: `identity-access` and `integrations`
 
-- Status: done 2026-10-02 (steps 1–5 committed, not pushed yet). Result: 72% of business code in modules, 38/46
+- Status: done 2026-10-02 (steps 1–5; pushed 2026-10-02 up to `2a89559`, CI passed). Result: 72% of business code in modules, 38/46
   routes, 3 legacy services left (exam flow, phases 6 and 4).
 - Date: 2026-10-02
 - Database: none. Behaviour and screens unchanged (moves only).

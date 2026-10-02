@@ -1,6 +1,6 @@
 # Missing TTDT grades (March, April 2026) and the "Dọn lỗi cũ" button
 
-- Status: step 1 done 2026-10-02 (not pushed); step 2 waiting for operator confirmation.
+- Status: step 1 done and pushed 2026-10-02 (`2a89559`); step 2 waiting for operator confirmation.
 - Date: 2026-10-02
 - Database: no migration. Step 2 writes TTDT grades through the existing `/api/sync-ttdt` endpoint.
 - Rollback: `docs/rollback/2026-10-02-ttdt-resend-and-sync-log-cleanup.md`

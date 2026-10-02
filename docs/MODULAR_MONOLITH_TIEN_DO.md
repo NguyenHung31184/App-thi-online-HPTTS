@@ -16,7 +16,7 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 | 2 | Module `exam-reporting` | Xong | 2026-10-02 | 54,3% · 25/46 route · 5/10 | Đã push | Không |
 | 3 | Module `practical-exams` | Xong | 2026-10-02 | 62,6% · 34/46 route · 5/10 | Đã push | Không |
 | 4 | Module `learning` | Hoãn (phát triển e-learning sau) | | | | |
-| 5 | `identity-access` và `integrations` | Đang làm | 2026-10-02 | | Chưa | Không |
+| 5 | `identity-access` và `integrations` | Xong | 2026-10-02 | 72% · 38/46 route · 5/10 | Chưa | Không |
 | 6 | `exam-taking` và giám sát AI (làm sau cùng) | Chưa làm | | | | |
 | 7 | Dọn legacy, tổng kiểm thử | Chưa làm | | | | |
 
@@ -66,6 +66,17 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 - Tài liệu: [implementation](implementation/2026-10-02-phase-3-practical-exams-module.md) ·
   [rollback](rollback/2026-10-02-phase-3-practical-exams-module.md)
 
+### Giai đoạn 5
+
+- `b3e7341` tài liệu: hoãn giai đoạn 4, kế hoạch giai đoạn 5.
+- `5df8605` bước 1: luật định danh và tích hợp thuần trong `domain/` kèm test.
+- `1ee72df` bước 2: lõi đăng nhập trong `identity-access`; 16 file đổi import; hai layout dùng hàm chặn quyền.
+- `bbbfe50` bước 3: trang đăng nhập, chọn vai trò, xác thực CCCD vào module; OCR vào `integrations`.
+- `a62467e` bước 4: đồng bộ TTDT, nhật ký đồng bộ, trang `/admin/sync` vào `integrations`.
+- Bước 5 _(commit cuối của giai đoạn)_: README, tài liệu.
+- Tài liệu: [implementation](implementation/2026-10-02-phase-5-identity-integrations.md) ·
+  [rollback](rollback/2026-10-02-phase-5-identity-integrations.md)
+
 ### Sửa lỗi ngoài kế hoạch
 
 - `e062e20` tab "Tín hiệu giám sát" lọc đúng theo đề, kỳ thi và đọc quá 1.000 dòng.
@@ -84,11 +95,15 @@ sau đó revert bình thường rồi push. Các mốc an toàn:
 | Trước giai đoạn 0 | `2f3bf4d` (chỉ tài liệu sau `0267b37`) |
 | Sau giai đoạn 0 | `ca8f136` |
 | Sau giai đoạn 1b | `4871f6d` (hoặc `ce48a3d`, chỉ thêm tài liệu) |
+| Sau giai đoạn 3 (trước giai đoạn 5) | `c040039` |
 
 **Lùi bằng git** (giai đoạn chỉ chuyển code, không có migration):
 
 ```bash
-# Lùi giai đoạn 3
+# Lùi giai đoạn 5 (đăng nhập: Promote bản Vercel trước giai đoạn 5 trước, rồi mới revert)
+git revert --no-edit a62467e bbbfe50 1ee72df 5df8605
+
+# Lùi giai đoạn 3 (phải lùi 5 trước)
 git revert --no-edit e08f973 252774c 04c5aa5 f7b3b72
 
 # Lùi giai đoạn 2 (phải lùi 3 trước; nếu cần, lùi cả e062e20)
@@ -118,6 +133,8 @@ mục 6 của kế hoạch.
 - Thi thực hành: xóa mẫu, tiêu chí, kỳ thi cũng là xóa cứng (`src/modules/practical-exams/data/`). Chờ quyết định cùng
   việc trên.
 - Trang chấm thực hành và trang học viên nộp ảnh chưa thử trên dữ liệu thật (production chưa có kỳ thi thực hành nào).
+- "Dọn lỗi cũ (30 ngày)" ở Nhật ký đồng bộ xóa hẳn log lỗi cũ; chờ quyết định cùng các việc xóa cứng ở trên.
+- Giai đoạn 5 chưa thử đăng nhập bằng tài khoản giáo viên và học viên thật (chặn quyền đã có test theo vai trò).
 - Giai đoạn 6 chỉ bắt đầu sau một buổi thi thử có giám sát AI chạy ổn định, không làm trong ngày có ca thi thật.
 - Kịch bản Edge của buổi thi thử 2026-09-30 chưa đưa vào repo thành smoke test.
 - Đã sửa (ngoài kế hoạch, sau giai đoạn 2): tab "Tín hiệu giám sát" trước đây không lọc theo đề hay kỳ thi và dừng ở
@@ -207,8 +224,8 @@ quyền theo vai trò; đồng bộ TTDT, nhật ký đồng bộ, OCR, trang Nh
   `ttdtSyncService`, `syncLogService`, `AdminSyncPage`; `practical-exams` gọi đồng bộ qua `integrations/public`. Edge
   (bật `VITE_TTDT_SYNC_ENABLED` cho bản local như Vercel): tab Lý thuyết, Thực hành, Chỉ hiện lỗi giống production;
   "Hướng dẫn" đúng. Không bấm Thử lại, Dọn log.
-- [ ] Bước 5, dọn, README, đo điểm.
-- [ ] Edge: đăng xuất, đăng nhập admin, F5 ở trang quản trị không bị đẩy về /login, các trang /start, /login,
-  /verify-cccd hiện đúng, Nhật ký đồng bộ giống production. Không kiểm tra CCCD, thử lại đồng bộ, dọn log trên dữ liệu
-  thật nếu chưa được phép.
-- [ ] Cập nhật tài liệu; hỏi trước khi push. Giai đoạn này đụng đăng nhập của mọi người dùng: push ngoài giờ thi.
+- [x] Bước 5, dọn, README, đo điểm: 72% mã trong module, 38/46 route, còn 3 service cũ (luồng thi, giai đoạn 6 và 4).
+- [x] Edge: chặn quyền khi chưa đăng nhập, admin vào được mọi trang và F5 không bị đẩy ra, /start, /login, /verify-cccd
+  và Nhật ký đồng bộ giống production. Không bấm Đăng xuất (Supabase thu hồi cả phiên production), không gửi kiểm tra
+  CCCD, không thử lại đồng bộ, không dọn log. Chưa thử đăng nhập bằng tài khoản giáo viên và học viên thật.
+- [x] Cập nhật tài liệu. Chờ người vận hành cho push; giai đoạn này đụng đăng nhập của mọi người dùng: push ngoài giờ thi.

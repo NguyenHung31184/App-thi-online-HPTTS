@@ -15,9 +15,16 @@
 
 ---
 
+## Kiểm thử đăng nhập trên bản local (2026-10-02)
+
+- Kịch bản Edge chép phiên Supabase của tab production sang `localhost` để xem bản local bằng tài khoản admin.
+  **Không bấm "Đăng xuất" trên bản local**: `supabase.auth.signOut()` mặc định thu hồi mọi phiên của tài khoản, kể cả
+  tab production. Muốn thử trạng thái chưa đăng nhập thì xóa các khóa `sb-*` trong `localStorage` của localhost.
+- Nhật ký đồng bộ chỉ hiện khi `VITE_TTDT_SYNC_ENABLED=1` (đặt trên Vercel); bản local cần biến này để so với production.
+
 ## Hai luồng auth (từ trước)
 
 | Luồng | Ai | Cách |
 |-------|----|------|
-| Admin/Teacher | Staff | Supabase Auth → role từ `profiles` (`get_my_role()` ưu tiên `satellite_role`) |
+| Admin/Teacher | Staff | Supabase Auth → role trong app thi chỉ lấy từ `profiles.exam_role` (`identity-access/domain/access.ts`); `get_my_role()` phía database ưu tiên `satellite_role` |
 | Học viên thi | Thí sinh | Đăng nhập `@hptts.vn` + xác thực CCCD qua Edge Function `verify-cccd-for-exam` |

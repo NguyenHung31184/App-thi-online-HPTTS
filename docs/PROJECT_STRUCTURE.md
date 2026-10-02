@@ -24,11 +24,12 @@ src/
     exam-monitoring/    # Giám sát trực tiếp kỳ thi đang chạy
     exam-reporting/     # Dashboard admin, Báo cáo lý thuyết, kết quả một lượt thi
     practical-exams/    # Thi thực hành: mẫu, tiêu chí, kỳ thi, nộp ảnh, chấm
-    integrations/       # Danh bạ TTDT (lớp, mô-đun); đồng bộ, OCR chuyển sau
+    integrations/       # Danh bạ TTDT, đồng bộ điểm sang TTDT, nhật ký đồng bộ, OCR CCCD
+    identity-access/    # Đăng nhập, vai trò, chặn quyền, xác thực CCCD
   shared/ui/ shared/lib/   # Dùng chung, không mang nghiệp vụ
   platform/storage/    # Tải file lên exam-uploads
   App.tsx              # Toàn bộ routes (import trực tiếp, không lazy)
-  contexts/AuthContext.tsx   # Supabase Auth + StudentSession (CCCD)
+  contexts/AuthContext.tsx   # Chỉ chuyển tiếp sang identity-access (cho 2 trang e-learning, giai đoạn 4)
   lib/supabaseClient.ts
   types/index.ts       # Domain types viết tay
   pages/               # Trang học viên + admin/
@@ -48,7 +49,7 @@ Lát `exam-taking` đã chuyển luồng danh sách kỳ thi, vào thi, lưu đ�
 Lát `question-bank` giữ toàn bộ ngân hàng câu hỏi: danh sách ngân hàng, cây kiến thức, danh sách câu
 (lọc, chọn nhiều để đổi trạng thái hoặc xóa, xuất Excel), editor 7 loại câu, nhập Excel/CSV/ZIP,
 phiếu nhập tài liệu (P1). Các trang cũ `/admin/questions/...` đã bỏ; URL cũ chuyển hướng sang ngân hàng.
-Đề thi, kỳ thi (`exam-management`), báo cáo (`exam-reporting`) và thi thực hành (`practical-exams`) đã chuyển. Học trực tuyến,
+Đề thi, kỳ thi (`exam-management`), báo cáo (`exam-reporting`) và thi thực hành (`practical-exams`), định danh (`identity-access`) và tích hợp TTDT (`integrations`) đã chuyển. Học trực tuyến,
 định danh và đồng bộ TTDT còn ở `services/`; thứ tự và tiến độ ở `docs/MODULAR_MONOLITH_TIEN_DO.md`.
 
 ## Routes học viên

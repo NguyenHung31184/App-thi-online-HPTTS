@@ -28,10 +28,17 @@
   Form thêm mẫu không còn mất con trỏ sau ký tự đầu.
 - Cửa sổ Edge kiểm thử (cổng 9333) bị đóng; mở lại bằng hồ sơ cũ trong scratchpad, vẫn còn đăng nhập.
 
+- Push giai đoạn 3 (`c040039`, CI đạt). Giai đoạn 4 (e-learning) hoãn theo quyết định của người dùng: stash
+  E-LEARNING sửa đúng các file đó.
+- Giai đoạn 5 (`b3e7341` … bước 5): `identity-access` (đăng nhập, vai trò, chặn quyền có test, CCCD) và `integrations`
+  (đồng bộ TTDT, nhật ký, OCR). 72% mã nghiệp vụ trong module, 38/46 route, còn 3 service cũ. Edge: chặn quyền, F5,
+  /start, /login, /verify-cccd, Nhật ký đồng bộ giống production.
+
 ### Kế hoạch tiếp theo
-- Hỏi người dùng trước khi push giai đoạn 3.
-- Thử luồng thi thực hành trên dữ liệu thật (tạo kỳ thi thử, nộp ảnh, chấm) khi người dùng đồng ý.
-- Giai đoạn 4 (`learning`).
+- Hỏi người dùng trước khi push giai đoạn 5 (ngoài giờ thi; đụng đăng nhập mọi người).
+- Thử đăng nhập giáo viên và học viên thật sau khi push.
+- Thử luồng thi thực hành trên dữ liệu thật khi người dùng đồng ý.
+- Giai đoạn 6 (`exam-taking`) chỉ sau một buổi thi thử có giám sát AI ổn định.
 
 ---
 

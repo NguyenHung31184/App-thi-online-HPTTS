@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-02 — `identity-access` và `integrations` (giai đoạn 5)
+
+**Commit:** `5df8605` (domain), `1ee72df` (lõi đăng nhập), `bbbfe50` (trang đăng nhập, CCCD; OCR), `a62467e` (đồng bộ TTDT, nhật ký), bước 5 _(commit này: README, tài liệu)_
+**Branch:** main
+
+Đụng đăng nhập của mọi người dùng. Không đổi database; phiên học viên giữ khóa `sessionStorage` cũ. Rollback: Promote bản Vercel `c040039` trước, rồi `git revert` theo thứ tự ngược; xem `docs/rollback/2026-10-02-phase-5-identity-integrations.md`.
+
+---
+
 ## 2026-10-02 — Module `practical-exams` (giai đoạn 3)
 
 **Commit:** `f7b3b72` (domain), `04c5aa5` (data, application, adapter tải ảnh), `252774c` (7 trang), `e08f973` (xóa 3 service thực hành)

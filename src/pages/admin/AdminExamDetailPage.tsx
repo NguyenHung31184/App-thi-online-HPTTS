@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getExam, lockExam, unlockExam } from '../../services/examService';
-import { listQuestionsByExam } from '../../services/questionService';
+import { countDrawableQuestions } from '../../modules/question-bank/public';
 import type { Exam } from '../../types';
 
 export default function AdminExamDetailPage() {
@@ -21,12 +21,10 @@ export default function AdminExamDetailPage() {
     setLoading(true);
     setError('');
     try {
-      const [examData, questions] = await Promise.all([
-        getExam(id),
-        listQuestionsByExam(id),
-      ]);
+      const examData = await getExam(id);
       setExam(examData ?? null);
-      setQuestionCount(questions.length);
+      // Same pool the exam draws from: published questions of the exam's module in the question bank.
+      setQuestionCount(examData?.module_id ? await countDrawableQuestions(examData.module_id) : 0);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi tải đề thi.');
     } finally {
@@ -99,7 +97,7 @@ export default function AdminExamDetailPage() {
             to={`/admin/exams/${id}/questions`}
             className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm"
           >
-            Câu hỏi ({questionCount})
+            Kiểm tra ngân hàng ({questionCount} câu)
           </Link>
 
           {isLocked ? (

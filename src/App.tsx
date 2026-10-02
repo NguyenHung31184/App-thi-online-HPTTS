@@ -11,8 +11,6 @@ import AdminExamsPage from './pages/admin/AdminExamsPage';
 import AdminExamFormPage from './pages/admin/AdminExamFormPage';
 import AdminExamDetailPage from './pages/admin/AdminExamDetailPage';
 import AdminQuestionsPage from './pages/admin/AdminQuestionsPage';
-import AdminQuestionFormPage from './pages/admin/AdminQuestionFormPage';
-import AdminQuestionImportPage from './pages/admin/AdminQuestionImportPage';
 import AdminWindowsPage from './pages/admin/AdminWindowsPage';
 import AdminWindowFormPage from './pages/admin/AdminWindowFormPage';
 import AdminPracticalTemplatesPage from './pages/admin/AdminPracticalTemplatesPage';
@@ -79,9 +77,6 @@ function App() {
             <Route path="exams/:id" element={<AdminExamDetailPage />} />
             <Route path="exams/:id/edit" element={<AdminExamFormPage />} />
             <Route path="exams/:id/questions" element={<AdminQuestionsPage />} />
-            <Route path="exams/:id/questions/import" element={<AdminQuestionImportPage />} />
-            <Route path="exams/:id/questions/new" element={<AdminQuestionFormPage />} />
-            <Route path="exams/:id/questions/:qId" element={<AdminQuestionFormPage />} />
             <Route path="windows" element={<AdminWindowsPage />} />
             <Route path="windows/new" element={<AdminWindowFormPage />} />
             <Route path="windows/:id" element={<AdminWindowFormPage />} />

@@ -1,5 +1,5 @@
 import type { QuestionType } from '../../../types';
-import { validateQuestion, type QuestionIssue } from '../../../utils/questionValidation';
+import { validateQuestion, type QuestionIssue } from './question-validation';
 
 export type CognitiveLevel = 'recognition' | 'comprehension' | 'application';
 export type QuestionStatus = 'draft' | 'review' | 'published' | 'retired';

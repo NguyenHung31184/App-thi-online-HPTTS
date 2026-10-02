@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-02 — Bỏ trang thêm/sửa/nhập câu hỏi theo đề (giai đoạn 1a)
+
+**Commit:** _(commit này)_
+**Branch:** main
+
+Không đổi database (bảng `questions` giữ nguyên). Rollback: `git revert`; xem `docs/rollback/2026-10-02-phase-1a-retire-per-exam-questions.md`.
+
+---
+
 ## 2026-10-02 — Modular monolith giai đoạn 0 (luật kiến trúc, điểm đo)
 
 **Commit:** _(commit này)_

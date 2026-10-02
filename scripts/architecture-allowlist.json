@@ -16,16 +16,6 @@
       "reason": "URL check shared with legacy pages; moves to shared or the owning module (phase 7)"
     },
     {
-      "key": "domain-dependency|src/modules/question-bank/domain/question-library|src/utils/questionValidation",
-      "phase": 1,
-      "reason": "question rules still used by legacy question pages; move into question-bank domain when they are removed (phase 1)"
-    },
-    {
-      "key": "legacy-dependency|src/modules/question-bank/ui/editor/question-fields|src/components/ZonePositionPicker",
-      "phase": 1,
-      "reason": "still used by the legacy question form; move into question-bank ui when it is removed (phase 1)"
-    },
-    {
       "key": "legacy-dependency|src/modules/question-bank/ui/editor/WordImportQuestionEditor|src/utils/mediaUrlValidator",
       "phase": 7,
       "reason": "URL check shared with legacy pages; moves to shared or the owning module (phase 7)"
@@ -82,10 +72,6 @@
     {
       "file": "src/components/SortableOptionList.tsx",
       "phase": 6
-    },
-    {
-      "file": "src/components/ZonePositionPicker.tsx",
-      "phase": 1
     },
     {
       "file": "src/components/proctoring/AiObjectProctorBurst.tsx",
@@ -204,14 +190,6 @@
       "phase": 3
     },
     {
-      "file": "src/pages/admin/AdminQuestionFormPage.tsx",
-      "phase": 1
-    },
-    {
-      "file": "src/pages/admin/AdminQuestionImportPage.tsx",
-      "phase": 1
-    },
-    {
       "file": "src/pages/admin/AdminQuestionsPage.tsx",
       "phase": 1
     },
@@ -280,14 +258,6 @@
       "phase": 1
     },
     {
-      "file": "src/services/questionImportService.ts",
-      "phase": 1
-    },
-    {
-      "file": "src/services/questionService.ts",
-      "phase": 1
-    },
-    {
       "file": "src/services/reportService.ts",
       "phase": 2
     },
@@ -326,10 +296,6 @@
     {
       "file": "src/utils/mediaUrlValidator.ts",
       "phase": 7
-    },
-    {
-      "file": "src/utils/questionValidation.ts",
-      "phase": 1
     }
   ]
 }

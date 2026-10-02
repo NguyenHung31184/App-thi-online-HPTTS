@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { ZonePositionPicker } from '../../../../components/ZonePositionPicker';
+import { ZonePositionPicker } from './ZonePositionPicker';
 import { OPTION_IDS, defaultZonePositions, distributeEssayPoints, dragDropZoneCount, isLabelOnImage, visibleOptionCount, type QuestionDraft, type ZonePosition } from '../../domain/question-draft';
 import { fieldClass, focusRing } from '../labels';
 

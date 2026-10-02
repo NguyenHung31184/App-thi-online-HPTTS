@@ -34,7 +34,7 @@ import { ViolationAlertModal } from '../components/proctoring/ViolationAlertModa
 import { PortraitCameraGuide } from '../components/PortraitCameraGuide';
 import type { Attempt, Exam, QuestionForStudent } from '../types';
 import { loadBlazeFaceModel, validateAndBuildStartExamPortrait } from '../utils/blazeFaceProctor';
-import { validateQuestion } from '../utils/questionValidation';
+import { validateQuestion } from '../modules/question-bank/public';
 
 function hashStringToSeed(s: string): number {
   // FNV-1a 32-bit

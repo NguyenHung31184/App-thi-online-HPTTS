@@ -5,3 +5,4 @@ export type { AdminDashboardStats, AttemptsPerDay, ViolationCounts } from './dom
 export type { DashboardRecentAttemptRow } from './domain/recent-attempts';
 export type { ViolationSummaryRow } from './domain/report-rows';
 export { exportReportToExcel, exportViolationsToExcel } from './ui/report/download-report';
+export { default as AttemptResultPage } from './ui/attempt-result/AttemptResultPage';

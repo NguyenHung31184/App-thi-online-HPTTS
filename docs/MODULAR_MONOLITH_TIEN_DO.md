@@ -109,7 +109,7 @@ Mỗi bước một commit, không đổi database, không đổi giao diện:
 - [x] Bước 2, data và application: `report-repository`, `dashboard-repository`, `evidence-storage` (ký URL bằng chứng
   và ảnh lúc vào thi; module không import `src/services`). Use case ở `application/`. `reportService`,
   `dashboardService` tạm chỉ re-export.
-- [ ] Bước 3, trang kết quả một lượt thi: 8 truy vấn trực tiếp vào `attempt-result-repository`, đọc bảng cũ
+- [x] Bước 3, trang kết quả một lượt thi: 8 truy vấn trực tiếp vào `attempt-result-repository`, đọc bảng cũ
   `questions` giữ nguyên (chỉ đọc), hook ở `queries/`, tách component con để trang ≤350 dòng.
 - [ ] Bước 4, UI và route: `ReportPage`, `AttemptResultPage`, `AdminDashboardPage` vào `exam-reporting/ui`, export
   qua `public.ts`; `App.tsx` trỏ route `dashboard`, `report`, `attempts/:attemptId/result` vào module;

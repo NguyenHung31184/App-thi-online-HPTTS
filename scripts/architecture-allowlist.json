@@ -134,10 +134,6 @@
       "phase": 5
     },
     {
-      "file": "src/pages/admin/AdminAttemptResultPage.tsx",
-      "phase": 2
-    },
-    {
       "file": "src/pages/admin/AdminDashboardPage.tsx",
       "phase": 2
     },

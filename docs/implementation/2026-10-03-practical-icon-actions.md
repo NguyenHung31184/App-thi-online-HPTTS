@@ -13,6 +13,7 @@
 - Mẫu đánh giá (`TemplatesPage`): "Sửa / Tiêu chí" → pencil, "Xóa" → bin.
 - Kỳ thi thực hành (`SessionsPage`): "Chấm bài" → clipboard check, "Sửa" → pencil, "Xóa" → bin.
 - Tiêu chí (`CriteriaEditor`): "Xóa" → bin.
+- Bước thao tác (`FieldConfigEditor`): "Bỏ" → bin, ↑ ↓ → arrow icons.
 - The theory pages are not touched.
 
 ## Checks

@@ -1,3 +1,5 @@
+import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
+import IconAction from '../../../../shared/ui/IconAction';
 import { equalBands, type FieldConfig, type FieldStep, type TimeAggregate } from '../../domain/field-config';
 
 const inputClass = 'border border-slate-300 rounded px-2 py-1 text-sm';
@@ -41,9 +43,9 @@ function StepsEditor({ steps, onChange }: { steps: FieldStep[]; onChange: (steps
               <input type="checkbox" checked={s.cycle} onChange={(e) => set(i, { cycle: e.target.checked })} /> Chu kỳ, bấm giờ
             </label>
             <input value={s.photo} onChange={(e) => set(i, { photo: e.target.value })} placeholder="Ảnh cần chụp (bỏ trống nếu không)" className={`${inputClass} w-64`} />
-            <button type="button" disabled={i === 0} onClick={() => move(i, -1)} className="text-sm px-1 disabled:opacity-30" aria-label="Lên">↑</button>
-            <button type="button" disabled={i === steps.length - 1} onClick={() => move(i, 1)} className="text-sm px-1 disabled:opacity-30" aria-label="Xuống">↓</button>
-            <button type="button" onClick={() => onChange(steps.filter((_, j) => j !== i))} className="text-red-600 text-sm hover:underline">Bỏ</button>
+            <button type="button" disabled={i === 0} onClick={() => move(i, -1)} title="Lên" aria-label="Lên" className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ArrowUp className="w-4 h-4" /></button>
+            <button type="button" disabled={i === steps.length - 1} onClick={() => move(i, 1)} title="Xuống" aria-label="Xuống" className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ArrowDown className="w-4 h-4" /></button>
+            <IconAction onClick={() => onChange(steps.filter((_, j) => j !== i))} title="Bỏ bước" tone="red"><Trash2 className="w-4 h-4" /></IconAction>
           </li>
         ))}
       </ol>

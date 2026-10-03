@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { PracticalExamCriteria } from '../../../../types';
+import { Trash2 } from 'lucide-react';
 import ConfirmationModal from '../../../../shared/ui/ConfirmationModal';
+import IconAction from '../../../../shared/ui/IconAction';
 import { deductionsFromText, deductionsToText, readDeductions, type FieldStep } from '../../domain/field-config';
 import type { UpdateCriteriaInput } from '../../domain/inputs';
 import { useAddCriterion, useCriteria, useDeleteCriterion, useUpdateCriterion } from '../../queries/use-practical-exams';
@@ -85,7 +87,7 @@ export function CriteriaEditor({ templateId, steps, hasTimeRule, onError }: Prop
                 <option value="score">Chấm trừ điểm</option>
                 <option value="time" disabled={!hasTimeRule}>Điểm thời gian (tự tính)</option>
               </select>
-              <button type="button" onClick={() => setConfirmDeleteId(c.id)} className="text-red-600 text-sm hover:underline">Xóa</button>
+              <IconAction onClick={() => setConfirmDeleteId(c.id)} title="Xóa tiêu chí" tone="red"><Trash2 className="w-4 h-4" /></IconAction>
             </div>
             <div className="flex flex-wrap gap-2 pl-10">
               <input type="text" defaultValue={c.description ?? ''} onBlur={(e) => e.target.value !== (c.description ?? '') && handleUpdate(c.id, { description: e.target.value })} className={`${inputClass} text-sm flex-1 min-w-[14rem]`} placeholder="Tiêu chí đánh giá chi tiết (gợi ý cho GV)" />

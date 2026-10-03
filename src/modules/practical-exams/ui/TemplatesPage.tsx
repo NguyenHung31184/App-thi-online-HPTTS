@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Pencil, Trash2 } from 'lucide-react';
 import ConfirmationModal from '../../../shared/ui/ConfirmationModal';
+import IconAction from '../../../shared/ui/IconAction';
 import { useDeleteTemplate, usePracticalTemplates } from '../queries/use-practical-exams';
 
 export default function TemplatesPage() {
@@ -67,13 +69,11 @@ export default function TemplatesPage() {
                   </td>
                   <td className="px-4 py-2 text-slate-600 max-w-xs truncate">{t.description || '—'}</td>
                   <td className="px-4 py-2 text-slate-600">{t.duration_minutes ?? '—'}</td>
-                  <td className="px-4 py-2 text-right">
-                    <Link to={`/admin/practical-templates/${t.id}`} className="text-slate-600 hover:text-slate-900 mr-3">
-                      Sửa / Tiêu chí
-                    </Link>
-                    <button type="button" onClick={() => setConfirmDelete({ id: t.id, title: t.title })} className="text-red-600 hover:underline">
-                      Xóa
-                    </button>
+                  <td className="px-4 py-2">
+                    <div className="flex justify-end gap-1">
+                      <IconAction to={`/admin/practical-templates/${t.id}`} title="Sửa mẫu và tiêu chí" tone="indigo"><Pencil className="w-4 h-4" /></IconAction>
+                      <IconAction onClick={() => setConfirmDelete({ id: t.id, title: t.title })} title="Xóa mẫu" tone="red"><Trash2 className="w-4 h-4" /></IconAction>
+                    </div>
                   </td>
                 </tr>
               ))

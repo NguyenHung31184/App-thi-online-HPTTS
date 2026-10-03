@@ -41,6 +41,7 @@ Practical templates get the field grading set-up, a TTDT module and soft delete:
 App shell following the practical-exam mock-up (HPTTS identity kept), local sign-out: `docs/implementation/2026-10-03-shell-theo-mau-hptts.md`.
 Practical templates from an Excel template or the centre's Word score sheet: `docs/implementation/2026-10-03-practical-template-import.md`.
 Icon actions on the practical pages: `docs/implementation/2026-10-03-practical-icon-actions.md`.
+One live field-grading session per class and template: `docs/implementation/2026-10-03-practical-session-unique-live.md`.
 
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.
 

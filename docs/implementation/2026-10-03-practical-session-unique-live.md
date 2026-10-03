@@ -1,6 +1,6 @@
 # One live field-grading session per class and template
 
-- Status: written and dry-run on production 2026-10-03; not applied (waits for operator approval).
+- Status: applied on production 2026-10-03 after operator approval (dry run first); version recorded.
 - Rollback: `docs/rollback/2026-10-03-practical-session-unique-live.md`.
 - Database: `supabase/migrations/20261003120000_practical_session_unique_live.sql`.
 

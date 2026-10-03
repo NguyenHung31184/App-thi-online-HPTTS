@@ -16,11 +16,11 @@
 - Xóa mềm 3 kỳ chấm thực hành thừa do lỗi Sổ chuyên cần ngày 02/10 tạo ra.
 - Nút Sửa, Xóa, Chấm bài ở Mẫu đánh giá, Kỳ thi thực hành và Tiêu chí thành icon như trang Đề thi lý thuyết
   (`src/shared/ui/IconAction.tsx`). Đã push (`5056c86`), Edge trên production: đủ nút, hộp xác nhận xóa vẫn mở.
-- Bước thao tác trong trang soạn mẫu: bỏ, lên, xuống thành icon (`474dc28`, chưa push).
+- Bước thao tác trong trang soạn mẫu: bỏ, lên, xuống thành icon (`474dc28`).
 - Chấm thử theo yêu cầu: tạo mẫu "THI THỬ – RTG (xóa sau)" từ file Excel mẫu, chấm Học viên thử 1 của lớp thử trên Sổ
   chuyên cần production (96/100, TTDT nhận 9,6), rồi xóa mềm kỳ chấm và mẫu.
 - Migration `20261003120000_practical_session_unique_live` (`5065ee1`): kỳ chấm đã xóa mềm không chặn kỳ mới cùng lớp
-  và mẫu. Đã chạy thử trên production, CHƯA áp dụng, chờ người vận hành đồng ý.
+  và mẫu. Chạy thử trên production, người vận hành đồng ý, đã áp dụng.
 
 **Vấn đề gặp**: luật ranh giới không cho domain import `src/shared`, nên bộ đọc Word xuất qua `question-bank/public.ts`.
 Danh sách lỗi đánh số bằng kiểu "List Number" của Word không mang số trong đoạn văn: đọc mọi đoạn của mục lỗi.

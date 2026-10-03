@@ -4,6 +4,16 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-03 — Nút icon thi thực hành, một kỳ chấm chưa xóa cho mỗi lớp và mẫu
+
+**Commit:** `5056c86`, `474dc28` (nút icon), `5065ee1` (migration).
+**Branch:** main
+
+Migration `20261003120000` đã áp dụng, chỉ sửa tiến: xem `docs/rollback/2026-10-03-practical-session-unique-live.md`.
+Nút icon: `git revert` hoặc Promote bản Vercel `746ba60`; xem `docs/rollback/2026-10-03-practical-icon-actions.md`.
+
+---
+
 ## 2026-10-02 — Nhật ký đồng bộ, gửi điểm thực hành chấm tại sân, mẫu đề thực hành
 
 **Commit:** `2a89559` (bỏ nút dọn log), `666e5e2` (module_id text), `0f967f3` (gửi điểm thực hành), `b6dad9e` (mẫu đề), đã push tới `c103b7d`.

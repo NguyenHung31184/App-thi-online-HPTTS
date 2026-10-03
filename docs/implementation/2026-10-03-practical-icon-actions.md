@@ -1,6 +1,6 @@
 # Icon actions on the practical pages
 
-- Status: done 2026-10-03, not pushed; Edge check pending (local build not signed in).
+- Status: done 2026-10-03, pushed (`5056c86`); checked in Edge on production.
 - Rollback: `docs/rollback/2026-10-03-practical-icon-actions.md`.
 - Database: none.
 - Operator request 2026-10-03: the edit and delete actions of the practical pages are words; theory uses icons.

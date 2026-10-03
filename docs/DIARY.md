@@ -14,6 +14,8 @@
   thời gian, mục "Các lỗi vi phạm", bước đề xuất). Xem bản nháp và cảnh báo trước khi tạo.
 - Đã push (`6b0a349`), CI đạt; Edge trên production: nút "Nhập từ file" và trang nhập có.
 - Xóa mềm 3 kỳ chấm thực hành thừa do lỗi Sổ chuyên cần ngày 02/10 tạo ra.
+- Nút Sửa, Xóa, Chấm bài ở Mẫu đánh giá, Kỳ thi thực hành và Tiêu chí thành icon như trang Đề thi lý thuyết
+  (`src/shared/ui/IconAction.tsx`). Đã push (`5056c86`), Edge trên production: đủ nút, hộp xác nhận xóa vẫn mở.
 
 **Vấn đề gặp**: luật ranh giới không cho domain import `src/shared`, nên bộ đọc Word xuất qua `question-bank/public.ts`.
 Danh sách lỗi đánh số bằng kiểu "List Number" của Word không mang số trong đoạn văn: đọc mọi đoạn của mục lỗi.

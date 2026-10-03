@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-10-03 | Khung app theo bản mẫu, nhập mẫu đánh giá từ file
+
+**Đã làm**
+- Khung app theo bản mẫu chấm thi, giữ nhận diện HPTTS: nhóm menu viết thường tiếng Việt, mục đang chọn có vạch cyan,
+  đầu trang có đường dẫn và chip thật (mạng, số điểm chờ gửi TTDT). Bỏ nhãn in hoa dãn chữ. Đăng xuất chỉ trên máy này.
+- Nhập mẫu đánh giá từ Excel theo mẫu (4 sheet, tải trên trang nhập) hoặc Word phiếu chấm của trung tâm (bảng, khung
+  thời gian, mục "Các lỗi vi phạm", bước đề xuất). Xem bản nháp và cảnh báo trước khi tạo.
+- Đã push (`6b0a349`), CI đạt; Edge trên production: nút "Nhập từ file" và trang nhập có.
+- Xóa mềm 3 kỳ chấm thực hành thừa do lỗi Sổ chuyên cần ngày 02/10 tạo ra.
+
+**Vấn đề gặp**: luật ranh giới không cho domain import `src/shared`, nên bộ đọc Word xuất qua `question-bank/public.ts`.
+Danh sách lỗi đánh số bằng kiểu "List Number" của Word không mang số trong đoạn văn: đọc mọi đoạn của mục lỗi.
+
+**Tiếp theo**: người vận hành thử phiếu chấm Word thật; giáo viên RTG xem lỗi trừ nhanh; diễn tập 08/10; thi 09/10.
+
 ## 2026-10-02 (tối) | Điểm TTDT tháng 3–4, nhật ký đồng bộ, thi thực hành chấm tại sân
 
 **Đã làm**

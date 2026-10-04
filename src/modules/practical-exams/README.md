@@ -1,17 +1,20 @@
 # practical-exams
 
-Practical exams: templates with weighted criteria, sessions per class with an access code, the student's evidence
-photos, and teacher grading with the TTDT sync of the grade.
+Practical exams graded in the field. The admin prepares everything here: templates (steps, time bands, criteria with
+quick deductions, by hand or from an Excel or Word file) and sessions (a template for a class). Examiners grade in Sổ
+chuyên cần; this module then shows the results, read only, refreshed every 10 s. The server queue sends locked results
+to TTDT (`server/exam-sync.ts`).
 
-- Domain: `grading.ts` (weighted total, slider range, new criterion, when a grade can go to TTDT), `sessions.ts` (time
-  check, the student's access to an attempt, labels), `inputs.ts`. Pure, tested.
+- Domain: `field-config.ts` (steps, time bands, deductions, totals), `template-import.ts` (Excel and Word to a draft),
+  `results.ts` (a student's state, the shift summary), `sessions.ts`, `grading.ts`, `inputs.ts`. Pure, tested.
 - Data: `practical_exam_templates`, `practical_exam_criteria`, `practical_exam_sessions`, `practical_attempts`,
-  `practical_attempt_photos`, `practical_attempt_scores`, class names from `classes`, `profiles.student_id`. Start and
-  submit go through the RPCs `start_practical_attempt` and `submit_practical_attempt`, which check the code, the time,
-  the enrollment and the evidence (database tests in `tests/exam-database.test.ts`). Deleting a template, criterion or
-  session is a hard delete kept from before the move.
-- Storage: evidence photos go to `exam-uploads` through `src/platform/storage/exam-uploads.ts`.
-- Application: `templates.ts`, `sessions.ts`, `attempts.ts`; the TTDT sync of a grade goes through `integrations/public`.
-- Other modules: `integrations` (classes, a student's classes) through `public.ts`.
+  `practical_attempt_photos`, `practical_attempt_scores`, class names from `classes`, students through `enrollments`.
+  Templates, criteria and sessions are soft-deleted (`is_deleted`). One live session per class, template and mode.
+- Storage: field photos are paths in `exam-uploads` (`practical-field/<attempt>/`), opened with signed URLs.
+- Application: `templates.ts`, `import-template.ts`, `sessions.ts`, `results.ts`; `attempts.ts` is the old flow.
+- UI: `TemplatesPage`, `template-form/`, `template-import/`, `SessionsPage`, `SessionFormPage`, `results/`.
+- Old flow, kept but unreachable: the student uploads evidence (`PracticalTakePage`, RPCs `start_practical_attempt`
+  and `submit_practical_attempt`). No `student_upload` session can be created from the UI any more.
+- Other modules: `integrations` (classes, modules) and `question-bank` (docx reader) through `public.ts`.
 
 See `docs/implementation/2026-10-01-modular-monolith-90-plan.md` (phase 3).

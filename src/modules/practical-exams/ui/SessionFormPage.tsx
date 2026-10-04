@@ -13,7 +13,6 @@ export default function SessionFormPage() {
   const [classId, setClassId] = useState('');
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
-  const [accessCode, setAccessCode] = useState('');
   const [error, setError] = useState('');
 
   const templates = usePracticalTemplates().data ?? [];
@@ -28,7 +27,6 @@ export default function SessionFormPage() {
     setClassId(s.class_id);
     setStartAt(toDatetimeLocal(s.start_at));
     setEndAt(toDatetimeLocal(s.end_at));
-    setAccessCode(s.access_code);
   }, [session.data]);
 
   useEffect(() => {
@@ -45,8 +43,10 @@ export default function SessionFormPage() {
       setError(problem);
       return;
     }
-    const common = { class_id: classId, start_at: startTs, end_at: endTs, access_code: accessCode };
-    save.mutate(isEdit && id ? { id, input: common } : { input: { ...common, template_id: templateId } }, {
+    const common = { class_id: classId, start_at: startTs, end_at: endTs };
+    // Field grading does not ask for the access code; a new session still gets one because the column requires it.
+    const created = { ...common, template_id: templateId, access_code: crypto.randomUUID().slice(0, 8), mode: 'teacher_grading' as const };
+    save.mutate(isEdit && id ? { id, input: common } : { input: created }, {
       onSuccess: () => navigate('/admin/practical-sessions'),
       onError: (err) => setError(err instanceof Error ? err.message : 'Lỗi lưu kỳ thi.'),
     });
@@ -59,7 +59,7 @@ export default function SessionFormPage() {
         {error && <p className="text-red-600 text-sm">{error}</p>}
         {!isEdit && (
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Mẫu thi *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Mẫu đánh giá *</label>
             <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} required className="w-full border border-slate-300 rounded-lg px-3 py-2">
               <option value="">— Chọn mẫu —</option>
               {templates.map((t) => (
@@ -87,17 +87,9 @@ export default function SessionFormPage() {
             <input type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} required className="w-full border border-slate-300 rounded-lg px-3 py-2" />
           </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Mã truy cập *</label>
-          <input
-            type="text"
-            value={accessCode}
-            onChange={(e) => setAccessCode(e.target.value)}
-            required
-            placeholder="VD: THTH2026"
-            className="w-full border border-slate-300 rounded-lg px-3 py-2"
-          />
-        </div>
+        <p className="text-sm text-slate-600">
+          Giáo viên chấm kỳ thi này trên Sổ chuyên cần. Thời gian để giáo viên biết ngày thi; app không chặn chấm ngoài khoảng này.
+        </p>
         <div className="flex gap-2">
           <button type="submit" disabled={save.isPending} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
             {save.isPending ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Tạo kỳ thi'}

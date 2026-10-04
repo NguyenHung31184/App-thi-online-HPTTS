@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ClipboardCheck, Pencil, Trash2 } from 'lucide-react';
 import ConfirmationModal from '../../../shared/ui/ConfirmationModal';
 import IconAction from '../../../shared/ui/IconAction';
@@ -33,9 +34,14 @@ export default function SessionsPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-800 mb-2">Kỳ thi thực hành</h1>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-xl font-semibold text-slate-800">Kỳ thi thực hành</h1>
+        <Link to="/admin/practical-sessions/new" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+          Thêm kỳ thi
+        </Link>
+      </div>
       <p className="text-slate-600 text-sm mb-4">
-        Kỳ chấm tại sân tự có khi giáo viên mở học viên đầu tiên của lớp trên Sổ chuyên cần, không cần tạo ở đây.
+        Mỗi kỳ thi gắn một mẫu đánh giá với một lớp. Giáo viên thấy kỳ thi này trên Sổ chuyên cần và chấm theo đó.
       </p>
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
         <table className="min-w-full divide-y divide-slate-200">
@@ -52,7 +58,7 @@ export default function SessionsPage() {
             {sessions.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
-                  Chưa có kỳ thi nào.
+                  Chưa có kỳ thi. Nhấn "Thêm kỳ thi" để tạo.
                 </td>
               </tr>
             ) : (

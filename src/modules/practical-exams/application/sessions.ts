@@ -9,8 +9,18 @@ import type { PracticalSessionWithTemplate } from '../domain/sessions';
 
 export const listPracticalSessions = (filters?: { template_id?: string; class_id?: string }): Promise<PracticalExamSession[]> => selectSessions(filters);
 export const getPracticalSession = (id: string): Promise<PracticalExamSession | null> => selectSession(id);
-export const createPracticalSession = (input: CreatePracticalSessionInput) => insertSession(input);
-export const updatePracticalSession = (id: string, input: UpdatePracticalSessionInput) => updateSessionRow(id, input);
+/** One live session per class, template and mode: say so instead of the database's wording. */
+async function plainDuplicate<T>(save: Promise<T>): Promise<T> {
+  try {
+    return await save;
+  } catch (e) {
+    if ((e as { code?: string }).code === '23505') throw new Error('Lớp này đã có kỳ thi với mẫu này. Sửa kỳ thi đó, hoặc xóa nó rồi tạo lại.');
+    throw e;
+  }
+}
+
+export const createPracticalSession = (input: CreatePracticalSessionInput) => plainDuplicate(insertSession(input));
+export const updatePracticalSession = (id: string, input: UpdatePracticalSessionInput) => plainDuplicate(updateSessionRow(id, input));
 export const deletePracticalSession = (id: string): Promise<void> => deleteSessionRow(id);
 
 /** A session with its template and class name. */

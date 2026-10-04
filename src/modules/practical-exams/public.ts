@@ -20,6 +20,6 @@ export { default as TemplateFormPage } from './ui/template-form/TemplateFormPage
 export { default as TemplateImportPage } from './ui/template-import/TemplateImportPage';
 export { default as SessionsPage } from './ui/SessionsPage';
 export { default as SessionFormPage } from './ui/SessionFormPage';
-export { default as GradingListPage } from './ui/GradingListPage';
-export { default as GradingDetailPage } from './ui/GradingDetailPage';
+export { default as ResultsPage } from './ui/results/ResultsPage';
+export { default as ResultDetailPage } from './ui/results/ResultDetailPage';
 export { default as PracticalTakePage } from './ui/PracticalTakePage';

@@ -1,10 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { PracticalAttempt, PracticalExamCriteria, PracticalExamSession } from '../../../types';
+import type { PracticalExamSession } from '../../../types';
 import { listClasses, listModulesWithCourses } from '../../integrations/public';
-import {
-  deletePracticalPhoto, getPracticalAttempt, gradePracticalAttempt, listPracticalAttemptsBySession, listPracticalPhotos, listPracticalScores,
-  submitPracticalAttempt, syncGradeToTtdt, ttdtSyncEnabled, uploadPracticalPhoto,
-} from '../application/attempts';
+import { deletePracticalPhoto, getPracticalAttempt, listPracticalPhotos, submitPracticalAttempt, uploadPracticalPhoto } from '../application/attempts';
+import { loadAttemptResult, loadSessionResults } from '../application/results';
 import {
   createPracticalSession, deletePracticalSession, describeSessions, getPracticalSession, getPracticalSessionWithTemplate, listPracticalSessions,
   updatePracticalSession,
@@ -15,7 +13,6 @@ import {
 } from '../application/templates';
 import { buildExcelTemplate, createTemplateFromDraft, readTemplateFile, type TemplateDraft } from '../application/import-template';
 import type { CreatePracticalSessionInput, CreatePracticalTemplateInput, PhotoOptions, UpdateCriteriaInput, UpdatePracticalSessionInput, UpdatePracticalTemplateInput } from '../domain/inputs';
-import type { PracticalSessionWithTemplate } from '../domain/sessions';
 
 export const practicalKeys = {
   all: ['practical-exams'] as const,
@@ -131,11 +128,7 @@ export function useTtdtClassOptions() {
   return useQuery({ queryKey: practicalKeys.classes(), queryFn: listClasses });
 }
 
-// Attempts, evidence and grading
-
-export function useSessionAttempts(sessionId: string) {
-  return useQuery({ queryKey: practicalKeys.attempts(sessionId), queryFn: () => listPracticalAttemptsBySession(sessionId), enabled: Boolean(sessionId) });
-}
+// Attempts and evidence (student upload)
 
 export function usePracticalAttempt(id: string | undefined) {
   return useQuery({ queryKey: practicalKeys.attempt(id ?? ''), queryFn: () => getPracticalAttempt(id as string), enabled: Boolean(id), retry: false });
@@ -143,10 +136,6 @@ export function usePracticalAttempt(id: string | undefined) {
 
 export function usePhotos(attemptId: string | undefined, enabled = true) {
   return useQuery({ queryKey: practicalKeys.photos(attemptId ?? ''), queryFn: () => listPracticalPhotos(attemptId as string), enabled: Boolean(attemptId) && enabled });
-}
-
-export function useScores(attemptId: string | undefined) {
-  return useQuery({ queryKey: practicalKeys.scores(attemptId ?? ''), queryFn: () => listPracticalScores(attemptId as string), enabled: Boolean(attemptId) });
 }
 
 export function useUploadPhoto(attemptId: string) {
@@ -170,24 +159,31 @@ export function useSubmitAttempt() {
   return useMutation({ mutationFn: submitPracticalAttempt, onSuccess: invalidate });
 }
 
-export function useGradeAttempt() {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: (args: { attemptId: string; criteria: PracticalExamCriteria[]; scores: Record<string, number>; comments: Record<string, string>; gradedBy: string }) =>
-      gradePracticalAttempt(args.attemptId, args.criteria, args.scores, args.comments, args.gradedBy),
-    onSuccess: invalidate,
+// Results of field grading (read only)
+
+const RESULTS_REFRESH_MS = 10_000;
+
+/** The session's students with the state of their result, refreshed every 10 s while the page is visible. */
+export function useSessionResults(sessionId: string) {
+  return useQuery({
+    queryKey: [...practicalKeys.all, 'results', sessionId] as const,
+    queryFn: () => loadSessionResults(sessionId),
+    enabled: Boolean(sessionId),
+    refetchInterval: RESULTS_REFRESH_MS,
+    refetchIntervalInBackground: false,
   });
 }
 
-export function useSyncGrade() {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: ({ attempt, session }: { attempt: PracticalAttempt; session: PracticalSessionWithTemplate }) => syncGradeToTtdt(attempt, session),
-    onSuccess: (result) => { if (result.success) void invalidate(); },
+/** One student's result; refreshed like the list so a result being graded fills in. */
+export function useAttemptResult(attemptId: string | undefined) {
+  return useQuery({
+    queryKey: [...practicalKeys.all, 'result', attemptId ?? ''] as const,
+    queryFn: () => loadAttemptResult(attemptId as string),
+    enabled: Boolean(attemptId),
+    refetchInterval: RESULTS_REFRESH_MS,
+    refetchIntervalInBackground: false,
   });
 }
-
-export const useTtdtSyncEnabled = (): boolean => ttdtSyncEnabled();
 
 // Import from a file
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardCheck, Pencil, Trash2 } from 'lucide-react';
+import { BarChart3, Pencil, Trash2 } from 'lucide-react';
 import ConfirmationModal from '../../../shared/ui/ConfirmationModal';
 import IconAction from '../../../shared/ui/IconAction';
 import { useDeleteSession, usePracticalSessions, useSessionNames } from '../queries/use-practical-exams';
@@ -70,7 +70,7 @@ export default function SessionsPage() {
                   <td className="px-4 py-2 text-slate-600">{formatTime(s.end_at)}</td>
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-1">
-                      <IconAction to={`/admin/practical-grading?session=${s.id}`} title="Chấm bài" tone="blue"><ClipboardCheck className="w-4 h-4" /></IconAction>
+                      <IconAction to={`/admin/practical-grading?session=${s.id}`} title="Xem kết quả" tone="blue"><BarChart3 className="w-4 h-4" /></IconAction>
                       <IconAction to={`/admin/practical-sessions/${s.id}`} title="Sửa kỳ thi" tone="indigo"><Pencil className="w-4 h-4" /></IconAction>
                       <IconAction onClick={() => setConfirmDeleteId(s.id)} title="Xóa kỳ thi" tone="red"><Trash2 className="w-4 h-4" /></IconAction>
                     </div>

@@ -13,9 +13,9 @@ import {
   WindowsPage,
 } from './modules/exam-management/public';
 import {
-  GradingDetailPage as PracticalGradingDetailPage,
-  GradingListPage as PracticalGradingListPage,
   PracticalTakePage,
+  ResultDetailPage as PracticalResultDetailPage,
+  ResultsPage as PracticalResultsPage,
   SessionFormPage as PracticalSessionFormPage,
   SessionsPage as PracticalSessionsPage,
   TemplateFormPage as PracticalTemplateFormPage,
@@ -87,8 +87,8 @@ function App() {
             <Route path="practical-sessions" element={<PracticalSessionsPage />} />
             <Route path="practical-sessions/new" element={<PracticalSessionFormPage />} />
             <Route path="practical-sessions/:id" element={<PracticalSessionFormPage />} />
-            <Route path="practical-grading" element={<PracticalGradingListPage />} />
-            <Route path="practical-grading/:attemptId" element={<PracticalGradingDetailPage />} />
+            <Route path="practical-grading" element={<PracticalResultsPage />} />
+            <Route path="practical-grading/:attemptId" element={<PracticalResultDetailPage />} />
             <Route path="report" element={<ReportPage />} />
             <Route path="attempts/:attemptId/result" element={<AttemptResultPage />} />
             <Route path="sync" element={<SyncLogPage />} />

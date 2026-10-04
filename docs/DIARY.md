@@ -17,6 +17,12 @@
   cần (kiểm luôn migration kỳ chấm chưa xóa); đã xóa mềm kỳ thi thử đó.
 - Xóa mềm kỳ chấm lớp RTG Khóa 44 theo mẫu Khóa 43 (thử nghiệm, người vận hành yêu cầu xóa).
 
+- Mục "Chấm thực hành" (luồng cũ: học viên nộp ảnh, giáo viên kéo thanh trượt, bấm đồng bộ tay) thay bằng "Kết quả thực
+  hành", chỉ xem, tự cập nhật mỗi 10 giây như giám sát lý thuyết: tổng quan ca thi, từng học viên với trạng thái, điểm
+  /100 và /10, đạt hay không, đã gửi TTDT chưa; trang chi tiết có điểm từng tiêu chí kèm lỗi đã trừ, thời gian chu kỳ,
+  bảo hộ, lỗi loại, ảnh (URL ký), giám khảo. Bỏ trang chấm bằng thanh trượt vì lưu ở đó ghi đè kết quả đã khóa tại sân.
+- Edge trên bản local với lớp thử: 3/3 xong, 1 đạt, 1 loại thi, 1 thiếu bảo hộ; chi tiết Học viên thử 1 đúng 94/100.
+
 **Tiếp theo**: sửa ngày thi kỳ RTG Khóa 43 thành 09/10; thử phiếu chấm Word thật; diễn tập 08/10; thi 09/10.
 
 ## 2026-10-03 | Khung app theo bản mẫu, nhập mẫu đánh giá từ file

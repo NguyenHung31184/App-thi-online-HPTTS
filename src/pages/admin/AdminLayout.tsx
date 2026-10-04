@@ -22,7 +22,7 @@ const adminTitles: Record<string, string> = {
   '/admin/windows': 'Kỳ thi',
   '/admin/practical-templates': 'Mẫu đánh giá',
   '/admin/practical-sessions': 'Ca thi thực hành',
-  '/admin/practical-grading': 'Chấm thi thực hành',
+  '/admin/practical-grading': 'Kết quả thực hành',
   '/admin/report': 'Báo cáo lý thuyết',
   '/admin/sync': 'Nhật ký đồng bộ TTDT',
 };
@@ -86,7 +86,7 @@ export default function AdminLayout() {
         items: [
           { to: '/admin/practical-templates', label: 'Mẫu đánh giá', icon: PracticalIcon },
           { to: '/admin/practical-sessions', label: 'Ca thi thực hành', icon: CalendarIcon },
-          { to: '/admin/practical-grading', label: 'Chấm thực hành', icon: PracticalIcon },
+          { to: '/admin/practical-grading', label: 'Kết quả thực hành', icon: ReportIcon },
         ],
       },
       {

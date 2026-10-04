@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-10-04 | Ẩn nút "Thêm kỳ thi" ở Kỳ thi thực hành
+
+**Đã làm**
+- Trang Kỳ thi thực hành bỏ nút "Thêm kỳ thi" (form tạo kỳ thi kiểu học viên tự nộp, Sổ chuyên cần không dùng), thêm
+  câu nói rõ kỳ chấm tại sân tự có khi giáo viên mở học viên đầu tiên trên Sổ chuyên cần. Route và form giữ nguyên.
+- Edge trên bản local: không còn nút, đủ icon chấm, sửa, xóa.
+
+**Ghi nhận**: 00:01 ngày 04/10 có kỳ chấm mới cho lớp RTG Khóa 44 theo mẫu Khóa 43, một lượt đang chấm dở, chưa khóa
+nên chưa gửi TTDT. Chờ người vận hành cho biết giữ hay xóa mềm.
+
+**Tiếp theo**: thử phiếu chấm Word thật; giáo viên RTG xem lỗi trừ nhanh; diễn tập 08/10; thi 09/10.
+
 ## 2026-10-03 | Khung app theo bản mẫu, nhập mẫu đánh giá từ file
 
 **Đã làm**

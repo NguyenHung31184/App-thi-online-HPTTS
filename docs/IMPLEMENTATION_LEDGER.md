@@ -42,6 +42,7 @@ App shell following the practical-exam mock-up (HPTTS identity kept), local sign
 Practical templates from an Excel template or the centre's Word score sheet: `docs/implementation/2026-10-03-practical-template-import.md`.
 Icon actions on the practical pages: `docs/implementation/2026-10-03-practical-icon-actions.md`.
 One live field-grading session per class and template: `docs/implementation/2026-10-03-practical-session-unique-live.md`.
+"Thêm kỳ thi" hidden on the practical sessions page: `docs/implementation/2026-10-04-hide-add-practical-session.md`.
 
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.
 

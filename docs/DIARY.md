@@ -5,17 +5,19 @@
 
 ---
 
-## 2026-10-04 | Ẩn nút "Thêm kỳ thi" ở Kỳ thi thực hành
+## 2026-10-04 | Admin tạo kỳ thi thực hành, Sổ chuyên cần chỉ chấm
 
 **Đã làm**
-- Trang Kỳ thi thực hành bỏ nút "Thêm kỳ thi" (form tạo kỳ thi kiểu học viên tự nộp, Sổ chuyên cần không dùng), thêm
-  câu nói rõ kỳ chấm tại sân tự có khi giáo viên mở học viên đầu tiên trên Sổ chuyên cần. Route và form giữ nguyên.
-- Edge trên bản local: không còn nút, đủ icon chấm, sửa, xóa.
+- Quyết định của người vận hành: mẫu, tiêu chí và kỳ thi thực hành đều do admin tạo trên App thi; Sổ chuyên cần chấm
+  theo đó; App quản lý theo dõi. Bản ẩn nút "Thêm kỳ thi" (chưa push) được thay bằng hướng này.
+- Form "Thêm kỳ thi" tạo kỳ thi chấm tại sân (`teacher_grading`), bỏ ô mã truy cập (tự sinh). Tạo trùng lớp và mẫu bị
+  từ chối bằng câu dễ hiểu.
+- Sổ chuyên cần (repo riêng) hiện danh sách kỳ thi thay cho hai ô chọn lớp và đề.
+- Edge trên bản local: tạo trùng bị từ chối; tạo kỳ thi lớp thử với mẫu xe nâng container thì hiện ngay trên Sổ chuyên
+  cần (kiểm luôn migration kỳ chấm chưa xóa); đã xóa mềm kỳ thi thử đó.
+- Xóa mềm kỳ chấm lớp RTG Khóa 44 theo mẫu Khóa 43 (thử nghiệm, người vận hành yêu cầu xóa).
 
-**Ghi nhận**: 00:01 ngày 04/10 có kỳ chấm mới cho lớp RTG Khóa 44 theo mẫu Khóa 43, một lượt đang chấm dở, chưa khóa
-nên chưa gửi TTDT. Chờ người vận hành cho biết giữ hay xóa mềm.
-
-**Tiếp theo**: thử phiếu chấm Word thật; giáo viên RTG xem lỗi trừ nhanh; diễn tập 08/10; thi 09/10.
+**Tiếp theo**: sửa ngày thi kỳ RTG Khóa 43 thành 09/10; thử phiếu chấm Word thật; diễn tập 08/10; thi 09/10.
 
 ## 2026-10-03 | Khung app theo bản mẫu, nhập mẫu đánh giá từ file
 

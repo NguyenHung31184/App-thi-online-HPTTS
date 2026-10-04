@@ -1,6 +1,6 @@
 # The admin creates practical exam sessions; Sổ chuyên cần only grades
 
-- Status: in progress 2026-10-04.
+- Status: done 2026-10-04, not pushed; checked in Edge on the local builds of both apps.
 - Rollback: `docs/rollback/2026-10-04-admin-creates-practical-sessions.md`.
 - Database: none (uses `mode = 'teacher_grading'` and the live-session unique index of 2026-10-03).
 - Operator decision 2026-10-04: templates, criteria and sessions are all made by the admin in App thi; Sổ chuyên cần

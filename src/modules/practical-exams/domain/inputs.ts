@@ -61,9 +61,3 @@ export interface UpdatePracticalSessionInput {
   access_code?: string;
   mode?: PracticalSessionMode;
 }
-
-export interface PhotoOptions {
-  criteria_id?: string | null;
-  label?: string;
-  order_index?: number;
-}

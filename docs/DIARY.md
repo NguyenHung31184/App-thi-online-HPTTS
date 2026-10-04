@@ -23,6 +23,11 @@
   bảo hộ, lỗi loại, ảnh (URL ký), giám khảo. Bỏ trang chấm bằng thanh trượt vì lưu ở đó ghi đè kết quả đã khóa tại sân.
 - Edge trên bản local với lớp thử: 3/3 xong, 1 đạt, 1 loại thi, 1 thiếu bảo hộ; chi tiết Học viên thử 1 đúng 94/100.
 
+- Gỡ luồng "học viên tự chụp ảnh nộp bài" theo yêu cầu: màn `PracticalTakePage`, route `/practical/:attemptId`, khối
+  "Thi thực hành đang mở" ở trang chủ học viên, `application/attempts.ts`, `data/attempt-repository.ts`, các hook và hàm
+  domain chỉ luồng này dùng, `platform/storage/exam-uploads.ts`. RPC và test database giữ nguyên. `arch:score` 73,4%,
+  38/46 route.
+
 **Tiếp theo**: sửa ngày thi kỳ RTG Khóa 43 thành 09/10; thử phiếu chấm Word thật; diễn tập 08/10; thi 09/10.
 
 ## 2026-10-03 | Khung app theo bản mẫu, nhập mẫu đánh giá từ file

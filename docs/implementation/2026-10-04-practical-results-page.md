@@ -22,8 +22,7 @@ user id, and saving its sliders would overwrite a result locked in the field.
   the deductions taken, cycle times, protective equipment, the disqualifying fault, photos (signed URLs), examiner and
   lock time.
 - Removed: the slider grading page, its "Đồng bộ sang TTDT" button and the hooks only it used. The server queue sends
-  results. The student upload page (`/practical/:attemptId`) stays in the code but no session of that kind can be
-  created any more.
+  results. The student upload page was removed the same day (`2026-10-04-remove-student-upload-flow.md`).
 - New pure functions in `domain/results.ts` with tests.
 
 ## Checks

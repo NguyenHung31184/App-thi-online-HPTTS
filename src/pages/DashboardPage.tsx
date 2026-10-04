@@ -6,12 +6,6 @@ import {
   type ExamWindowWithExam,
 } from '../modules/exam-management/public';
 import { startExamAttempt } from '../services/attemptService';
-import {
-  createPracticalAttempt,
-  getAllowedPracticalSessions,
-  getPracticalSession,
-  type PracticalSessionWithTemplate,
-} from '../modules/practical-exams/public';
 import { getAdminDashboardStats, type AdminDashboardStats } from '../modules/exam-reporting/public';
 
 export default function DashboardPage() {
@@ -157,25 +151,17 @@ function StudentDashboard() {
   const { user, studentSession } = useAuth();
   const navigate = useNavigate();
   const [windows, setWindows] = useState<ExamWindowWithExam[]>([]);
-  const [practicalSessions, setPracticalSessions] = useState<PracticalSessionWithTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [enteringWindowId, setEnteringWindowId] = useState<string | null>(null);
-  const [enteringPracticalId, setEnteringPracticalId] = useState<string | null>(null);
   const [codeByWindow, setCodeByWindow] = useState<Record<string, string>>({});
-  const [codeByPractical, setCodeByPractical] = useState<Record<string, string>>({});
   const [enterError, setEnterError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    // Dùng student_id (từ Supabase profile hoặc từ phiên CCCD) để lọc kỳ thi được phép.
-    const sid = user?.student_id ?? studentSession?.student_id ?? undefined;
-    Promise.all([getAllowedWindows(), getAllowedPracticalSessions(sid)])
-      .then(([winList, practicalList]) => {
-        if (!cancelled) {
-          setWindows(winList);
-          setPracticalSessions(practicalList);
-        }
+    getAllowedWindows()
+      .then((winList) => {
+        if (!cancelled) setWindows(winList);
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Lỗi tải kỳ thi.');
@@ -219,48 +205,6 @@ function StudentDashboard() {
     }
   };
 
-  const handleEnterPractical = async (sessionId: string) => {
-    const code = (codeByPractical[sessionId] ?? '').trim();
-    if (!code) {
-      setEnterError('Vui lòng nhập mã truy cập.');
-      return;
-    }
-    setEnterError('');
-    setEnteringPracticalId(sessionId);
-    try {
-      const session = await getPracticalSession(sessionId);
-      if (!session) {
-        setEnterError('Không tìm thấy kỳ thi.');
-        return;
-      }
-      if (session.access_code !== code) {
-        setEnterError('Mã truy cập không đúng.');
-        return;
-      }
-      const now = Date.now();
-      if (now < session.start_at || now > session.end_at) {
-        setEnterError('Hiện không trong thời gian làm bài.');
-        return;
-      }
-      if (!user?.id) {
-        setEnterError('Bạn chưa đăng nhập tài khoản thi. Vui lòng đăng nhập rồi thử lại.');
-        setEnteringPracticalId(null);
-        return;
-      }
-      if (user.role !== 'admin' && !user?.student_id && !studentSession?.student_id) {
-        setEnterError('Vui lòng xác thực CCCD trước khi vào phòng thi (bấm "Xác thực CCCD" bên trên).');
-        setEnteringPracticalId(null);
-        return;
-      }
-      const attempt = await createPracticalAttempt(sessionId, code);
-      navigate(`/practical/${attempt.id}`);
-    } catch (e) {
-      setEnterError(e instanceof Error ? e.message : 'Lỗi tạo bài làm.');
-    } finally {
-      setEnteringPracticalId(null);
-    }
-  };
-
   const formatTime = (ts: number) => new Date(ts).toLocaleString('vi-VN');
 
   return (
@@ -290,7 +234,7 @@ function StudentDashboard() {
       <h3 className="text-lg font-semibold text-slate-700 mb-3">Kỳ thi đang mở</h3>
       {loading && <p className="text-slate-500">Đang tải...</p>}
       {error && <p className="text-red-600">{error}</p>}
-      {!loading && !error && windows.length === 0 && practicalSessions.length === 0 && (
+      {!loading && !error && windows.length === 0 && (
         <p className="text-slate-500">
           Không có kỳ thi nào trong thời gian làm bài. Nếu bạn đã xác thực CCCD, hãy kiểm tra bạn thuộc lớp được gắn với kỳ thi.
         </p>
@@ -328,40 +272,6 @@ function StudentDashboard() {
           </div>
         ))}
       </div>
-
-      {practicalSessions.length > 0 && (
-        <>
-          <h3 className="text-lg font-medium text-slate-700 mt-8 mb-3">Thi thực hành đang mở</h3>
-          <div className="space-y-4">
-            {practicalSessions.map((s) => (
-              <div key={s.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="font-medium text-slate-800">{s.template?.title ?? 'Thi thực hành'}</p>
-                {s.class_name && <p className="text-sm text-slate-500">Lớp: {s.class_name}</p>}
-                <p className="text-sm text-slate-600">
-                  {formatTime(s.start_at)} — {formatTime(s.end_at)}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="Mã truy cập"
-                    value={codeByPractical[s.id] ?? ''}
-                    onChange={(e) => setCodeByPractical((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                    className="border border-slate-300 rounded-lg px-3 py-2 w-40"
-                  />
-                  <button
-                    type="button"
-                    disabled={enteringPracticalId === s.id}
-                    onClick={() => handleEnterPractical(s.id)}
-                    className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                  >
-                    {enteringPracticalId === s.id ? 'Đang vào...' : 'Vào thi thực hành'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 }

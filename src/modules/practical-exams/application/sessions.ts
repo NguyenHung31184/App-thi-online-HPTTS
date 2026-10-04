@@ -1,7 +1,6 @@
 import type { PracticalExamSession } from '../../../types';
-import { getClassIdsByStudentId } from '../../integrations/public';
 import {
-  deleteSessionRow, insertSession, selectClassName, selectClassNames, selectOpenUploadSessions, selectSession, selectSessions,
+  deleteSessionRow, insertSession, selectClassName, selectSession, selectSessions,
   selectSessionWithTemplate, updateSessionRow,
 } from '../data/session-repository';
 import type { CreatePracticalSessionInput, UpdatePracticalSessionInput } from '../domain/inputs';
@@ -29,18 +28,6 @@ export async function getPracticalSessionWithTemplate(id: string): Promise<Pract
   if (!row) return null;
   const class_name = row.class_id ? await selectClassName(row.class_id) : undefined;
   return { ...row, template: row.practical_exam_templates ?? null, class_name } as PracticalSessionWithTemplate;
-}
-
-/** Practical sessions open now that the student may take (their classes, "student uploads" mode only). */
-export async function getAllowedPracticalSessions(studentId?: string | null): Promise<PracticalSessionWithTemplate[]> {
-  let classIds: string[] = [];
-  if (studentId) {
-    classIds = await getClassIdsByStudentId(studentId);
-    if (classIds.length === 0) return [];
-  }
-  const rows = await selectOpenUploadSessions(Date.now(), classIds);
-  const classNames = await selectClassNames([...new Set(rows.map((r) => r.class_id))]);
-  return rows.map((r) => ({ ...r, template: r.practical_exam_templates ?? null, class_name: classNames[r.class_id] })) as PracticalSessionWithTemplate[];
 }
 
 /** Template title and class name per session, for the session list. */

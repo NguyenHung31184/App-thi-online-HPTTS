@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PracticalExamSession } from '../../../types';
 import { listClasses, listModulesWithCourses } from '../../integrations/public';
-import { deletePracticalPhoto, getPracticalAttempt, listPracticalPhotos, submitPracticalAttempt, uploadPracticalPhoto } from '../application/attempts';
 import { loadAttemptResult, loadSessionResults } from '../application/results';
 import {
   createPracticalSession, deletePracticalSession, describeSessions, getPracticalSession, getPracticalSessionWithTemplate, listPracticalSessions,
@@ -12,7 +11,7 @@ import {
   listPracticalTemplates, updatePracticalCriteria, updatePracticalTemplate,
 } from '../application/templates';
 import { buildExcelTemplate, createTemplateFromDraft, readTemplateFile, type TemplateDraft } from '../application/import-template';
-import type { CreatePracticalSessionInput, CreatePracticalTemplateInput, PhotoOptions, UpdateCriteriaInput, UpdatePracticalSessionInput, UpdatePracticalTemplateInput } from '../domain/inputs';
+import type { CreatePracticalSessionInput, CreatePracticalTemplateInput, UpdateCriteriaInput, UpdatePracticalSessionInput, UpdatePracticalTemplateInput } from '../domain/inputs';
 
 export const practicalKeys = {
   all: ['practical-exams'] as const,
@@ -23,10 +22,6 @@ export const practicalKeys = {
   session: (id: string) => [...practicalKeys.all, 'session', id] as const,
   sessionWithTemplate: (id: string) => [...practicalKeys.all, 'session-with-template', id] as const,
   sessionNames: (ids: string) => [...practicalKeys.all, 'session-names', ids] as const,
-  attempts: (sessionId: string) => [...practicalKeys.all, 'attempts', sessionId] as const,
-  attempt: (id: string) => [...practicalKeys.all, 'attempt', id] as const,
-  photos: (attemptId: string) => [...practicalKeys.all, 'photos', attemptId] as const,
-  scores: (attemptId: string) => [...practicalKeys.all, 'scores', attemptId] as const,
   classes: () => [...practicalKeys.all, 'classes'] as const,
   modules: () => [...practicalKeys.all, 'ttdt-modules'] as const,
 };
@@ -126,37 +121,6 @@ export function useDeleteSession() {
 
 export function useTtdtClassOptions() {
   return useQuery({ queryKey: practicalKeys.classes(), queryFn: listClasses });
-}
-
-// Attempts and evidence (student upload)
-
-export function usePracticalAttempt(id: string | undefined) {
-  return useQuery({ queryKey: practicalKeys.attempt(id ?? ''), queryFn: () => getPracticalAttempt(id as string), enabled: Boolean(id), retry: false });
-}
-
-export function usePhotos(attemptId: string | undefined, enabled = true) {
-  return useQuery({ queryKey: practicalKeys.photos(attemptId ?? ''), queryFn: () => listPracticalPhotos(attemptId as string), enabled: Boolean(attemptId) && enabled });
-}
-
-export function useUploadPhoto(attemptId: string) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({ file, options }: { file: File; options: PhotoOptions }) => uploadPracticalPhoto(attemptId, file, options),
-    onSuccess: () => client.invalidateQueries({ queryKey: practicalKeys.photos(attemptId) }),
-  });
-}
-
-export function useDeletePhoto(attemptId: string) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: deletePracticalPhoto,
-    onSuccess: () => client.invalidateQueries({ queryKey: practicalKeys.photos(attemptId) }),
-  });
-}
-
-export function useSubmitAttempt() {
-  const invalidate = useInvalidate();
-  return useMutation({ mutationFn: submitPracticalAttempt, onSuccess: invalidate });
 }
 
 // Results of field grading (read only)

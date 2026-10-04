@@ -3,13 +3,9 @@ export {
   listCriteriaByTemplate, listPracticalTemplates, updatePracticalCriteria, updatePracticalTemplate,
 } from './application/templates';
 export {
-  createPracticalSession, deletePracticalSession, getAllowedPracticalSessions, getPracticalSession, getPracticalSessionWithTemplate,
-  listPracticalSessions, updatePracticalSession,
+  createPracticalSession, deletePracticalSession, getPracticalSession, getPracticalSessionWithTemplate, listPracticalSessions,
+  updatePracticalSession,
 } from './application/sessions';
-export {
-  completePracticalGrading, createPracticalAttempt, deletePracticalPhoto, getPracticalAttempt, listPracticalAttemptsBySession, listPracticalPhotos,
-  listPracticalScores, submitPracticalAttempt, uploadPracticalPhoto, upsertPracticalScore,
-} from './application/attempts';
 export type {
   CreateCriteriaInput, CreatePracticalSessionInput, CreatePracticalTemplateInput, UpdateCriteriaInput, UpdatePracticalSessionInput,
   UpdatePracticalTemplateInput,
@@ -22,4 +18,3 @@ export { default as SessionsPage } from './ui/SessionsPage';
 export { default as SessionFormPage } from './ui/SessionFormPage';
 export { default as ResultsPage } from './ui/results/ResultsPage';
 export { default as ResultDetailPage } from './ui/results/ResultDetailPage';
-export { default as PracticalTakePage } from './ui/PracticalTakePage';

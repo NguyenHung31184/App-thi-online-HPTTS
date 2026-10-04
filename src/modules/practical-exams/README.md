@@ -11,10 +11,10 @@ to TTDT (`server/exam-sync.ts`).
   `practical_attempt_photos`, `practical_attempt_scores`, class names from `classes`, students through `enrollments`.
   Templates, criteria and sessions are soft-deleted (`is_deleted`). One live session per class, template and mode.
 - Storage: field photos are paths in `exam-uploads` (`practical-field/<attempt>/`), opened with signed URLs.
-- Application: `templates.ts`, `import-template.ts`, `sessions.ts`, `results.ts`; `attempts.ts` is the old flow.
+- Application: `templates.ts`, `import-template.ts`, `sessions.ts`, `results.ts`.
 - UI: `TemplatesPage`, `template-form/`, `template-import/`, `SessionsPage`, `SessionFormPage`, `results/`.
-- Old flow, kept but unreachable: the student uploads evidence (`PracticalTakePage`, RPCs `start_practical_attempt`
-  and `submit_practical_attempt`). No `student_upload` session can be created from the UI any more.
+- The old flow (a student uploads evidence, a teacher grades with sliders) was removed on 2026-10-04. Its RPCs
+  `start_practical_attempt` and `submit_practical_attempt` and their database tests remain in the database.
 - Other modules: `integrations` (classes, modules) and `question-bank` (docx reader) through `public.ts`.
 
 See `docs/implementation/2026-10-01-modular-monolith-90-plan.md` (phase 3).

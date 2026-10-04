@@ -31,31 +31,9 @@ export async function selectSessionWithTemplate(id: string): Promise<SessionWith
   return data as SessionWithTemplateRow;
 }
 
-/** Sessions open now in "student uploads evidence" mode, optionally only for some classes. */
-export async function selectOpenUploadSessions(now: number, classIds: string[]): Promise<SessionWithTemplateRow[]> {
-  let query = supabase
-    .from('practical_exam_sessions')
-    .select('*, practical_exam_templates (*)')
-    .eq('mode', 'student_upload')
-    .eq('is_deleted', false)
-    .lte('start_at', now)
-    .gte('end_at', now)
-    .order('start_at', { ascending: false });
-  if (classIds.length > 0) query = query.in('class_id', classIds);
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []) as SessionWithTemplateRow[];
-}
-
 export async function selectClassName(classId: string): Promise<string | undefined> {
   const { data } = await supabase.from('classes').select('name').eq('id', classId).single();
   return (data as { name?: string } | null)?.name;
-}
-
-export async function selectClassNames(classIds: string[]): Promise<Record<string, string>> {
-  if (classIds.length === 0) return {};
-  const { data } = await supabase.from('classes').select('id, name').in('id', classIds);
-  return Object.fromEntries(((data ?? []) as { id: string; name: string }[]).map((c) => [c.id, c.name]));
 }
 
 export async function insertSession(input: CreatePracticalSessionInput): Promise<PracticalExamSession> {

@@ -13,7 +13,6 @@ import {
   WindowsPage,
 } from './modules/exam-management/public';
 import {
-  PracticalTakePage,
   ResultDetailPage as PracticalResultDetailPage,
   ResultsPage as PracticalResultsPage,
   SessionFormPage as PracticalSessionFormPage,
@@ -103,7 +102,6 @@ function App() {
             <Route path="exam/:attemptId/intro" element={<ExamIntroPage />} />
             <Route path="exam/:attemptId" element={<ExamTakePage />} />
             <Route path="exam/:attemptId/result" element={<ExamResultPage />} />
-            <Route path="practical/:attemptId" element={<PracticalTakePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

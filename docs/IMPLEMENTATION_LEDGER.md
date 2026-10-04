@@ -44,6 +44,7 @@ Icon actions on the practical pages: `docs/implementation/2026-10-03-practical-i
 One live field-grading session per class and template: `docs/implementation/2026-10-03-practical-session-unique-live.md`.
 The admin creates practical exam sessions, Sổ chuyên cần only grades: `docs/implementation/2026-10-04-admin-creates-practical-sessions.md`.
 "Kết quả thực hành" replaces the old grading page: `docs/implementation/2026-10-04-practical-results-page.md`.
+The "student uploads evidence" practical flow is removed from the app: `docs/implementation/2026-10-04-remove-student-upload-flow.md`.
 
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.
 

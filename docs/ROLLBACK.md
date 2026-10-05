@@ -4,6 +4,14 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-05 — Thùng rác thi online, kỳ thi lý thuyết xóa mềm
+
+**Commit:** `3106b1f` (App thi), `0a8e7ee` (app quản lý). Migration `20261005090000`, `20261005091000` đã áp dụng, chỉ
+sửa tiến: `docs/rollback/2026-10-05-exam-trash.md`.
+**Branch:** main
+
+---
+
 ## 2026-10-03 — Nút icon thi thực hành, một kỳ chấm chưa xóa cho mỗi lớp và mẫu
 
 **Commit:** `5056c86`, `474dc28` (nút icon), `5065ee1` (migration).

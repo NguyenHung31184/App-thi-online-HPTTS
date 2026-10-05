@@ -1,6 +1,6 @@
 # Exam items in the TTDT trash; exam windows soft-deleted
 
-- Status: in progress 2026-10-05.
+- Status: migrations applied on production 2026-10-05 after operator approval (dry run first; no attempt active); code pushed.
 - Rollback: `docs/rollback/2026-10-05-exam-trash.md`.
 - Database: `20261005090000_exam_window_soft_delete.sql`, `20261005091000_exam_trash.sql`. Dry run first, applied only
   after operator approval.

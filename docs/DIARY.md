@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-10-05 | Đồ thi online vào Thùng rác của app quản lý
+
+**Đã làm**
+- Kỳ thi lý thuyết chuyển sang xóa mềm (trước xóa hẳn, mất luôn bài làm). Học viên, màn giám sát, trang tổng quan bỏ
+  qua kỳ thi đã xóa: vá `start_exam_attempt`, `get_available_exam_windows`, `get_live_exam_monitor` bằng một phép thay
+  có kiểm tra trong migration.
+- Hàm `exam_trash_list`, `exam_trash_restore`, `exam_trash_hard_delete` (chỉ nhân viên) cho Thùng rác của app quản lý:
+  đề thi, kỳ thi lý thuyết, mẫu đánh giá, ca chấm. Xóa vĩnh viễn được cả khi có điểm (quyết định của người vận hành);
+  điểm đã sang bảng điểm và ảnh trong `exam-uploads` giữ nguyên.
+- Test database 40/40. Chạy thử trên production rồi áp dụng `20261005090000`, `20261005091000` lúc không ai đang thi.
+
 ## 2026-10-04 | Admin tạo kỳ thi thực hành, Sổ chuyên cần chỉ chấm
 
 **Đã làm**

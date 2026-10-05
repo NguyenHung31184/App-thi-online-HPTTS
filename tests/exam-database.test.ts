@@ -11,6 +11,7 @@ const question = '30000000-0000-0000-0000-000000000001';
 const sessionId = '40000000-0000-0000-0000-000000000001';
 const classId = '50000000-0000-0000-0000-000000000001';
 const moduleId = '60000000-0000-0000-0000-000000000001';
+const staff = '00000000-0000-0000-0000-000000000004';
 let db: PGlite;
 
 async function sql<T = Record<string, unknown>>(query: string, params: unknown[] = []) {
@@ -69,7 +70,18 @@ beforeAll(async () => {
   await db.exec(await migration('20260930160140_ai_proctoring_policy.sql'));
   await db.exec(await migration('20261003090000_practical_field_grading_sync.sql'));
   await db.exec(await migration('20261003100000_practical_field_config.sql'));
+  // The TTDT app's tables and staff check the trash functions read.
+  await db.exec(`CREATE TABLE classes(id text PRIMARY KEY,name text);
+    ALTER TABLE profiles ADD account_kind text;
+    ALTER TABLE exams ADD deleted_at timestamptz;
+    ALTER TABLE practical_exam_sessions ADD mode text NOT NULL DEFAULT 'student_upload';
+    CREATE FUNCTION is_staff() RETURNS boolean LANGUAGE sql SECURITY DEFINER AS $$ SELECT EXISTS (SELECT 1 FROM profiles WHERE id=auth.uid() AND account_kind='staff') $$;`);
+  await db.exec(await migration('20261003120000_practical_session_unique_live.sql'));
+  await db.exec(await migration('20261005090000_exam_window_soft_delete.sql'));
+  await db.exec(await migration('20261005091000_exam_trash.sql'));
   await sql('INSERT INTO profiles VALUES($1,$1,\'student\',NULL),($2,$2,\'student\',NULL),($3,NULL,\'teacher\',\'teacher\')',[student,other,teacher]);
+  await sql("INSERT INTO profiles(id,role,account_kind) VALUES($1,'admin','staff')",[staff]);
+  await sql("INSERT INTO classes VALUES($1,'Lớp thử')",[classId]);
   await sql('INSERT INTO enrollments(student_id,class_id) VALUES($1,$2)',[student,classId]);
   await sql("INSERT INTO exams(id,title,duration_minutes,module_id) VALUES($1,'Exam',1,$2)",[exam,moduleId]);
   await sql("INSERT INTO exam_windows(id,exam_id,class_id,start_at,end_at,access_code) VALUES($1,$2,$3,0,9999999999999,'123')",[windowId,exam,classId]);
@@ -345,5 +357,73 @@ describe('durable AI proctoring policy', () => {
       [id],
     );
     expect(state).toEqual({ risk_score: 0, incident_count: 0 });
+  });
+});
+
+describe('exam trash (TTDT app)', () => {
+  const trash = async () => sql<{ kind: string; id: string; attempts: number; finished: number }>('SELECT kind,id,attempts,finished FROM exam_trash_list()');
+  // A refused call aborts the transaction; the savepoint lets the test go on.
+  const refuses = async (query: string, params: unknown[], message: string) => {
+    await db.exec('SAVEPOINT refused');
+    await expect(sql(query, params)).rejects.toThrow(message);
+    await db.exec('ROLLBACK TO SAVEPOINT refused');
+  };
+
+  it('hides a soft-deleted window from students', async () => {
+    await sql('UPDATE exam_windows SET is_deleted=true,deleted_at=now() WHERE id=$1', [windowId]);
+    await login(student);
+    await expect(sql("SELECT * FROM start_exam_attempt($1,'123')", [windowId])).rejects.toThrow('exam_window_not_found');
+  });
+
+  it('is for staff accounts only', async () => {
+    await login(teacher);
+    await refuses('SELECT * FROM exam_trash_list()', [], 'Chỉ nhân viên');
+    await refuses("SELECT exam_trash_hard_delete('exam_window',$1)", [windowId], 'Chỉ nhân viên');
+  });
+
+  it('lists deleted items with what a hard delete would remove, and restores in a safe order', async () => {
+    const id = await attempt();
+    await finalize(id);
+    await db.exec('RESET ROLE');
+    await sql('UPDATE exams SET is_deleted=true,deleted_at=now() WHERE id=$1', [exam]);
+    await sql('UPDATE exam_windows SET is_deleted=true,deleted_at=now() WHERE id=$1', [windowId]);
+    await login(staff);
+    expect(await trash()).toEqual([
+      { kind: 'exam', id: exam, attempts: 1, finished: 1 },
+      { kind: 'exam_window', id: windowId, attempts: 1, finished: 1 },
+    ]);
+    await refuses("SELECT exam_trash_restore('exam_window',$1)", [windowId], 'Khôi phục đề thi trước');
+    await sql("SELECT exam_trash_restore('exam',$1)", [exam]);
+    await sql("SELECT exam_trash_restore('exam_window',$1)", [windowId]);
+    expect(await trash()).toEqual([]);
+    await refuses("SELECT exam_trash_restore('exam',$1)", [exam], 'Không tìm thấy mục này trong thùng rác');
+  });
+
+  it('refuses to restore a practical session over a live one of the same class and template', async () => {
+    await sql('UPDATE practical_exam_sessions SET is_deleted=true WHERE id=$1', [sessionId]);
+    await sql("INSERT INTO practical_exam_sessions(template_id,class_id,start_at,end_at,access_code) VALUES($1,$2,0,1,'x')", [exam, classId]);
+    await login(staff);
+    await refuses("SELECT exam_trash_restore('practical_session',$1)", [sessionId], 'đã có ca chấm khác');
+  });
+
+  it('hard-deletes only trashed items, with their attempts and queued sends', async () => {
+    const id = await attempt();
+    await finalize(id);
+    await db.exec('RESET ROLE');
+    const [practical] = await sql<{ id: string }>("INSERT INTO practical_attempts(session_id,student_id,status) VALUES($1,'ttdt-student','grading') RETURNING id", [sessionId]);
+    await login(staff);
+    await refuses("SELECT exam_trash_hard_delete('exam_window',$1)", [windowId], 'Không tìm thấy mục này trong thùng rác');
+    await db.exec('RESET ROLE');
+    await sql('UPDATE exam_windows SET is_deleted=true WHERE id=$1', [windowId]);
+    await sql('UPDATE practical_exam_templates SET is_deleted=true WHERE id=$1', [exam]);
+    await login(staff);
+    expect((await sql<{ n: number }>("SELECT exam_trash_hard_delete('exam_window',$1) n", [windowId]))[0].n).toBe(1);
+    expect((await sql<{ n: number }>("SELECT exam_trash_hard_delete('practical_template',$1) n", [exam]))[0].n).toBe(1);
+    await db.exec('RESET ROLE');
+    expect(await sql('SELECT id FROM attempts WHERE id=$1', [id])).toEqual([]);
+    expect(await sql('SELECT id FROM exam_sync_jobs WHERE attempt_id=$1', [id])).toEqual([]);
+    expect(await sql('SELECT id FROM practical_exam_sessions WHERE id=$1', [sessionId])).toEqual([]);
+    expect(await sql('SELECT id FROM practical_attempts WHERE id=$1', [practical.id])).toEqual([]);
+    expect((await sql('SELECT id FROM exams WHERE id=$1', [exam])).length).toBe(1);
   });
 });

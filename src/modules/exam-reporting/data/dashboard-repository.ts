@@ -27,7 +27,7 @@ export async function selectDashboardSources(now: number, startOfToday: number):
   const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
   const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
   const [windowsRes, attemptsRes, violationsRes, syncFailedRes] = await Promise.all([
-    supabase.from('exam_windows').select('id').lte('start_at', now).gte('end_at', now),
+    supabase.from('exam_windows').select('id').eq('is_deleted', false).lte('start_at', now).gte('end_at', now),
     supabase
       .from('attempts')
       .select('completed_at, score, disqualified, exams(pass_threshold)')

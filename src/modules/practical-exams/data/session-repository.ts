@@ -59,6 +59,6 @@ export async function updateSessionRow(id: string, input: UpdatePracticalSession
 
 /** Soft delete: attempts and grades of the session keep their rows. */
 export async function deleteSessionRow(id: string): Promise<void> {
-  const { error } = await supabase.from('practical_exam_sessions').update({ is_deleted: true }).eq('id', id);
+  const { error } = await supabase.from('practical_exam_sessions').update({ is_deleted: true, deleted_at: new Date().toISOString() }).eq('id', id);
   if (error) throw error;
 }

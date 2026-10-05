@@ -93,6 +93,9 @@ export interface ExamWindow {
   proctoring_mode?: 'standard' | 'strict' | 'supervised';
   /** Ngưỡng điểm AI của strict mode, từ 4 đến 12. */
   ai_risk_threshold?: number;
+  /** Đã xóa mềm: nằm trong Thùng rác của app quản lý. */
+  is_deleted?: boolean;
+  deleted_at?: string | null;
   created_at?: string;
 }
 

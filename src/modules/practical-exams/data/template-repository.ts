@@ -48,7 +48,7 @@ export async function updateTemplateRow(id: string, input: UpdatePracticalTempla
 
 /** Soft delete: the template leaves the lists; sessions and attempts that used it keep their rows. */
 export async function deleteTemplateRow(id: string): Promise<void> {
-  const { error } = await supabase.from('practical_exam_templates').update({ is_deleted: true, updated_at: new Date().toISOString() }).eq('id', id);
+  const { error } = await supabase.from('practical_exam_templates').update({ is_deleted: true, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id);
   if (error) throw error;
 }
 

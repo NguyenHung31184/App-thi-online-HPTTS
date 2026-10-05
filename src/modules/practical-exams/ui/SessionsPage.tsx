@@ -90,7 +90,7 @@ export default function SessionsPage() {
         isLoading={remove.isPending}
         confirmText="Xóa"
       >
-        Xóa kỳ thi thực hành này?
+        Xóa kỳ thi thực hành này? Sổ chuyên cần không còn thấy kỳ thi; điểm đã chấm vẫn giữ. Mục vào Thùng rác của app quản lý, khôi phục được ở đó.
       </ConfirmationModal>
     </div>
   );

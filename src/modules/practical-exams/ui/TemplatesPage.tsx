@@ -90,7 +90,7 @@ export default function TemplatesPage() {
         isLoading={remove.isPending}
         confirmText="Xóa"
       >
-        {confirmDelete ? `Xóa mẫu "${confirmDelete.title}"? Mẫu rời khỏi danh sách; kỳ thi và điểm đã chấm theo mẫu vẫn được giữ.` : ''}
+        {confirmDelete ? `Xóa mẫu "${confirmDelete.title}"? Mẫu rời khỏi danh sách; kỳ thi và điểm đã chấm theo mẫu vẫn được giữ. Mục vào Thùng rác của app quản lý, khôi phục được ở đó.` : ''}
       </ConfirmationModal>
     </div>
   );

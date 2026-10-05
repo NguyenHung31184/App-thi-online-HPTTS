@@ -3,7 +3,7 @@ import type { ExamWindow } from '../../../types';
 import type { windowRowFromInput } from '../domain/exam-inputs';
 
 export async function selectExamWindows(filters?: { exam_id?: string; class_id?: string }): Promise<ExamWindow[]> {
-  let query = supabase.from('exam_windows').select('*').order('start_at', { ascending: false });
+  let query = supabase.from('exam_windows').select('*').eq('is_deleted', false).order('start_at', { ascending: false });
   if (filters?.exam_id) query = query.or(`exam_id.eq.${filters.exam_id},exam_ids.ov.{"${filters.exam_id}"}`);
   if (filters?.class_id) query = query.eq('class_id', filters.class_id);
   const { data, error } = await query;
@@ -32,9 +32,9 @@ export async function updateExamWindowRow(id: string, update: Record<string, unk
   return data as ExamWindow;
 }
 
-/** Hard delete, as before the move (see docs/implementation/2026-10-02-phase-1b-exam-management-module.md). */
+/** Soft delete: the window goes to the TTDT app's trash; its attempts stay until a hard delete there. */
 export async function deleteExamWindowRow(id: string): Promise<void> {
-  const { error } = await supabase.from('exam_windows').delete().eq('id', id);
+  const { error } = await supabase.from('exam_windows').update({ is_deleted: true, deleted_at: new Date().toISOString() }).eq('id', id);
   if (error) throw error;
 }
 

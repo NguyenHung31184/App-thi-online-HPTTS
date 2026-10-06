@@ -13,7 +13,8 @@
   vẫn xóa được. 3 test database mới, tổng 42 đạt.
 - Chạy thử trên production trong giao dịch tự hủy: 9/10 đề trong thùng rác sẽ bị chặn (176 kết quả thật).
 
-**Chưa làm**: áp migration lên production, chờ chủ dự án duyệt.
+**Đã áp lên production (chủ dự án duyệt 06/10)**: gọi thử bằng tài khoản nhân viên trong khối tự hủy, xóa vĩnh viễn một
+đề có 56 kết quả thật bị từ chối; số bài làm 946 trước và sau.
 
 **Tiếp theo**: thi thực hành RTG K43 ngày 09/10; Plan 79 giai đoạn 1 từ 12/10 (`QuanltTTDT-HPTTS/docs/PLAN_79.md`).
 

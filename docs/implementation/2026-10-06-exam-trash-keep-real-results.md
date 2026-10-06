@@ -1,7 +1,6 @@
 # Trash keeps real results (Plan 79, decision 2)
 
-- Status: code and tests done 2026-10-06; migration dry-run on production passed (rolled back); **not applied yet**,
-  waiting for operator approval.
+- Status: migration applied on production 2026-10-06 after operator approval (dry run first); code pushed.
 - Rollback: `docs/rollback/2026-10-06-exam-trash-keep-real-results.md`.
 - Database: `20261006090000_exam_trash_keep_real_results.sql`.
 - Plan: `QuanltTTDT-HPTTS/docs/PLAN_79.md` (Thông tư 79/2026/TT-BGDĐT: result records are kept long term).
@@ -32,6 +31,12 @@ Not changed: "Xóa báo cáo thi thử" in App thi (deletes attempts of trial wi
 
 10 exams in the trash: 9 would be blocked (176 real results in total), 1 has none. 1 practical template and 6
 practical sessions in the trash: none blocked (test class or no finished attempt).
+
+## After applying, 2026-10-06
+
+`exam_trash_list` returns `real_results`; `authenticated` cannot call `exam_trash_real_results`; 9 of 10 trashed exams
+are blocked. Called as a staff account inside a self-rolling-back block, a hard delete of a trashed exam was refused
+("Mục này có 56 bài đã có kết quả của lớp thật…"); attempts 946 before and after.
 
 ## Checks
 

@@ -6,7 +6,7 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ## 2026-10-06 — Thùng rác giữ lại kết quả thi của lớp thật
 
-**Commit:** `b2f28a0` (App thi). Migration `20261006090000` chưa áp dụng. Rollback:
+**Commit:** `b2f28a0` (App thi). Migration `20261006090000` đã áp dụng 06/10, chỉ sửa tiến. Rollback:
 `docs/rollback/2026-10-06-exam-trash-keep-real-results.md`.
 **Branch:** main
 

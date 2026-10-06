@@ -79,6 +79,8 @@ beforeAll(async () => {
   await db.exec(await migration('20261003120000_practical_session_unique_live.sql'));
   await db.exec(await migration('20261005090000_exam_window_soft_delete.sql'));
   await db.exec(await migration('20261005091000_exam_trash.sql'));
+  await db.exec('ALTER TABLE classes ADD code text');
+  await db.exec(await migration('20261006090000_exam_trash_keep_real_results.sql'));
   await sql('INSERT INTO profiles VALUES($1,$1,\'student\',NULL),($2,$2,\'student\',NULL),($3,NULL,\'teacher\',\'teacher\')',[student,other,teacher]);
   await sql("INSERT INTO profiles(id,role,account_kind) VALUES($1,'admin','staff')",[staff]);
   await sql("INSERT INTO classes VALUES($1,'Lớp thử')",[classId]);
@@ -407,10 +409,11 @@ describe('exam trash (TTDT app)', () => {
   });
 
   it('hard-deletes only trashed items, with their attempts and queued sends', async () => {
+    await sql("UPDATE classes SET code='TEST-1' WHERE id=$1", [classId]);
     const id = await attempt();
     await finalize(id);
     await db.exec('RESET ROLE');
-    const [practical] = await sql<{ id: string }>("INSERT INTO practical_attempts(session_id,student_id,status) VALUES($1,'ttdt-student','grading') RETURNING id", [sessionId]);
+    const [practical] = await sql<{ id: string }>("INSERT INTO practical_attempts(session_id,student_id,status) VALUES($1,'ttdt-student','graded') RETURNING id", [sessionId]);
     await login(staff);
     await refuses("SELECT exam_trash_hard_delete('exam_window',$1)", [windowId], 'Không tìm thấy mục này trong thùng rác');
     await db.exec('RESET ROLE');
@@ -425,5 +428,33 @@ describe('exam trash (TTDT app)', () => {
     expect(await sql('SELECT id FROM practical_exam_sessions WHERE id=$1', [sessionId])).toEqual([]);
     expect(await sql('SELECT id FROM practical_attempts WHERE id=$1', [practical.id])).toEqual([]);
     expect((await sql('SELECT id FROM exams WHERE id=$1', [exam])).length).toBe(1);
+  });
+
+  it('keeps real results: no hard delete unless the window is a trial or the class is a test class', async () => {
+    const id = await attempt();
+    await finalize(id);
+    await db.exec('RESET ROLE');
+    await sql("INSERT INTO practical_attempts(session_id,student_id,status) VALUES($1,'ttdt-student','graded')", [sessionId]);
+    await sql('UPDATE exam_windows SET is_deleted=true WHERE id=$1', [windowId]);
+    await sql('UPDATE practical_exam_sessions SET is_deleted=true WHERE id=$1', [sessionId]);
+    await login(staff);
+    const real = async () => sql<{ kind: string; real_results: number }>('SELECT kind,real_results FROM exam_trash_list() ORDER BY kind');
+    expect(await real()).toEqual([{ kind: 'exam_window', real_results: 1 }, { kind: 'practical_session', real_results: 1 }]);
+    await refuses("SELECT exam_trash_hard_delete('exam_window',$1)", [windowId], 'có 1 bài đã có kết quả của lớp thật');
+    await refuses("SELECT exam_trash_hard_delete('practical_session',$1)", [sessionId], 'có 1 bài đã có kết quả của lớp thật');
+    await db.exec('RESET ROLE');
+    expect((await sql('SELECT id FROM attempts WHERE id=$1', [id])).length).toBe(1);
+    await sql('UPDATE exam_windows SET is_trial=true WHERE id=$1', [windowId]);
+    await login(staff);
+    expect(await real()).toEqual([{ kind: 'exam_window', real_results: 0 }, { kind: 'practical_session', real_results: 1 }]);
+    expect((await sql<{ n: number }>("SELECT exam_trash_hard_delete('exam_window',$1) n", [windowId]))[0].n).toBe(1);
+  });
+
+  it('lets an item with only unfinished attempts of a real class go', async () => {
+    await attempt();
+    await db.exec('RESET ROLE');
+    await sql('UPDATE exam_windows SET is_deleted=true WHERE id=$1', [windowId]);
+    await login(staff);
+    expect((await sql<{ n: number }>("SELECT exam_trash_hard_delete('exam_window',$1) n", [windowId]))[0].n).toBe(1);
   });
 });

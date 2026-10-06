@@ -47,6 +47,8 @@ The admin creates practical exam sessions, Sổ chuyên cần only grades: `docs
 The "student uploads evidence" practical flow is removed from the app: `docs/implementation/2026-10-04-remove-student-upload-flow.md`.
 Exam items in the TTDT trash; theory windows soft-deleted: `docs/implementation/2026-10-05-exam-trash.md`.
 
+Trash keeps real results (Plan 79), migration not applied yet: `docs/implementation/2026-10-06-exam-trash-keep-real-results.md`.
+
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.
 
 Removed 2026-09-28: the manual essay grading screen, `docs/implementation/2026-09-28-remove-essay-grading-screen.md`.

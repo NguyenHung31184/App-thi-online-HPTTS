@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-10-06 | Thùng rác giữ lại kết quả thi của lớp thật (Plan 79)
+
+**Đã làm**
+- Migration `20261006090000_exam_trash_keep_real_results.sql`: `exam_trash_hard_delete` từ chối mục có kết quả của lớp
+  thật; `exam_trash_list` trả thêm cột `real_results`. Kết quả thi thử (kỳ thi `is_trial`, lớp mã bắt đầu bằng TEST)
+  vẫn xóa được. 3 test database mới, tổng 42 đạt.
+- Chạy thử trên production trong giao dịch tự hủy: 9/10 đề trong thùng rác sẽ bị chặn (176 kết quả thật).
+
+**Chưa làm**: áp migration lên production, chờ chủ dự án duyệt.
+
+**Tiếp theo**: thi thực hành RTG K43 ngày 09/10; Plan 79 giai đoạn 1 từ 12/10 (`QuanltTTDT-HPTTS/docs/PLAN_79.md`).
+
+---
+
 ## 2026-10-05 | Đồ thi online vào Thùng rác của app quản lý
 
 **Đã làm**

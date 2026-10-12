@@ -1,9 +1,9 @@
 import type { Attempt, Exam } from '../../../types';
 import {
-  selectAttempt, selectBankQuestions, selectExam, selectLegacyExamQuestions, selectProfile, selectStudentByExamEmail, selectStudentById,
+  selectAttempt, selectAttemptReviewQuestions, selectExam, selectProfile, selectStudentByExamEmail, selectStudentById,
 } from '../data/attempt-result-repository';
 import { signStartPhoto } from '../data/evidence-storage';
-import { normalizePrintable, orderByIds, studentFactsOf, toReviewItems, type QuestionReviewItem, type StudentFacts } from '../domain/attempt-review';
+import { normalizePrintable, studentFactsOf, toReviewItems, type QuestionReviewItem, type StudentFacts } from '../domain/attempt-review';
 
 export interface AttemptResult {
   attempt: Attempt;
@@ -37,10 +37,7 @@ export async function getAttemptResult(attemptId: string): Promise<AttemptResult
   let studentRow = profileEmail ? await selectStudentByExamEmail(profileEmail) : null;
   if (!studentRow && profileStudentId) studentRow = await selectStudentById(profileStudentId);
 
-  // New attempts list their questions (question_bank ids); old ones read the exam's legacy questions.
-  const questions = attempt.question_ids?.length
-    ? orderByIds(attempt.question_ids, await selectBankQuestions(attempt.question_ids))
-    : await selectLegacyExamQuestions(attempt.exam_id);
+  const questions = await selectAttemptReviewQuestions(attempt.id);
   const reviewItems = questions && attempt.answers ? toReviewItems(questions, attempt.answers as Record<string, string>) : null;
 
   return {

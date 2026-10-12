@@ -92,11 +92,11 @@ export default function AttemptResultPage() {
           <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
             <p className="text-xs text-slate-500 mb-1">Điểm</p>
             <p className="text-2xl font-bold text-slate-800">
-              {Math.round(earned)}
+              {Number(earned.toFixed(2))}
               <span className="text-base font-normal text-slate-500"> / {denom != null ? Math.round(denom) : '—'}</span>
             </p>
             <p className="text-xs text-slate-500 mt-1">
-              Ngưỡng đạt: {passValue != null ? Math.round(passValue) : '—'} / {denom != null ? Math.round(denom) : '—'}
+              Ngưỡng đạt: {passValue != null ? Number(passValue.toFixed(2)) : '—'} / {denom != null ? denom : '—'}
             </p>
           </div>
           <div className={`rounded-lg p-4 border ${passed ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>

@@ -15,7 +15,7 @@ and student areas.
 - Other modules: `integrations` for OCR, through `public.ts`.
 
 The role comes only from `profiles.exam_role`, which the management app sets; `user_metadata` is editable by the user.
-`src/contexts/AuthContext.tsx` is a re-export kept for the e-learning pages until phase 4.
+All consumers import the identity module through `public.ts`; the legacy `src/contexts/AuthContext.tsx` facade has been removed.
 
 Testing note: Supabase's sign-out ends the user's other sessions too; tests that copy a production session into a local
 build must not click "Đăng xuất".

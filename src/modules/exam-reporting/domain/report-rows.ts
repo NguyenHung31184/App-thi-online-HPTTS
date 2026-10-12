@@ -1,4 +1,5 @@
 import type { AuditEvent } from '../../../types';
+import { isExamPassed } from '../../../shared/domain/exam-result';
 
 export interface AttemptReportRow {
   id: string;
@@ -102,7 +103,7 @@ export function aiRiskPoints(event: string, metadata: Record<string, unknown> | 
 }
 
 export function isPassed(score: number | null, disqualified: boolean | null | undefined, threshold: number): boolean {
-  return score != null && !disqualified && score >= threshold;
+  return isExamPassed(score, disqualified, threshold);
 }
 
 /** Student ids and exam emails to look up for the given profiles. */

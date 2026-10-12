@@ -60,8 +60,8 @@ describe('student facts and duration', () => {
 describe('attemptScore', () => {
   const exam = { pass_threshold: 0.7, total_questions: 30 } as Exam;
 
-  it('compares rounded points with the rounded pass mark', () => {
-    expect(attemptScore({ raw_score: 69.6, total_max: 100, score: 0.696 } as Attempt, exam)).toMatchObject({ earned: 69.6, denom: 100, passValue: 70, passed: true });
+  it('uses the stored score without rounding the pass decision', () => {
+    expect(attemptScore({ raw_score: 69.6, total_max: 100, score: 0.696 } as Attempt, exam)).toMatchObject({ earned: 69.6, denom: 100, passValue: 70, passed: false });
     expect(attemptScore({ raw_score: 69.4, total_max: 100, score: 0.694 } as Attempt, exam).passed).toBe(false);
   });
 

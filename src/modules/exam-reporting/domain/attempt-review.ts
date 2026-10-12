@@ -1,5 +1,6 @@
 import type { Attempt, Exam } from '../../../types';
 import { DEFAULT_PASS_THRESHOLD } from './report-rows';
+import { isExamPassed } from '../../../shared/domain/exam-result';
 
 export interface ReviewOption {
   id: string;
@@ -154,10 +155,7 @@ export interface AttemptScore {
   passed: boolean;
 }
 
-/**
- * Points earned out of the attempt's maximum (else the exam's question count). Pass compares the rounded values shown on
- * screen, so "70 / 100" never reads as failed because of fractional points (true_false_multi, matching).
- */
+/** Points and pass decision for the stored result. */
 export function attemptScore(attempt: Attempt, exam: Exam): AttemptScore {
   const threshold = exam.pass_threshold ?? DEFAULT_PASS_THRESHOLD;
   const scoreNum = attempt.score ?? 0;
@@ -171,6 +169,6 @@ export function attemptScore(attempt: Attempt, exam: Exam): AttemptScore {
         ? scoreNum * denom
         : 0;
   const passValue = typeof denom === 'number' ? threshold * denom : null;
-  const passed = !attempt.disqualified && (passValue !== null ? Math.round(earned) >= Math.round(passValue) : scoreNum >= threshold);
+  const passed = isExamPassed(attempt.score, attempt.disqualified, threshold);
   return { earned, denom, passValue, passed };
 }

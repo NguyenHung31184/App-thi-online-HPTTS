@@ -95,3 +95,8 @@ if (process.argv.includes('--json')) {
   console.log(`Tiêu chí đạt: ${result.criteriaPassed}/10`);
   for (const item of result.criteria) console.log(`  ${item.pass ? '✓' : '·'} ${item.name} — ${item.detail}`);
 }
+
+if (process.argv.includes('--check') && result.criteriaPassed !== result.criteria.length) {
+  console.error('Architecture requirements failed; restore module boundaries and ownership before merging.');
+  process.exitCode = 1;
+}

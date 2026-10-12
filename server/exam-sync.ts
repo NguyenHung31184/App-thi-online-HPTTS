@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isExamPassed } from '../src/shared/domain/exam-result.js';
 
 export interface SyncJob { id: string; source: 'theory' | 'practical'; attempt_id: string; lease_token: string }
 export interface SyncConfig { url: string; apiKey: string }
@@ -58,7 +59,7 @@ export async function prepareSync(admin: SupabaseClient, source: 'theory' | 'pra
       // Theory scores are 0–1, practical totals 0–100; TTDT keeps both on 10.
       final_exam_score: disqualified ? 0 : Number((source === 'theory' ? score * 10 : score / 10).toFixed(1)),
       raw_score: Number(source === 'theory' ? attempt.raw_score ?? 0 : attempt.total_score ?? 0),
-      passed: !disqualified && (source === 'theory' ? score >= passThreshold : score >= passScore), disqualified,
+      passed: isExamPassed(score, disqualified, source === 'theory' ? passThreshold : passScore), disqualified,
     },
     log: source === 'theory'
       ? { attempt_id: attemptId, module_id: moduleId, exam_title: title, window_id: attempt.window_id, class_id: classId }

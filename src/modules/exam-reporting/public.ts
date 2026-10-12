@@ -8,3 +8,5 @@ export { exportReportToExcel, exportViolationsToExcel } from './ui/report/downlo
 export { default as AttemptResultPage } from './ui/attempt-result/AttemptResultPage';
 export { default as ReportPage } from './ui/report/ReportPage';
 export { default as AdminDashboardPage } from './ui/dashboard/AdminDashboardPage';
+export { default as ExamResultPage } from './ui/student-result/ExamResultPage';
+export { default as StudentResultsPage } from './ui/student-result/StudentResultsPage';

@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
-import { validateMediaUrl } from '../../../utils/mediaUrlValidator';
+import { validateMediaUrl } from '../../../platform/media/media-url-validator';
 import { OPTION_IDS } from '../domain/question-draft';
 import { readDocxBlocks } from '../domain/docx-reader';
 import { IMAGE_EXTENSIONS, IMPORT_HEADER, IMPORT_TYPE_NAMES as TYPE, MAX_IMPORT_ROWS, contentKey, draftFromImportRow, imageKey, planDraftImport, planImport, readImportSheet, type ImportPlan, type ImportRow, type ImportSheet, type SkippedRow } from '../domain/question-import';

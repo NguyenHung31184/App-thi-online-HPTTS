@@ -32,15 +32,8 @@ export async function selectStudentById(studentId: string): Promise<Record<strin
   return (data ?? null) as Record<string, unknown> | null;
 }
 
-const QUESTION_COLUMNS = 'id, stem, options, answer_key, points, topic, image_url, question_type';
-
-export async function selectBankQuestions(ids: string[]): Promise<ReviewQuestionRecord[]> {
-  const { data } = await supabase.from('question_bank').select(QUESTION_COLUMNS).in('id', ids);
+export async function selectAttemptReviewQuestions(attemptId: string): Promise<ReviewQuestionRecord[]> {
+  const { data, error } = await supabase.rpc('get_attempt_review_questions', { p_attempt_id: attemptId });
+  if (error) throw error;
   return (data ?? []) as ReviewQuestionRecord[];
-}
-
-/** Attempts from before question_ids existed were drawn from the legacy `questions` table (read only). */
-export async function selectLegacyExamQuestions(examId: string): Promise<ReviewQuestionRecord[] | null> {
-  const { data } = await supabase.from('questions').select(QUESTION_COLUMNS).eq('exam_id', examId).order('created_at', { ascending: true });
-  return (data ?? null) as ReviewQuestionRecord[] | null;
 }

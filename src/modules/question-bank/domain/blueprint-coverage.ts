@@ -1,4 +1,5 @@
 import { contentKey } from './question-import';
+import { validateQuestion } from './question-validation';
 
 /** A question start_exam_attempt can draw: published (or no status), not deleted, in the exam's module. */
 export interface DrawPoolQuestion {
@@ -6,6 +7,8 @@ export interface DrawPoolQuestion {
   options: unknown;
   topic: string | null;
   difficulty: string | null;
+  question_type?: string;
+  answer_key?: string;
 }
 
 export type BlueprintCoverage =
@@ -51,6 +54,10 @@ export function checkBlueprintCoverage(blueprint: unknown, pool: DrawPoolQuestio
     }
     const count = Number(countText);
     const ruleKeys = new Set(keys.filter((_, index) => matches(topic, pool[index].topic) && matches(difficulty, pool[index].difficulty)));
+    const invalidEssay = pool.find((q) => matches(topic, q.topic) && matches(difficulty, q.difficulty)
+      && (q.question_type === 'main_idea' || q.question_type === 'video_paragraph')
+      && !validateQuestion({ ...q, question_type: q.question_type!, answer_key: q.answer_key ?? '', points: 1 }).ok);
+    if (invalidEssay) return { ok: false, message: `Nhóm ${label} có câu tự luận thiếu khóa chấm hợp lệ: ${invalidEssay.stem.slice(0, 80)}. Sửa khóa hoặc chuyển câu về nháp trước khi khóa đề.` };
     const shared = [...ruleKeys].filter((key) => earlierKeys.has(key)).length;
     const taken = Math.min(earlierCount, shared);
     const available = ruleKeys.size - taken;

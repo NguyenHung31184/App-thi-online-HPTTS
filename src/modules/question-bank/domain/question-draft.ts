@@ -275,6 +275,9 @@ export function buildQuestionPayload(
     }
     default: {
       const keys = draft.essayKeys.filter((key) => key.text.trim() !== '' && key.points >= 0);
+      if (draft.status === 'published' && (keys.length === 0 || keys.some((key) => !Number.isFinite(key.points) || key.points <= 0))) {
+        return fail('Câu tự luận cần khóa chấm có điểm lớn hơn 0 trước khi xuất bản. Có thể lưu nháp để bổ sung khóa.');
+      }
       answerKey = keys.length > 0 ? JSON.stringify(keys) : '';
       // Imported essay questions store [] (the legacy form stored one empty option); neither is read.
       options = [];

@@ -74,7 +74,7 @@ function checkImport(from, to, typeOnly, packageName) {
     if (from_ === 'ui' && to_ === 'application' && !typeOnly) return ['layer', 'ui may import application for types only'];
     return null;
   }
-  if (source.layer === 'domain' && !(targetTop === 'types' && typeOnly)) return ['domain-dependency', `domain must not import ${targetTop}`];
+  if (source.layer === 'domain' && !(targetTop === 'types' && typeOnly) && !to.startsWith('shared/domain/')) return ['domain-dependency', `domain must not import ${targetTop}`];
   if (LEGACY_IMPORT_DIRS.has(targetTop) && !SUPABASE_CLIENTS.has(to) && !typeOnly) return ['legacy-dependency', `module depends on legacy src/${targetTop}`];
   return null;
 }

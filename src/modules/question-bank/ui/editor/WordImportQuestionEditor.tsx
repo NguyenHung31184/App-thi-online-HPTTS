@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { validateMediaUrl } from '../../../../utils/mediaUrlValidator';
+import { validateMediaUrl } from '../../../../platform/media/media-url-validator';
 import type { WordImportCandidate } from '../../application/import-questions';
 import { QUESTION_TYPES, buildQuestionPayload, type QuestionDraft } from '../../domain/question-draft';
 import { rowLabel } from '../../domain/question-import';

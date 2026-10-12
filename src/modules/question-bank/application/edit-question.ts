@@ -1,4 +1,4 @@
-import { validateMediaUrl } from '../../../utils/mediaUrlValidator';
+import { validateMediaUrl } from '../../../platform/media/media-url-validator';
 import { buildQuestionPayload, draftFromQuestion, type QuestionDraft } from '../domain/question-draft';
 import type { QuestionLibrary } from '../domain/question-library';
 import { getQuestion, insertQuestion, updateQuestion, uploadQuestionImage } from '../data/question-repository';

@@ -23,8 +23,8 @@ jobs:
       - name: Ranh giới import giữa module
         run: npm run check:boundaries
 
-      - name: Điểm kiến trúc modular monolith (chỉ in, không chặn)
-        run: npm run arch:score
+      - name: Kiểm tra 10 tiêu chí modular monolith
+        run: npm run arch:score -- --check
 
       - name: Lint
         run: npm run lint

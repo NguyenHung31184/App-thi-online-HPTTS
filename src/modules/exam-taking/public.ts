@@ -9,7 +9,11 @@ export {
   saveTheoryAttemptAnswers,
   startTheoryAttempt,
   submitTheoryAttempt,
+  getBrowserProctoringState,
+  recordBrowserViolation,
+  attachBrowserViolationEvidence,
 } from './application/manage-theory-attempt';
+export type { BrowserProctoringState, BrowserViolationKind } from './domain/browser-proctoring';
 export { optionLetter, referencesOtherOptions } from './domain/option-order';
 export {
   AI_DETECTION_RULES,
@@ -25,6 +29,10 @@ export {
 export { examTakingKeys } from './queries/keys';
 export { useAvailableTheoryWindows, useStartTheoryAttempt } from './queries/use-theory-attempt';
 export { useAttemptHeartbeat } from './queries/use-attempt-heartbeat';
+export { getAttempt } from './application/manage-theory-attempt';
+export { default as DashboardPage } from './ui/dashboard/DashboardPage';
+export { default as ExamIntroPage } from './ui/intro/ExamIntroPage';
+export { default as ExamTakePage } from './ui/session/ExamTakePage';
 export { default as AvailableTheoryExamsPage } from './ui/AvailableTheoryExamsPage';
 export type {
   AiProctoringState,

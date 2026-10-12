@@ -1,9 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider, LoginPage, RoleSelectPage, VerifyCccdPage } from './modules/identity-access/public';
-import Layout from './pages/Layout';
-import DashboardPage from './pages/DashboardPage';
-import AdminLayout from './pages/admin/AdminLayout';
+import Layout from './app/layouts/Layout';
+import AdminLayout from './app/layouts/AdminLayout';
 import {
   BankCheckPage,
   ExamDetailPage,
@@ -23,13 +22,9 @@ import {
 } from './modules/practical-exams/public';
 import { AdminDashboardPage, AttemptResultPage, ReportPage } from './modules/exam-reporting/public';
 import { SyncLogPage } from './modules/integrations/public';
-import ExamTakePage from './pages/ExamTakePage';
-import ExamIntroPage from './pages/ExamIntroPage';
-import ExamResultPage from './pages/ExamResultPage';
-import StudentExamsPage from './pages/StudentExamsPage';
-import StudentResultsPage from './pages/StudentResultsPage';
-import StudentLearnPage from './pages/StudentLearnPage';
-import LessonPlayerPage from './pages/LessonPlayerPage';
+import { DashboardPage, ExamTakePage, ExamIntroPage, AvailableTheoryExamsPage as StudentExamsPage } from './modules/exam-taking/public';
+import { ExamResultPage, StudentResultsPage } from './modules/exam-reporting/public';
+import { StudentLearnPage, LessonPlayerPage } from './modules/elearning/public';
 import {
   LegacyQuestionBankRedirect,
   QuestionEditorPage,

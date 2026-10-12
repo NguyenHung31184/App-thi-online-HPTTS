@@ -8,6 +8,35 @@ import type {
   RecordAiProctoringIncidentResult,
 } from '../domain/exam-attempt';
 import type { AiViolationKind } from '../domain/proctoring-policy';
+import type { BrowserProctoringState, BrowserViolationResult, BrowserViolationKind } from '../domain/browser-proctoring';
+
+export async function fetchAttempt(id: string): Promise<Attempt | null> {
+  const { data, error } = await supabase.from('attempts').select('*').eq('id', id).single();
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw error;
+  }
+  return data as Attempt;
+}
+
+export async function fetchBrowserProctoringState(attemptId: string): Promise<BrowserProctoringState> {
+  const { data, error } = await supabase.rpc('get_browser_proctoring_state', { p_attempt_id: attemptId });
+  if (error) throw error;
+  if (!data?.[0]) throw new Error('Không tải được số lần vi phạm.');
+  return data[0] as BrowserProctoringState;
+}
+
+export async function writeBrowserViolation(attemptId: string, event: BrowserViolationKind): Promise<BrowserViolationResult> {
+  const { data, error } = await supabase.rpc('record_browser_violation', { p_attempt_id: attemptId, p_event: event });
+  if (error) throw error;
+  if (!data?.[0]) throw new Error('Không ghi được vi phạm trình duyệt.');
+  return data[0] as BrowserViolationResult;
+}
+
+export async function attachBrowserEvidence(auditId: string, metadata: Record<string, unknown>): Promise<void> {
+  const { error } = await supabase.rpc('attach_browser_violation_evidence', { p_audit_id: auditId, p_metadata: metadata });
+  if (error) throw error;
+}
 
 export async function fetchAvailableTheoryWindows(): Promise<AvailableTheoryWindow[]> {
   const { data, error } = await supabase.rpc('get_available_exam_windows');

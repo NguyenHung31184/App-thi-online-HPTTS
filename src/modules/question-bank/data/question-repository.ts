@@ -164,7 +164,7 @@ export async function listDrawPool(moduleId: string): Promise<DrawPoolQuestion[]
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabase
       .from('question_bank')
-      .select('stem, options, topic, difficulty')
+      .select('stem, options, topic, difficulty, question_type, answer_key')
       .eq('module_id', moduleId)
       .not('is_deleted', 'is', true)
       .or('status.is.null,status.eq.published')
@@ -178,6 +178,8 @@ export async function listDrawPool(moduleId: string): Promise<DrawPoolQuestion[]
         options: row.options,
         topic: nullableString(row.topic),
         difficulty: nullableString(row.difficulty),
+        question_type: typeof row.question_type === 'string' ? row.question_type : undefined,
+        answer_key: typeof row.answer_key === 'string' ? row.answer_key : undefined,
       });
     }
     if (page.length < PAGE_SIZE) return result;

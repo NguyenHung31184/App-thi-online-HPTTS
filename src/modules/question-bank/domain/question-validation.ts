@@ -185,13 +185,16 @@ export function validateQuestion(q: ValidatableQuestion, callOpts?: { skipAnswer
 
   // ─── main_idea / video_paragraph ─────────────────────────────────────────
   if (q.question_type === 'main_idea' || q.question_type === 'video_paragraph') {
+    if (skipAnswerKey) return { ok: issues.length === 0, issues };
     const ak = (q.answer_key || '').trim();
+    if (!ak) issues.push({ message: 'Câu tự luận chưa có khóa chấm', fix: 'Bổ sung khóa chấm trước khi xuất bản hoặc khóa đề' });
     if (ak) {
       try {
         const parsed = JSON.parse(ak) as unknown;
         if (!Array.isArray(parsed)) {
           issues.push({ message: 'Keys chấm điểm không đúng định dạng JSON array', fix: 'Sửa lại keys chấm điểm trong form sửa câu hỏi' });
         } else {
+          if (parsed.length === 0) issues.push({ message: 'Khóa chấm tự luận rỗng', fix: 'Thêm ít nhất một khóa chấm có điểm lớn hơn 0' });
           const bad = (parsed as { text?: unknown; points?: unknown }[]).filter(
             (k) => !k.text || typeof k.text !== 'string' || k.text.trim() === '' ||
                    typeof k.points !== 'number' || k.points <= 0
@@ -204,7 +207,6 @@ export function validateQuestion(q: ValidatableQuestion, callOpts?: { skipAnswer
         issues.push({ message: 'answer_key không đúng định dạng JSON', fix: 'Sửa lại keys chấm điểm trong form sửa câu hỏi' });
       }
     }
-    // Không cảnh báo nếu answer_key trống — chấm tay vẫn hợp lệ
   }
 
   return { ok: issues.length === 0, issues };

@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-10-12 | Form tạo kỳ thi báo lỗi ngay cạnh nút lưu
+
+**Vấn đề**: bấm "Tạo kỳ thi" khi chưa nhập mã truy cập thì trang không hiện gì ngoài bong bóng của trình duyệt; các lỗi
+khác của form chỉ hiện ở đầu trang, người đang ở cuối form không thấy. Mã toàn dấu cách vẫn lưu được.
+
+**Đã làm**
+- `windowFormError` kiểm tra thêm thời gian bắt đầu, kết thúc và mã truy cập (bỏ dấu cách hai đầu).
+- Form tắt kiểm tra của trình duyệt (`noValidate`), hiện câu lỗi tiếng Việt ở đầu form và ngay trên nút lưu.
+- Mã truy cập được cắt dấu cách hai đầu khi lưu.
+- Kiểm tra: 243 test, lint, `check:boundaries`, build, `arch:score` đạt. Edge bản local: ba trường hợp thiếu thời gian,
+  thiếu mã, mã toàn dấu cách đều báo lỗi và không gửi yêu cầu tạo kỳ thi.
+
+**Chưa làm**: push.
+
+---
+
 ## 2026-10-12 | Rà và commit khối thay đổi 06/10 (hoàn thiện kiến trúc, 6 lỗi rà soát)
 
 **Bối cảnh**: khối hoàn thiện modular monolith và 6 bản sửa sau rà soát làm ngày 06/10 vẫn nằm trên máy, chưa commit.

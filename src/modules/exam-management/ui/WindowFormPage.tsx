@@ -74,7 +74,7 @@ export default function WindowFormPage() {
     e.preventDefault();
     const startTs = fromDatetimeLocal(startAt);
     const endTs = fromDatetimeLocal(endAt);
-    const problem = windowFormError({ isTrial, classId, useMultiExams, examId, selectedExamIds, titlesWithoutModule, startAt: startTs, endAt: endTs });
+    const problem = windowFormError({ isTrial, classId, useMultiExams, examId, selectedExamIds, titlesWithoutModule, startAt: startTs, endAt: endTs, accessCode });
     setError(problem ?? '');
     if (problem) return;
 
@@ -82,7 +82,7 @@ export default function WindowFormPage() {
       class_id: classId || '',
       start_at: startTs,
       end_at: endTs,
-      access_code: accessCode,
+      access_code: accessCode.trim(),
       is_trial: isTrial,
       max_attempts: maxAttempts,
       proctoring_mode: proctoringMode,
@@ -146,7 +146,7 @@ export default function WindowFormPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
           <ExamPickerSection
             isEdit={isEdit}
             exams={exams}
@@ -217,6 +217,7 @@ export default function WindowFormPage() {
             </div>
             <p className="text-xs text-slate-500 mt-1">Bấm biểu tượng xoay tròn để tạo mã 4 ký tự ngẫu nhiên.</p>
           </div>
+          {error && <p role="alert" className="text-red-600 text-sm text-right">{error}</p>}
           <div className="flex gap-3 justify-end pt-2">
             <button
               type="button"

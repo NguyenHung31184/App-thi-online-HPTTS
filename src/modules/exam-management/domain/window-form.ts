@@ -41,6 +41,7 @@ export interface WindowFormCheck {
   titlesWithoutModule: string[];
   startAt: number;
   endAt: number;
+  accessCode: string;
 }
 
 /** The first problem that blocks saving a window, in the order the form always checked; null when it can be saved. */
@@ -53,6 +54,8 @@ export function windowFormError(form: WindowFormCheck): string | null {
   if (!form.isTrial && form.titlesWithoutModule.length > 0) {
     return `Không thể lưu: ${form.titlesWithoutModule.length} đề chưa gắn mô-đun (${form.titlesWithoutModule.join(', ')}). Vui lòng vào Đề thi → Sửa từng đề → chọn Mô-đun rồi lưu, sau đó quay lại tạo/sửa kỳ thi.`;
   }
+  if (!Number.isFinite(form.startAt) || !Number.isFinite(form.endAt)) return 'Vui lòng nhập thời gian Bắt đầu và Kết thúc.';
   if (form.endAt <= form.startAt) return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+  if (form.accessCode.trim() === '') return 'Vui lòng nhập Mã truy cập, hoặc bấm nút bên cạnh ô để tạo mã.';
   return null;
 }

@@ -16,7 +16,7 @@ describe('randomAccessCode', () => {
 });
 
 describe('windowFormError', () => {
-  const base = { isTrial: false, classId: 'c1', useMultiExams: false, examId: 'e1', selectedExamIds: [], titlesWithoutModule: [], startAt: 1, endAt: 2 };
+  const base = { isTrial: false, classId: 'c1', useMultiExams: false, examId: 'e1', selectedExamIds: [], titlesWithoutModule: [], startAt: 1, endAt: 2, accessCode: 'A1B2' };
 
   it('accepts a complete real window', () => {
     expect(windowFormError(base)).toBeNull();
@@ -29,7 +29,9 @@ describe('windowFormError', () => {
     expect(windowFormError({ ...base, useMultiExams: true })).toBe('Vui lòng thêm ít nhất một đề thi (chế độ nhiều đề).');
     expect(windowFormError({ ...base, titlesWithoutModule: ['QC'] })).toMatch(/^Không thể lưu: 1 đề chưa gắn mô-đun \(QC\)/);
     expect(windowFormError({ ...base, isTrial: true, titlesWithoutModule: ['QC'] })).toBeNull();
+    expect(windowFormError({ ...base, startAt: NaN })).toBe('Vui lòng nhập thời gian Bắt đầu và Kết thúc.');
     expect(windowFormError({ ...base, endAt: 1 })).toBe('Thời gian kết thúc phải sau thời gian bắt đầu.');
+    expect(windowFormError({ ...base, accessCode: '  ' })).toMatch(/^Vui lòng nhập Mã truy cập/);
   });
 });
 

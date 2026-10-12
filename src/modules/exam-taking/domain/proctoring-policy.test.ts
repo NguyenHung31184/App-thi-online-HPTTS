@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   AI_DETECTION_RULES,
+  CAMERA_COVERED_RULE,
   LEAVE_EVENT_BUNDLE_MS,
   advanceDetectionWindow,
   canRecordLeaveViolation,
   createDetectionWindowState,
+  frameLooksCovered,
   shouldAutoSubmitForAi,
 } from './proctoring-policy';
 
@@ -17,10 +19,10 @@ describe('proctoring policy', () => {
     expect(canRecordLeaveViolation(first, first + LEAVE_EVENT_BUNDLE_MS)).toBe(true);
   });
 
-  it('confirms no-face after six scans and waits for three clean scans before rearming', () => {
+  it('confirms no-face after five scans and waits for three clean scans before rearming', () => {
     const rule = AI_DETECTION_RULES.ai_no_face;
     let state = createDetectionWindowState();
-    for (let scan = 1; scan <= 5; scan += 1) {
+    for (let scan = 1; scan <= 4; scan += 1) {
       const result = advanceDetectionWindow(state, true, rule);
       expect(result.confirmed).toBe(false);
       state = result.state;
@@ -34,6 +36,44 @@ describe('proctoring policy', () => {
       state = advanceDetectionWindow(state, false, rule).state;
     }
     expect(state.armed).toBe(true);
+  });
+
+  it('still confirms no-face when a face shows up in one of five scans, but not in two', () => {
+    const rule = AI_DETECTION_RULES.ai_no_face;
+    const run = (scans: boolean[]) => {
+      let state = createDetectionWindowState();
+      let confirmed = false;
+      for (const detected of scans) {
+        const result = advanceDetectionWindow(state, detected, rule);
+        state = result.state;
+        confirmed = confirmed || result.confirmed;
+      }
+      return confirmed;
+    };
+    expect(run([true, true, false, true, true])).toBe(true);
+    expect(run([true, false, true, false, true])).toBe(false);
+  });
+
+  it('confirms a covered camera after three scans in a row', () => {
+    let state = createDetectionWindowState();
+    for (const detected of [true, true]) {
+      const result = advanceDetectionWindow(state, detected, CAMERA_COVERED_RULE);
+      expect(result.confirmed).toBe(false);
+      state = result.state;
+    }
+    expect(advanceDetectionWindow(state, true, CAMERA_COVERED_RULE).confirmed).toBe(true);
+  });
+
+  it('reads a black or flat frame as covered and a normal frame as open', () => {
+    const frame = (pixel: (i: number) => number) => {
+      const data: number[] = [];
+      for (let i = 0; i < 64; i += 1) data.push(pixel(i), pixel(i), pixel(i), 255);
+      return data;
+    };
+    expect(frameLooksCovered(frame(() => 8))).toBe(true);
+    expect(frameLooksCovered(frame(() => 120))).toBe(true);
+    expect(frameLooksCovered(frame((i) => (i % 2 ? 60 : 180)))).toBe(false);
+    expect(frameLooksCovered([])).toBe(false);
   });
 
   it('confirms a phone only when at least three of five scans are positive', () => {

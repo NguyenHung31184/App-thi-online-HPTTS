@@ -5,8 +5,11 @@ import type { BlazeFaceModel } from '@tensorflow-models/blazeface';
 import type { FaceDetector } from '@mediapipe/tasks-vision';
 import {
   AI_DETECTION_RULES,
+  CAMERA_COVERED_RULE,
+  FACE_SCAN_INTERVAL_MS,
   advanceDetectionWindow,
   createDetectionWindowState,
+  frameLooksCovered,
   type AiViolationKind,
   type DetectionWindowState,
 } from '../../domain/proctoring-policy';
@@ -42,7 +45,7 @@ export interface AiObjectProctorBurstProps {
   burstEveryMs?: number;
   /** @deprecated Giữ tương thích; không còn dùng. */
   burstDurationMs?: number;
-  /** Chu kỳ quét liên tục (ms), mặc định 2,5s */
+  /** Chu kỳ quét vật thể (ms), mặc định 2,5s. Khuôn mặt quét theo FACE_SCAN_INTERVAL_MS. */
   detectIntervalMs?: number;
   /** Ngưỡng confidence để tính vi phạm */
   minScore?: number;
@@ -81,6 +84,9 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     ai_cell_phone: createDetectionWindowState(),
     ai_prohibited_object: createDetectionWindowState(),
   });
+  const coveredStateRef = useRef<DetectionWindowState>(createDetectionWindowState());
+  const lastObjectScanRef = useRef(0);
+  const probeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   /** Sẵn sàng quét khi bộ nhận diện mặt và, nếu bật, bộ nhận diện vật thể đã khởi tạo xong. */
   const [burstReady, setBurstReady] = useState(false);
 
@@ -179,6 +185,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       ai_cell_phone: createDetectionWindowState(),
       ai_prohibited_object: createDetectionWindowState(),
     };
+    coveredStateRef.current = createDetectionWindowState();
+    lastObjectScanRef.current = 0;
     cocoDoneRef.current = false;
     faceDoneRef.current = false;
     startCamera();
@@ -226,7 +234,9 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       try {
         let preds: Awaited<ReturnType<CocoModel['detect']>> | null = null;
         const model = modelRef.current;
-        if (detectObjects && model) {
+        const objectScanDue = now() - lastObjectScanRef.current >= detectIntervalMs;
+        if (detectObjects && model && objectScanDue) {
+          lastObjectScanRef.current = now();
           preds = await model.detect(video);
           let phoneScore = 0;
           let phoneBboxRatio = 0;
@@ -249,13 +259,25 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
               }
             }
           }
-          await updateSignal('ai_cell_phone', phoneScore > 0, {
+          await updateSignal('ai_cell_phone', phoneScore > 0, detectIntervalMs, {
             confidence: phoneScore || undefined,
             bboxRatio: phoneBboxRatio || undefined,
           });
-          await updateSignal('ai_prohibited_object', prohibitedScore > 0, {
+          await updateSignal('ai_prohibited_object', prohibitedScore > 0, detectIntervalMs, {
             confidence: prohibitedScore || undefined,
             bboxRatio: prohibitedBboxRatio || undefined,
+          });
+        }
+
+        const covered = advanceDetectionWindow(coveredStateRef.current, isCovered(video), CAMERA_COVERED_RULE);
+        coveredStateRef.current = covered.state;
+        if (covered.confirmed) {
+          await maybeHit('ai_no_face', {
+            cameraCovered: true,
+            observedScans: CAMERA_COVERED_RULE.windowScans,
+            requiredHits: CAMERA_COVERED_RULE.requiredHits,
+            windowScans: CAMERA_COVERED_RULE.windowScans,
+            durationMs: CAMERA_COVERED_RULE.windowScans * FACE_SCAN_INTERVAL_MS,
           });
         }
 
@@ -276,8 +298,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
           }
         }
         if (faceCount !== null) {
-          await updateSignal('ai_no_face', faceCount === 0);
-          await updateSignal('ai_multiple_face', faceCount > 1);
+          await updateSignal('ai_no_face', faceCount === 0, FACE_SCAN_INTERVAL_MS);
+          await updateSignal('ai_multiple_face', faceCount > 1, FACE_SCAN_INTERVAL_MS);
         } else if (preds) {
           let personCount = 0;
           let hasPerson = false;
@@ -288,17 +310,32 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
               personCount += 1;
             }
           }
-          await updateSignal('ai_no_face', !hasPerson);
-          await updateSignal('ai_multiple_face', personCount > 1);
+          await updateSignal('ai_no_face', !hasPerson, detectIntervalMs);
+          await updateSignal('ai_multiple_face', personCount > 1, detectIntervalMs);
         }
       } catch {
         /* một frame lỗi — bỏ qua */
       }
     };
 
+    const isCovered = (video: HTMLVideoElement): boolean => {
+      try {
+        const canvas = probeCanvasRef.current ?? (probeCanvasRef.current = document.createElement('canvas'));
+        canvas.width = 32;
+        canvas.height = 24;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return false;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return frameLooksCovered(ctx.getImageData(0, 0, canvas.width, canvas.height).data);
+      } catch {
+        return false;
+      }
+    };
+
     const updateSignal = async (
       kind: AiViolationKind,
       detected: boolean,
+      scanIntervalMs: number,
       details?: Pick<AiDetectionDetails, 'confidence' | 'bboxRatio'>,
     ) => {
       const rule = AI_DETECTION_RULES[kind];
@@ -310,7 +347,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         observedScans: result.state.samples.length || rule.windowScans,
         requiredHits: rule.requiredHits,
         windowScans: rule.windowScans,
-        durationMs: rule.windowScans * detectIntervalMs,
+        durationMs: rule.windowScans * scanIntervalMs,
       });
     };
 
@@ -359,7 +396,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     void runDetection();
     timersRef.current.tick = window.setInterval(() => {
       void runDetection();
-    }, detectIntervalMs);
+    }, FACE_SCAN_INTERVAL_MS);
 
     return () => {
       cancelled = true;

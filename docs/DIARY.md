@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-10-12 | Thi thử trên điện thoại; giám sát AI nhận "không thấy khuôn mặt" nhanh hơn, thêm nhận camera bị che
+
+**Thi thử** (kỳ thi thử, lớp TEST-TH, một lượt, 3 phút 19 giây): điểm, số vi phạm rời trang (2), ảnh giám sát, trang chi
+tiết bài làm và báo cáo khớp với database; không ghi điểm sang TTDT. Lỗi còn lại: câu nối cặp hiện sai phần "Đáp án
+đúng" ở trang chi tiết bài làm (`[object Object]`).
+
+**Phản hồi của người thi**: khoảng 15 giây mới báo "không thấy khuôn mặt"; lấy tay hoặc chuột che camera thì không báo
+hoặc báo rất chậm.
+
+**Nguyên nhân**: luật cũ cần 6 lần quét liên tiếp không thấy mặt, mỗi lần cách 2,5 giây. Che hờ làm thỉnh thoảng một lần
+quét vẫn thấy mặt, bộ đếm quay về 0. Không có kiểm tra khung hình đen.
+
+**Đã làm** (chỉ frontend, không đổi database)
+- Khuôn mặt quét mỗi giây (`FACE_SCAN_INTERVAL_MS`); điện thoại và vật cấm vẫn quét mỗi 2,5 giây vì model nặng hơn.
+- Không thấy mặt: 4 trong 5 lần quét (khoảng 5 giây). Nhiều mặt: 3 lần liên tiếp (khoảng 3 giây).
+- Camera bị che: khung hình gần đen hoặc gần một màu trong 3 lần quét liên tiếp (khoảng 3 giây), ghi là `ai_no_face`
+  kèm `detection.cameraCovered`. Phòng quá tối cũng rơi vào trường hợp này.
+- Kiểm tra: 246 test, lint, `check:boundaries`, build đạt.
+
+**Chưa làm**: thử lại trên điện thoại thật sau khi deploy; theo dõi tỉ lệ nhận nhầm ở kỳ thi thử kế tiếp.
+
+---
+
 ## 2026-10-12 | Form tạo kỳ thi báo lỗi ngay cạnh nút lưu
 
 **Vấn đề**: bấm "Tạo kỳ thi" khi chưa nhập mã truy cập thì trang không hiện gì ngoài bong bóng của trình duyệt; các lỗi

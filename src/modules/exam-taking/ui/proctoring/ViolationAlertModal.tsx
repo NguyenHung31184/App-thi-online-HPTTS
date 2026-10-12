@@ -16,7 +16,7 @@ interface ViolationConfig {
 const VIOLATION_CONFIG: Record<EvidenceKind, ViolationConfig> = {
   ai_cell_phone:        { title: 'Phát hiện điện thoại',  subtitle: 'Tín hiệu đã được lưu để giám thị kiểm tra lại.', countsTowardAutoSubmit: false },
   ai_prohibited_object: { title: 'Phát hiện vật cấm',     subtitle: 'Tín hiệu đã được lưu để giám thị kiểm tra lại.', countsTowardAutoSubmit: false },
-  ai_no_face:           { title: 'Không thấy khuôn mặt',  subtitle: 'Hãy điều chỉnh camera. Tín hiệu đã được lưu để giám thị kiểm tra lại.', countsTowardAutoSubmit: false },
+  ai_no_face:           { title: 'Không thấy khuôn mặt',  subtitle: 'Hãy điều chỉnh camera và không che ống kính. Tín hiệu đã được lưu để giám thị kiểm tra lại.', countsTowardAutoSubmit: false },
   ai_multiple_face:     { title: 'Phát hiện nhiều người', subtitle: 'Hãy bảo đảm chỉ một người trong khung hình. Giám thị sẽ kiểm tra lại tín hiệu này.', countsTowardAutoSubmit: false },
   visibility_hidden:    { title: 'Rời khỏi trang thi',    subtitle: 'Hành động đã được ghi lại.', countsTowardAutoSubmit: true },
   focus_lost:           { title: 'Rời khỏi cửa sổ thi',   subtitle: 'Hành động đã được ghi lại.', countsTowardAutoSubmit: true },

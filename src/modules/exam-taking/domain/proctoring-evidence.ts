@@ -29,5 +29,7 @@ export interface AiDetectionDetails {
   requiredHits: number;
   windowScans: number;
   durationMs: number;
+  /** The frame was black or one flat colour: the lens was covered. */
+  cameraCovered?: boolean;
 }
 

@@ -34,6 +34,16 @@ BEGIN
       CONTINUE; -- already patched
     END IF;
     IF position(patch.needle IN body) = 0 THEN
+      -- The original SQL-language function stores a newline before AND.
+      IF patch.fn = 'public.get_available_exam_windows()' THEN
+        patched := regexp_replace(body,
+          'WHERE[[:space:]]+auth[.]uid[(][)][[:space:]]+IS[[:space:]]+NOT[[:space:]]+NULL[[:space:]]+AND[[:space:]]+ew[.]start_at',
+          patch.replacement);
+        IF patched IS DISTINCT FROM body THEN
+          EXECUTE patched;
+          CONTINUE;
+        END IF;
+      END IF;
       RAISE EXCEPTION 'exam_window_soft_delete: % no longer contains the expected text', patch.fn;
     END IF;
     patched := replace(body, patch.needle, patch.replacement);

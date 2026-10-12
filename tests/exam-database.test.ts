@@ -77,10 +77,14 @@ beforeAll(async () => {
     ALTER TABLE practical_exam_sessions ADD mode text NOT NULL DEFAULT 'student_upload';
     CREATE FUNCTION is_staff() RETURNS boolean LANGUAGE sql SECURITY DEFINER AS $$ SELECT EXISTS (SELECT 1 FROM profiles WHERE id=auth.uid() AND account_kind='staff') $$;`);
   await db.exec(await migration('20261003120000_practical_session_unique_live.sql'));
+  const p0 = await migration('20260920100000_p0_secure_exam_attempts.sql');
+  await db.exec(p0.slice(p0.indexOf('CREATE OR REPLACE FUNCTION public.get_available_exam_windows()'),
+    p0.indexOf('CREATE OR REPLACE FUNCTION public.start_exam_attempt(')));
   await db.exec(await migration('20261005090000_exam_window_soft_delete.sql'));
   await db.exec(await migration('20261005091000_exam_trash.sql'));
   await db.exec('ALTER TABLE classes ADD code text');
   await db.exec(await migration('20261006090000_exam_trash_keep_real_results.sql'));
+  await db.exec(await migration('20261006151544_exam_audit_fixes.sql'));
   await sql('INSERT INTO profiles VALUES($1,$1,\'student\',NULL),($2,$2,\'student\',NULL),($3,NULL,\'teacher\',\'teacher\')',[student,other,teacher]);
   await sql("INSERT INTO profiles(id,role,account_kind) VALUES($1,'admin','staff')",[staff]);
   await sql("INSERT INTO classes VALUES($1,'Lớp thử')",[classId]);
@@ -97,6 +101,33 @@ afterEach(async () => { await db.exec('ROLLBACK; RESET ROLE'); });
 afterAll(async () => { await db.close(); });
 
 describe('theory submission and immutable papers', () => {
+  it('reviews the issued snapshot after bank edits, with staff authorization only after submission', async () => {
+    const id = await attempt();
+    await db.exec('RESET ROLE');
+    await sql("UPDATE question_bank SET stem='Changed',answer_key='B',points=10 WHERE id=$1", [question]);
+    await login(teacher);
+    await db.exec('SAVEPOINT review');
+    await expect(sql('SELECT * FROM get_attempt_review_questions($1)', [id])).rejects.toThrow('attempt_not_completed');
+    await db.exec('ROLLBACK TO review');
+    await login(student);
+    await finalize(id);
+    await db.exec('SAVEPOINT denied_review');
+    await expect(sql('SELECT * FROM get_attempt_review_questions($1)', [id])).rejects.toThrow('review_forbidden');
+    await db.exec('ROLLBACK TO denied_review');
+    await login(teacher);
+    expect(await sql('SELECT * FROM get_attempt_review_questions($1)', [id])).toMatchObject([{ stem:'Original',answer_key:'A',points:1 }]);
+  });
+  it('prevents publishing an essay without a valid marking key but permits drafting it', async () => {
+    await db.exec('SAVEPOINT essay');
+    await expect(sql("UPDATE question_bank SET question_type='main_idea',answer_key='' WHERE id=$1", [question])).rejects.toThrow('essay_requires_marking_key');
+    await db.exec('ROLLBACK TO essay');
+    await sql("UPDATE question_bank SET question_type='main_idea',answer_key='',status='draft' WHERE id=$1", [question]);
+    await db.exec('SAVEPOINT bad_paper');
+    await expect(attempt()).rejects.toThrow('essay_requires_marking_key');
+    await db.exec('ROLLBACK TO bad_paper');
+    await sql("UPDATE question_bank SET answer_key=$2,status='published' WHERE id=$1", [question, JSON.stringify([{text:'valid',points:1}])]);
+    expect(await attempt()).toBeTruthy();
+  });
   it('saves and grades an early submission atomically', async () => {
     const id = await attempt();
     expect(await finalize(id,'B')).toMatchObject({ ok:true,score:0 });
@@ -160,6 +191,44 @@ describe('theory submission and immutable papers', () => {
   it('does not queue trial grades', async () => {
     const id = await attempt(false,true); await finalize(id); await db.exec('RESET ROLE');
     expect(await sql('SELECT * FROM exam_sync_jobs')).toEqual([]);
+  });
+});
+
+describe('durable browser violations', () => {
+  it('bundles simultaneous signals across tabs and returns the persisted count after reconnect', async () => {
+    const id = await attempt();
+    const record = (event: string) => sql('SELECT * FROM record_browser_violation($1,$2)', [id,event]);
+    expect(await record('focus_lost')).toMatchObject([{accepted:true,violation_count:1}]);
+    expect(await record('visibility_hidden')).toMatchObject([{accepted:false,violation_count:1}]);
+    await login(student);
+    expect(await sql('SELECT * FROM get_browser_proctoring_state($1)',[id])).toMatchObject([{violation_count:1,violation_limit:5}]);
+  });
+  it('finishes on the fifth independent signal on the server even if the page closes', async () => {
+    const id = await attempt();
+    for (let index=0;index<5;index++) {
+      await db.exec('RESET ROLE');
+      await sql("UPDATE exam_private.browser_proctoring SET last_violation_at=now()-interval '10 seconds' WHERE attempt_id=$1",[id]);
+      await login(student);
+      const rows = await sql('SELECT * FROM record_browser_violation($1,$2)',[id,'focus_lost']);
+      expect(rows).toMatchObject([{violation_count:index+1,attempt_completed:index===4}]);
+    }
+    const [completed] = await sql<{status:string;disqualified:boolean;score:string}>('SELECT status,disqualified,score FROM attempts WHERE id=$1',[id]);
+    expect(completed).toMatchObject({status:'completed',disqualified:true});
+    expect(Number(completed.score)).toBe(0);
+    expect(await sql('SELECT * FROM record_browser_violation($1,$2)',[id,'focus_lost'])).toMatchObject([{accepted:false,violation_count:5}]);
+  });
+  it('does not let a different learner record violations or attach evidence', async () => {
+    const id = await attempt();
+    const [row] = await sql<{audit_id:string}>('SELECT * FROM record_browser_violation($1,$2)',[id,'focus_lost']);
+    await login(other);
+    await db.exec('SAVEPOINT other_record');
+    await expect(sql('SELECT * FROM record_browser_violation($1,$2)',[id,'focus_lost'])).rejects.toThrow('forbidden');
+    await db.exec('ROLLBACK TO other_record');
+    await db.exec('SAVEPOINT other_evidence');
+    await expect(sql('SELECT attach_browser_violation_evidence($1,$2::jsonb)',[row.audit_id,'{}'])).rejects.toThrow('forbidden');
+    await db.exec('ROLLBACK TO other_evidence');
+    await login(student);
+    await expect(sql("INSERT INTO attempt_audit_logs(attempt_id,event) VALUES($1,'focus_lost')",[id])).rejects.toThrow('row-level security');
   });
 });
 

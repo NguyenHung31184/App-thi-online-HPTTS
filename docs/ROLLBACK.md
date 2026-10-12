@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-12 — Hoàn thiện modular monolith và 6 bản sửa sau rà soát (khối làm ngày 06/10)
+
+**Commit:** `e164274` (migration, test database), `849528d` (mã nguồn), `124ce26` (tài liệu). Chưa push. Migration
+`20261006151544` chưa áp dụng; phải áp cùng lúc với deploy giao diện mới. Rollback:
+`docs/rollback/2026-10-06-modular-monolith-completion-and-audit-fixes.md`.
+**Branch:** main
+
+---
+
 ## 2026-10-06 — Thùng rác giữ lại kết quả thi của lớp thật
 
 **Commit:** `b2f28a0` (App thi). Migration `20261006090000` đã áp dụng 06/10, chỉ sửa tiến. Rollback:

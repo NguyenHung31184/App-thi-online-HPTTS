@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-10-12 | Màn thể lệ thi hiện trước khi tính giờ
+
+**Hiện trạng cũ**: bấm "Vào thi" là tạo lượt thi ngay (đồng hồ chạy, mất một lượt), sau đó mới hiện trang quy định kèm
+ô tích. Trang đó viết chung chung, không có số liệu của kỳ thi.
+
+**Đã làm**
+- `ExamRules` (`ui/intro/`): thể lệ gồm số câu, thời gian, điểm đạt, số lượt thi, ba nhóm quy định, ô cam kết. Nút
+  "Đồng ý và vào thi" khóa cho tới khi tích. Nội dung nằm ở `domain/exam-rules.ts`, có test.
+- `AvailableTheoryExamsPage`: bấm "Vào thi" hiện thể lệ; chỉ khi đồng ý mới gọi `start_exam_attempt`, rồi vào thẳng
+  trang làm bài. Lỗi mã truy cập hiện ngay trên màn thể lệ.
+- Sau khi tạo lượt thi, ghi một dòng `rules_accepted` vào `attempt_audit_logs`.
+- `/exam/:id/intro` giữ lại cho lượt thi đã tồn tại, dùng chung `ExamRules`.
+- Kỳ thi quay ngẫu nhiên nhiều đề: chưa biết đề nào trước khi tạo lượt, nên không hiện số câu, thời gian, điểm đạt.
+- Kiểm tra: 250 test, lint, `check:boundaries`, build đạt. Edge cỡ 390px trên trang xem thử tạm: không tràn ngang, nút
+  khóa khi chưa tích.
+
+**Chưa làm**: thử cả luồng bằng tài khoản học viên (đăng nhập bằng mật khẩu trong file Excel bị từ chối).
+
+---
+
 ## 2026-10-12 | Thi thử trên điện thoại; giám sát AI nhận "không thấy khuôn mặt" nhanh hơn, thêm nhận camera bị che
 
 **Thi thử** (kỳ thi thử, lớp TEST-TH, một lượt, 3 phút 19 giây): điểm, số vi phạm rời trang (2), ảnh giám sát, trang chi

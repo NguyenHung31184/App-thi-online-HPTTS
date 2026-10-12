@@ -2,19 +2,27 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../identity-access/public';
 import { ExamCard } from '../../../shared/ui/ExamCard';
-import { useAvailableTheoryWindows, useStartTheoryAttempt } from '../queries/use-theory-attempt';
+import { useAvailableTheoryWindows, useExamForRules, useStartTheoryAttempt } from '../queries/use-theory-attempt';
+import { ExamRules } from './intro/ExamRules';
 
 export default function AvailableTheoryExamsPage() {
   const { user, studentSession } = useAuth();
   const navigate = useNavigate();
   const [codeByWindow, setCodeByWindow] = useState<Record<string, string>>({});
   const [enterError, setEnterError] = useState('');
+  const [rulesWindowId, setRulesWindowId] = useState<string | null>(null);
+  const [rulesConfirmed, setRulesConfirmed] = useState(false);
   const windowsQuery = useAvailableTheoryWindows();
   const startAttempt = useStartTheoryAttempt();
   const windows = windowsQuery.data ?? [];
   const error = windowsQuery.error instanceof Error ? windowsQuery.error.message : '';
+  const rulesWindow = windows.find((window) => window.id === rulesWindowId) ?? null;
+  // A window that draws one of several exams has no single exam to describe before the attempt starts.
+  const rulesExamId = rulesWindow && !(rulesWindow.exam_ids?.length) ? rulesWindow.exam_id : null;
+  const rulesExam = useExamForRules(rulesExamId).data ?? null;
 
-  const handleEnter = async (windowId: string) => {
+  /** Checks what can be checked without starting the clock, then shows the rules. */
+  const handleEnter = (windowId: string) => {
     const accessCode = (codeByWindow[windowId] ?? '').trim();
     if (!accessCode) { setEnterError('Vui lòng nhập mã truy cập.'); return; }
     if (!user?.id) { setEnterError('Bạn chưa đăng nhập tài khoản thi. Vui lòng đăng nhập rồi thử lại.'); return; }
@@ -27,13 +35,44 @@ export default function AvailableTheoryExamsPage() {
       return;
     }
     setEnterError('');
+    setRulesConfirmed(false);
+    setRulesWindowId(windowId);
+  };
+
+  const handleStart = async () => {
+    if (!rulesWindow || !rulesConfirmed) return;
+    setEnterError('');
     try {
-      const attempt = await startAttempt.mutateAsync({ windowId, accessCode });
-      navigate(`/exam/${attempt.id}/intro`);
+      const attempt = await startAttempt.mutateAsync({
+        windowId: rulesWindow.id,
+        accessCode: (codeByWindow[rulesWindow.id] ?? '').trim(),
+      });
+      navigate(`/exam/${attempt.id}`);
     } catch (reason) {
       setEnterError(reason instanceof Error ? reason.message : 'Lỗi tạo bài làm.');
     }
   };
+
+  if (rulesWindow) {
+    return (
+      <ExamRules
+        examTitle={rulesWindow.exam_title ?? 'Đề thi'}
+        rules={{
+          durationMinutes: rulesExam?.duration_minutes,
+          totalQuestions: rulesExam?.total_questions,
+          passThreshold: rulesExam?.pass_threshold,
+          maxAttempts: rulesWindow.max_attempts,
+          isTrial: rulesWindow.is_trial,
+        }}
+        confirmed={rulesConfirmed}
+        onConfirmedChange={setRulesConfirmed}
+        onStart={() => { void handleStart(); }}
+        onBack={() => { setRulesWindowId(null); setEnterError(''); }}
+        busy={startAttempt.isPending}
+        error={enterError}
+      />
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -66,7 +105,7 @@ export default function AvailableTheoryExamsPage() {
                 <button
                   type="button"
                   disabled={startAttempt.isPending}
-                  onClick={(event) => { event.stopPropagation(); void handleEnter(window.id); }}
+                  onClick={(event) => { event.stopPropagation(); handleEnter(window.id); }}
                   className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-xs"
                 >
                   {startAttempt.isPending ? 'Đang vào' : 'Vào thi'}

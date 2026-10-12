@@ -7,7 +7,7 @@ số tiêu chí đạt trên 10.
 Cập nhật file này trong cùng commit với mỗi bước của một giai đoạn: thêm hash, đổi trạng thái, ghi điểm đo.
 
 Cập nhật 06/10/2026 trên bản làm việc: **98,3% mã nghiệp vụ · 46/46 route · 10/10 tiêu chí**.
-Đã commit ở máy 12/10/2026 (chạy lại test, lint, build, đo điểm); chưa push/deploy. Chi tiết: [hoàn thiện kiến trúc](implementation/2026-10-06-modular-monolith-completion.md).
+Đã commit, push và deploy 12/10/2026 (chạy lại test, lint, build, đo điểm); CI kiểm tra 10 tiêu chí đạt. Chi tiết: [hoàn thiện kiến trúc](implementation/2026-10-06-modular-monolith-completion.md).
 
 ## Bảng tổng
 

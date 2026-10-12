@@ -1,6 +1,6 @@
 # Hoàn thiện 6 vấn đề sau rà soát 06/10/2026
 
-Trạng thái: đã commit ở máy ngày 12/10/2026; migration đã chạy thử trên production trong giao dịch tự hủy (đạt). Rollback: `docs/rollback/2026-10-06-modular-monolith-completion-and-audit-fixes.md`. Khi viết (06/10): đã sửa mã nguồn và kiểm tra local. Migration mới chưa áp dụng lên Supabase production; frontend/API chưa deploy. Báo cáo `docs/AUDIT_2026-10-06_LOGIC_MODULAR_MONOLITH.md` giữ nguyên kết quả trước khi sửa.
+Trạng thái: migration đã áp dụng ở production và mã nguồn đã push, deploy ngày 12/10/2026 (chạy thử trước; không có ai đang thi). Rollback: `docs/rollback/2026-10-06-modular-monolith-completion-and-audit-fixes.md`. Khi viết (06/10): đã sửa mã nguồn và kiểm tra local. Migration mới chưa áp dụng lên Supabase production; frontend/API chưa deploy. Báo cáo `docs/AUDIT_2026-10-06_LOGIC_MODULAR_MONOLITH.md` giữ nguyên kết quả trước khi sửa.
 
 ## Thay đổi
 

@@ -48,7 +48,7 @@ The "student uploads evidence" practical flow is removed from the app: `docs/imp
 Exam items in the TTDT trash; theory windows soft-deleted: `docs/implementation/2026-10-05-exam-trash.md`.
 
 Modular monolith completion (98.3%, 46/46 routes, 10/10 criteria) and six audit fixes, work of 2026-10-06 committed
-2026-10-12; migration `20261006151544` NOT applied, frontend not deployed: `docs/implementation/2026-10-06-modular-monolith-completion.md`,
+2026-10-12; migration `20261006151544` applied and frontend deployed 2026-10-12: `docs/implementation/2026-10-06-modular-monolith-completion.md`,
 `docs/implementation/2026-10-06-audit-fixes.md`, rollback `docs/rollback/2026-10-06-modular-monolith-completion-and-audit-fixes.md`.
 
 Trash keeps real results (Plan 79), migration applied 2026-10-06: `docs/implementation/2026-10-06-exam-trash-keep-real-results.md`.

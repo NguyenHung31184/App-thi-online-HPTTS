@@ -19,8 +19,14 @@
 - Phần quét CCCD (`.env.example`, `api/scan-id-card.ts`, `api/_lib/`, `ocr-proxy.ts`, `ocr-image.ts`) để nguyên, chưa
   commit.
 
-**Chưa làm**: áp migration và push (phải làm cùng lúc, chờ chủ dự án duyệt); thử luồng học viên làm bài, giám sát AI,
-e-learning bằng tài khoản thật.
+**Đã lên production (chủ dự án duyệt 12/10)**: kiểm tra không có ai đang thi và không có kỳ thi đang mở; áp migration
+`20261006151544`, push 4 commit ngay sau đó; Vercel và CI đạt. Trên production: 5 trang quản trị tải được, trang "Chi
+tiết bài làm" hiện đủ điểm, kết quả và từng câu (trước migration báo lỗi tải).
+
+**Thấy khi thử**: trong "Chi tiết bài làm", đáp án đúng của câu nối cặp hiện thô ("right ↔ …", "map ↔ [object Object]").
+Chưa sửa, chưa biết có từ trước hay mới.
+
+**Chưa làm**: thử luồng học viên làm bài, giám sát AI, e-learning bằng tài khoản thật.
 
 **Lưu ý**: production có 335 lượt thi đang ở trạng thái "đang làm", chưa kiểm tra nguyên nhân.
 

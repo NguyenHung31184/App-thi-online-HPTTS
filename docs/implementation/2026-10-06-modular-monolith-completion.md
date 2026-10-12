@@ -1,6 +1,6 @@
 # Hoàn thiện modular monolith ngày 06/10/2026
 
-Trạng thái: đã commit ở máy ngày 12/10/2026 sau khi chạy lại toàn bộ kiểm tra; chưa push, chưa deploy. Rollback: `docs/rollback/2026-10-06-modular-monolith-completion-and-audit-fixes.md`. Khi viết (06/10): mã nguồn trên bản làm việc đã đạt 10 tiêu chí của repo; chưa commit, push hoặc deploy. Không ghi database production trong lượt refactor này.
+Trạng thái: đã commit, push và deploy ngày 12/10/2026 sau khi chạy lại toàn bộ kiểm tra; luồng học viên chưa nghiệm thu bằng tài khoản thật. Rollback: `docs/rollback/2026-10-06-modular-monolith-completion-and-audit-fixes.md`. Khi viết (06/10): mã nguồn trên bản làm việc đã đạt 10 tiêu chí của repo; chưa commit, push hoặc deploy. Không ghi database production trong lượt refactor này.
 
 ## Kết quả đo
 

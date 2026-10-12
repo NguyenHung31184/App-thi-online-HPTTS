@@ -6,6 +6,9 @@ số tiêu chí đạt trên 10.
 
 Cập nhật file này trong cùng commit với mỗi bước của một giai đoạn: thêm hash, đổi trạng thái, ghi điểm đo.
 
+Cập nhật 06/10/2026 trên bản làm việc: **98,3% mã nghiệp vụ · 46/46 route · 10/10 tiêu chí**.
+Đã commit ở máy 12/10/2026 (chạy lại test, lint, build, đo điểm); chưa push/deploy. Chi tiết: [hoàn thiện kiến trúc](implementation/2026-10-06-modular-monolith-completion.md).
+
 ## Bảng tổng
 
 | Giai đoạn | Nội dung | Trạng thái | Ngày | Điểm sau giai đoạn | Push | Migration |
@@ -15,10 +18,10 @@ Cập nhật file này trong cùng commit với mỗi bước của một giai �
 | 1b | Module `exam-management` | Xong | 2026-10-02 | 43,6% · 22/46 route · 5/10 | Đã push | Không |
 | 2 | Module `exam-reporting` | Xong | 2026-10-02 | 54,3% · 25/46 route · 5/10 | Đã push | Không |
 | 3 | Module `practical-exams` | Xong | 2026-10-02 | 62,6% · 34/46 route · 5/10 | Đã push | Không |
-| 4 | Module `learning` | Hoãn (phát triển e-learning sau) | | | | |
+| 4 | Module `elearning` | Xong mã nguồn, kiểm tra local | 2026-10-06 | Đo chung 98,3% · 46/46 · 10/10 | Chưa push | Không thêm trong lượt refactor |
 | 5 | `identity-access` và `integrations` | Xong | 2026-10-02 | 72% · 38/46 route · 5/10 | Đã push (`2a89559`, CI đạt) | Không |
-| 6 | `exam-taking` và giám sát AI (làm sau cùng) | Chưa làm | | | | |
-| 7 | Dọn legacy, tổng kiểm thử | Chưa làm | | | | |
+| 6 | `exam-taking` và giám sát AI (làm sau cùng) | Xong mã nguồn, kiểm tra local | 2026-10-06 | Đo chung 98,3% · 46/46 · 10/10 | Chưa push | Không thêm trong lượt refactor |
+| 7 | Dọn legacy, tổng kiểm thử | Xong mã nguồn, kiểm tra local | 2026-10-06 | 98,3% · 46/46 · 10/10 | Chưa push | Không thêm trong lượt refactor |
 
 ## Commit theo giai đoạn
 

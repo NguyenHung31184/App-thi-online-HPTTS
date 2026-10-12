@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-10-12 | Rà và commit khối thay đổi 06/10 (hoàn thiện kiến trúc, 6 lỗi rà soát)
+
+**Bối cảnh**: khối hoàn thiện modular monolith và 6 bản sửa sau rà soát làm ngày 06/10 vẫn nằm trên máy, chưa commit.
+
+**Đã làm**
+- Chạy lại trên bản làm việc: 243 test, lint, `check:boundaries`, build đều đạt; `arch:score` 98,3% · 46/46 · 10/10.
+- Chạy thử `20261006151544_exam_audit_fixes.sql` trên production trong giao dịch tự hủy: tạo đủ 6 hàm, 2 trigger, không
+  lỗi; sau đó production không đổi.
+- Edge trên bản local (tài khoản admin, chỉ xem): 10 trang quản trị tải được, không lỗi mạng. Trang "Chi tiết bài làm"
+  báo "Lỗi tải dữ liệu" vì gọi `get_attempt_review_questions`, hàm chỉ có sau migration.
+- Commit thành ba bước ở máy: migration và test database; mã nguồn; tài liệu. Viết thêm tài liệu rollback.
+- Phần quét CCCD (`.env.example`, `api/scan-id-card.ts`, `api/_lib/`, `ocr-proxy.ts`, `ocr-image.ts`) để nguyên, chưa
+  commit.
+
+**Chưa làm**: áp migration và push (phải làm cùng lúc, chờ chủ dự án duyệt); thử luồng học viên làm bài, giám sát AI,
+e-learning bằng tài khoản thật.
+
+**Lưu ý**: production có 335 lượt thi đang ở trạng thái "đang làm", chưa kiểm tra nguyên nhân.
+
+---
+
 ## 2026-10-06 | Thùng rác giữ lại kết quả thi của lớp thật (Plan 79)
 
 **Đã làm**

@@ -20,6 +20,8 @@ This ledger is the entry point for people and coding agents continuing the proje
 
 ## Active sequence
 
+Nâng cấp độ ổn định iOS (2026-10-13): P0–P5 đã triển khai frontend; tests/lint/boundaries và fixture Chrome dev/production đạt. P6 còn nghiệm thu thiết bị thật; chưa deploy. Kế hoạch, tiến độ và điểm tiếp tục: `docs/implementation/2026-10-13-ios-reliability.md`; rollback: `docs/rollback/2026-10-13-ios-reliability.md`.
+
 1. Restructure the admin menu and route labels: complete. See `docs/implementation/2026-09-22-phase-b-admin-navigation.md`.
 2. Split question-bank UI into task-focused pages: complete 2026-09-24 (Admin click-through passed after the scope-contract repair; Teacher check moves to Phase C2 acceptance). See `docs/implementation/2026-09-23-phase-c-question-bank-routes.md` and `docs/implementation/2026-09-24-question-library-scope-contract.md`.
 3. Phase C2, single question store: step 1 (one library per module, all questions linked, QTHH-AT copies merged, auto-assign trigger) applied 2026-09-24; step 2 slice 1 (create and edit questions inside the library, `docs/implementation/2026-09-24-c2-question-editor.md`), slice 2 (Excel/ZIP import inside the library, `docs/implementation/2026-09-24-c2-excel-zip-import.md`) and step 3 (old `/admin/questions` screens retired after moving their filters, bulk actions, delete and export into the library, `docs/implementation/2026-09-24-c2-retire-old-question-store.md`) complete. Acceptance passed 2026-09-26 (draw check on all 7 exams; teacher click-through dropped). Pushed 2026-09-26 with the `exam_role` UI. See `docs/implementation/2026-09-24-phase-c2-single-question-store.md`.

@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { memo, type Dispatch, type SetStateAction } from 'react';
 import type { QuestionForStudent } from '../../domain/exam-attempt';
 import { hashStringToSeed, shuffleWithSeed } from '../../domain/session-paper';
 import { optionLetter, referencesOtherOptions } from '../../domain/option-order';
@@ -13,7 +13,7 @@ interface Props {
   setAnswers: Dispatch<SetStateAction<Record<string, string>>>;
 }
 
-export function TheoryQuestionList({ questions, attemptId, answers, setAnswers }: Props) {
+export const TheoryQuestionList = memo(function TheoryQuestionList({ questions, attemptId, answers, setAnswers }: Props) {
   return (
       <div className="space-y-6">
         {questions.map((q: QuestionForStudent, idx: number) => {
@@ -258,4 +258,4 @@ export function TheoryQuestionList({ questions, attemptId, answers, setAnswers }
         })}
       </div>
   );
-}
+});

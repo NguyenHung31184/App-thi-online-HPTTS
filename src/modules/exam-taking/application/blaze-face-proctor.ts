@@ -28,7 +28,10 @@ export async function loadBlazeFaceModel(): Promise<import('@tensorflow-models/b
         maxFaces: 6,
         scoreThreshold: 0.65,
       });
-    })();
+    })().catch((error) => {
+      modelPromise = null;
+      throw error;
+    });
   }
   return modelPromise;
 }

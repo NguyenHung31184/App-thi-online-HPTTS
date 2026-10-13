@@ -1,13 +1,15 @@
-import type { EvidenceKind, CaptureEvidenceResult, ProctoringEvidenceCaptureRef } from '../../domain/proctoring-evidence';
+import type { EvidenceKind, CaptureEvidenceResult, ProctoringEvidenceCaptureRef, ProctoringCameraStatus } from '../../domain/proctoring-evidence';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { uploadExamFileViaEdge } from '../../queries/session-actions';
+import { cameraHasUsableTrack, openCamera, playCameraVideo, stopCamera } from '../../../../platform/media/camera';
 
 export interface ProctoringEvidenceCaptureProps {
   enabled: boolean;
   attemptId: string;
   examId: string;
   studentKey: string; // student_id nếu có, fallback user_id
+  onCameraStatus?: (status: ProctoringCameraStatus) => void;
 }
 
 function ensureSafeKey(s: string): string {
@@ -24,11 +26,6 @@ async function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.85): Promise<
   });
 }
 
-function streamHasLiveVideo(stream: MediaStream | null): boolean {
-  if (!stream) return false;
-  return stream.getVideoTracks().some((t) => t.readyState === 'live');
-}
-
 export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef, ProctoringEvidenceCaptureProps>(
   function ProctoringEvidenceCapture(props, ref) {
     const { enabled, attemptId, examId, studentKey } = props;
@@ -38,9 +35,13 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
     /** Đồng bộ ngay sau play() — tránh đọc state React stale sau await ensureStarted. */
     const readySyncRef = useRef(false);
     const enabledRef = useRef(enabled);
+    const statusCallbackRef = useRef(props.onCameraStatus);
+    const controllerRef = useRef<AbortController | null>(null);
+    const trackCleanupRef = useRef<(() => void) | null>(null);
     useLayoutEffect(() => {
       enabledRef.current = enabled;
-    }, [enabled]);
+      statusCallbackRef.current = props.onCameraStatus;
+    }, [enabled, props.onCameraStatus]);
     /** Tăng mỗi lần tắt stream / disabled để huỷ kết quả của getUserMedia/play đang treo. */
     const sessionTokenRef = useRef(0);
     /** Chỉ một lần khởi động camera tại một thời điểm — tránh play() bị cắt bởi gán srcObject mới. */
@@ -49,9 +50,14 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
 
     const stop = useCallback(() => {
       sessionTokenRef.current += 1;
+      controllerRef.current?.abort();
+      controllerRef.current = null;
+      startPromiseRef.current = null;
+      trackCleanupRef.current?.();
+      trackCleanupRef.current = null;
       preEventBlobRef.current = null;
       const s = streamRef.current;
-      if (s) s.getTracks().forEach((t) => t.stop());
+      stopCamera(s);
       streamRef.current = null;
       readySyncRef.current = false;
       const v = videoRef.current;
@@ -59,10 +65,10 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
     }, []);
 
     const ensureStarted = useCallback(async () => {
-      if (!enabledRef.current) return;
+      if (!enabledRef.current || document.visibilityState === 'hidden') return;
       if (!videoRef.current) return;
 
-      if (readySyncRef.current && streamHasLiveVideo(streamRef.current)) return;
+      if (readySyncRef.current && cameraHasUsableTrack(streamRef.current) && !videoRef.current.paused) return;
 
       if (startPromiseRef.current) {
         await startPromiseRef.current;
@@ -71,11 +77,16 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
 
       const run = async (): Promise<void> => {
         const tokenAtStart = sessionTokenRef.current;
+        const controller = new AbortController();
+        controllerRef.current = controller;
+        statusCallbackRef.current?.('starting');
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 640, height: 480, facingMode: 'user' },
+          stopCamera(streamRef.current);
+          trackCleanupRef.current?.();
+          const stream = await openCamera({
+            video: { width: { ideal: 640, max: 1280 }, height: { ideal: 480, max: 720 }, facingMode: 'user' },
             audio: false,
-          });
+          }, { signal: controller.signal });
           if (tokenAtStart !== sessionTokenRef.current) {
             stream.getTracks().forEach((t) => t.stop());
             return;
@@ -86,17 +97,39 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
             return;
           }
           streamRef.current = stream;
+          const track = stream.getVideoTracks()[0];
+          const interrupted = () => {
+            readySyncRef.current = false;
+            preEventBlobRef.current = null;
+            statusCallbackRef.current?.('interrupted');
+          };
+          const resumed = () => {
+            readySyncRef.current = cameraHasUsableTrack(stream);
+            if (readySyncRef.current) statusCallbackRef.current?.('ready');
+          };
+          track?.addEventListener('mute', interrupted);
+          track?.addEventListener('ended', interrupted);
+          track?.addEventListener('unmute', resumed);
+          trackCleanupRef.current = () => {
+            track?.removeEventListener('mute', interrupted);
+            track?.removeEventListener('ended', interrupted);
+            track?.removeEventListener('unmute', resumed);
+          };
           v.srcObject = stream;
-          await v.play();
+          await playCameraVideo(v, controller.signal);
           if (tokenAtStart !== sessionTokenRef.current) {
             stream.getTracks().forEach((t) => t.stop());
-            streamRef.current = null;
-            v.srcObject = null;
             return;
           }
-          readySyncRef.current = true;
+          readySyncRef.current = cameraHasUsableTrack(stream);
+          statusCallbackRef.current?.(readySyncRef.current ? 'ready' : 'interrupted');
         } catch (e) {
+          if (tokenAtStart !== sessionTokenRef.current || controller.signal.aborted) return;
+          stopCamera(streamRef.current);
+          streamRef.current = null;
+          if (videoRef.current) videoRef.current.srcObject = null;
           readySyncRef.current = false;
+          statusCallbackRef.current?.('error');
           const msg = e instanceof Error ? e.message : 'Không thể bật camera evidence.';
           if (!toastOnceRef.current.has('camera_denied')) {
             toastOnceRef.current.add('camera_denied');
@@ -106,7 +139,7 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
       };
 
       const p = run().finally(() => {
-        startPromiseRef.current = null;
+        if (startPromiseRef.current === p) startPromiseRef.current = null;
       });
       startPromiseRef.current = p;
       await p;
@@ -118,6 +151,8 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
         !video ||
         !streamRef.current ||
         !readySyncRef.current ||
+        !cameraHasUsableTrack(streamRef.current) ||
+        video.paused || video.readyState < 2 ||
         video.videoWidth === 0 ||
         video.videoHeight === 0
       ) return null;
@@ -129,6 +164,11 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         return canvasToBlob(canvas);
     }, []);
+
+    const restartCamera = useCallback(async () => {
+      stop();
+      await ensureStarted();
+    }, [stop, ensureStarted]);
 
     const uploadBlob = useCallback(async (kind: EvidenceKind, blob: Blob, phase?: string): Promise<CaptureEvidenceResult> => {
         const safeExam = ensureSafeKey(examId);
@@ -207,18 +247,14 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
     useImperativeHandle(ref, () => ({
       captureAndUpload,
       captureSequenceAndUpload,
-      getVideoElement: () => videoRef.current,
-    }), [captureAndUpload, captureSequenceAndUpload]);
+      getVideoElement: () => readySyncRef.current && cameraHasUsableTrack(streamRef.current) ? videoRef.current : null,
+      restartCamera,
+    }), [captureAndUpload, captureSequenceAndUpload, restartCamera]);
 
     useEffect(() => {
       if (!enabled) {
-        const s = streamRef.current;
-        if (s) s.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-        readySyncRef.current = false;
-        const v = videoRef.current;
-        if (v) v.srcObject = null;
-        sessionTokenRef.current += 1;
+        stop();
+        statusCallbackRef.current?.('stopped');
         return;
       }
       void ensureStarted();
@@ -226,13 +262,54 @@ export const ProctoringEvidenceCapture = forwardRef<ProctoringEvidenceCaptureRef
     }, [enabled, ensureStarted, stop]);
 
     useEffect(() => {
+      if (!enabled) return;
+      const resume = () => {
+        if (document.visibilityState === 'hidden') {
+          readySyncRef.current = false;
+          preEventBlobRef.current = null;
+          return;
+        }
+        void restartCamera();
+      };
+      document.addEventListener('visibilitychange', resume);
+      window.addEventListener('pageshow', resume);
+      return () => {
+        document.removeEventListener('visibilitychange', resume);
+        window.removeEventListener('pageshow', resume);
+      };
+    }, [enabled, restartCamera]);
+
+    useEffect(() => {
       preEventBlobRef.current = null;
       if (!enabled) {
         return;
       }
+      let snapshotInFlight = false;
+      let lastVideoTime = -1;
+      let lastFrameAt = Date.now();
       const refresh = async () => {
-        const blob = await captureFrameBlob();
-        if (blob) preEventBlobRef.current = blob;
+        if (document.visibilityState === 'hidden' || snapshotInFlight) return;
+        const video = videoRef.current;
+        if (readySyncRef.current && video) {
+          if (video.currentTime !== lastVideoTime) {
+            lastVideoTime = video.currentTime;
+            lastFrameAt = Date.now();
+          } else if (Date.now() - lastFrameAt >= 5_000) {
+            readySyncRef.current = false;
+            preEventBlobRef.current = null;
+            statusCallbackRef.current?.('interrupted');
+          }
+        }
+        const token = sessionTokenRef.current;
+        snapshotInFlight = true;
+        try {
+          const blob = await captureFrameBlob();
+          if (blob && token === sessionTokenRef.current) preEventBlobRef.current = blob;
+        } catch { /* A failed JPEG must not leave an unhandled rejection or an old pre-event frame. */
+          if (token === sessionTokenRef.current) preEventBlobRef.current = null;
+        } finally {
+          snapshotInFlight = false;
+        }
       };
       void refresh();
       const timer = window.setInterval(() => { void refresh(); }, 2_500);

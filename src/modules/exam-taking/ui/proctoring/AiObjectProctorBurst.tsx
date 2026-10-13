@@ -1,8 +1,7 @@
 import type { AiDetectionDetails } from '../../domain/proctoring-evidence';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import type { BlazeFaceModel } from '@tensorflow-models/blazeface';
-import type { FaceDetector } from '@mediapipe/tasks-vision';
+import type { FaceScanner } from '../../domain/face-scanner';
 import {
   AI_DETECTION_RULES,
   CAMERA_COVERED_RULE,
@@ -13,8 +12,7 @@ import {
   type AiViolationKind,
   type DetectionWindowState,
 } from '../../domain/proctoring-policy';
-import { detectFacesInVideo, loadBlazeFaceModel } from '../../queries/session-actions';
-import { detectFacesWithMediaPipe, loadMediaPipeFaceDetector } from '../../queries/session-actions';
+import { createFaceScanner } from '../../queries/session-actions';
 import type { ProctoringEvidenceCaptureRef } from '../../domain/proctoring-evidence';
 
 type CocoSsd = typeof import('@tensorflow-models/coco-ssd');
@@ -57,6 +55,8 @@ function now() {
   return Date.now();
 }
 
+function pageIsHidden(): boolean { return document.visibilityState === 'hidden'; }
+
 export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   const {
     enabled,
@@ -69,13 +69,9 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   } = props;
   // burstEveryMs / burstDurationMs vẫn nằm trên interface (tương thích API cũ), không dùng trong quét liên tục.
 
-  // ownVideoRef: video element dự phòng, chỉ dùng khi không có shared video từ ProctoringEvidenceCapture
-  const ownVideoRef = useRef<HTMLVideoElement | null>(null);
-  // streamRef: chỉ giữ stream mở bởi chính component này (không phải shared stream)
-  const streamRef = useRef<MediaStream | null>(null);
   const modelRef = useRef<CocoModel | null>(null);
-  const blazeFaceRef = useRef<BlazeFaceModel | null>(null);
-  const mediaPipeFaceRef = useRef<FaceDetector | null>(null);
+  const faceScannerRef = useRef<FaceScanner | null>(null);
+  const detectionPromiseRef = useRef<Promise<void> | null>(null);
   const timersRef = useRef<{ tick?: number }>({});
   const lastHitRef = useRef<Record<string, number>>({});
   const signalStatesRef = useRef<Record<AiViolationKind, DetectionWindowState>>({
@@ -101,6 +97,9 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       return;
     }
     let cancelled = false;
+    const controller = new AbortController();
+    let ownedModel: CocoModel | null = null;
+    let ownedScanner: FaceScanner | null = null;
     const cocoDoneRef = { current: false };
     const faceDoneRef = { current: false };
 
@@ -110,43 +109,18 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       if (modelsOk) setBurstReady(true);
     };
 
-    const startCamera = async () => {
-      // Ưu tiên tái dùng video element từ ProctoringEvidenceCapture (đã có stream sẵn)
-      // → tránh mở 2 luồng camera song song, tiết kiệm CPU/GPU/pin
-      const sharedVideo = evidenceRef.current?.getVideoElement?.();
-      if (sharedVideo && sharedVideo.readyState >= 2 && sharedVideo.videoWidth > 0) {
-        return; // Sẽ dùng shared video trong detectOnce, không cần mở camera riêng
-      }
-      // Fallback: mở camera riêng chỉ khi shared video chưa sẵn sàng
-      if (!ownVideoRef.current || streamRef.current) return;
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480, facingMode: 'user' },
-          audio: false,
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        streamRef.current = stream;
-        ownVideoRef.current.srcObject = stream;
-        await ownVideoRef.current.play();
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Không thể bật camera AI.';
-        toast.warning('Không bật được camera AI giám sát', { description: msg });
-      }
-    };
-
     const loadModel = async () => {
       try {
         await import('@tensorflow/tfjs');
         const coco = await import('@tensorflow-models/coco-ssd');
         const m = await coco.load();
-        if (cancelled) return;
+        if (cancelled) { m.dispose(); return; }
+        ownedModel = m;
         modelRef.current = m;
         cocoDoneRef.current = true;
         trySetBurstReady();
       } catch (e) {
+        if (cancelled) return;
         const msg = e instanceof Error ? e.message : 'Không tải được model AI.';
         modelRef.current = null;
         cocoDoneRef.current = true;
@@ -157,24 +131,16 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
 
     const loadFaceDetector = async () => {
       try {
-        const detector = await loadMediaPipeFaceDetector();
-        if (cancelled) return;
-        mediaPipeFaceRef.current = detector;
-        blazeFaceRef.current = null;
+        const scanner = await createFaceScanner(controller.signal);
+        if (cancelled) { scanner.close(); return; }
+        ownedScanner = scanner;
+        faceScannerRef.current = scanner;
         faceDoneRef.current = true;
         trySetBurstReady();
-      } catch {
-        try {
-          const fallback = await loadBlazeFaceModel();
-          if (cancelled) return;
-          mediaPipeFaceRef.current = null;
-          blazeFaceRef.current = fallback;
-          faceDoneRef.current = true;
-          trySetBurstReady();
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : 'Không tải được bộ nhận diện khuôn mặt.';
-          toast.error('Không thể tải kiểm tra khuôn mặt', { description: msg });
-        }
+      } catch (e) {
+        if (cancelled) return;
+        const msg = e instanceof Error ? e.message : 'Không tải được bộ nhận diện khuôn mặt.';
+        toast.error('Không thể tải kiểm tra khuôn mặt', { description: msg });
       }
     };
 
@@ -189,7 +155,6 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     lastObjectScanRef.current = 0;
     cocoDoneRef.current = false;
     faceDoneRef.current = false;
-    startCamera();
     if (detectObjects) {
       loadModel();
       loadFaceDetector();
@@ -200,12 +165,25 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
 
     return () => {
       cancelled = true;
+      controller.abort();
+      ownedScanner?.close();
+      if (faceScannerRef.current === ownedScanner) faceScannerRef.current = null;
+      if (modelRef.current === ownedModel) modelRef.current = null;
+      const model = ownedModel;
+      if (model) {
+        // An asynchronous COCO scan may still be using its tensors.
+        void (detectionPromiseRef.current ?? Promise.resolve()).finally(() => model.dispose());
+      }
     };
   }, [enabled, evidenceRef, detectObjects]);
 
   useEffect(() => {
     if (!enabled || !burstReady) return;
     let cancelled = false;
+    const fallbackController = new AbortController();
+    let runtimeFallback: FaceScanner | null = null;
+    let previousVideo: HTMLVideoElement | null = null;
+    let previousVideoTime = -1;
 
     const clearTick = () => {
       const t = timersRef.current.tick;
@@ -213,23 +191,27 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       timersRef.current.tick = undefined;
     };
 
-    const stopTimersAndOwnStream = () => {
-      clearTick();
-      const s = streamRef.current;
-      if (s) s.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    };
-
     const getActiveVideo = (): HTMLVideoElement | null => {
       const shared = evidenceRef.current?.getVideoElement?.();
       if (shared && shared.readyState >= 2 && shared.videoWidth > 0) return shared;
-      return ownVideoRef.current;
+      return null;
     };
 
     const detectOnce = async () => {
+      if (cancelled || pageIsHidden()) { resetWindows(); return; }
       const video = getActiveVideo();
       // HAVE_CURRENT_DATA (2) đủ cho nhiều trình duyệt với MediaStream; trước đây yêu cầu === 4 khiến không bao giờ quét.
-      if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
+      if (!video || video.paused || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+        resetWindows();
+        return;
+      }
+      if (previousVideo === video && previousVideoTime === video.currentTime) {
+        resetWindows();
+        return;
+      }
+      previousVideo = video;
+      previousVideoTime = video.currentTime;
+      const source = video.srcObject;
 
       try {
         let preds: Awaited<ReturnType<CocoModel['detect']>> | null = null;
@@ -238,6 +220,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         if (detectObjects && model && objectScanDue) {
           lastObjectScanRef.current = now();
           preds = await model.detect(video);
+          if (cancelled || pageIsHidden() || getActiveVideo() !== video || video.srcObject !== source) return;
           let phoneScore = 0;
           let phoneBboxRatio = 0;
           let prohibitedScore = 0;
@@ -282,21 +265,24 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         }
 
         let faceCount: number | null = null;
-        if (mediaPipeFaceRef.current) {
+        const scanner = faceScannerRef.current;
+        if (scanner) {
           try {
-            faceCount = detectFacesWithMediaPipe(mediaPipeFaceRef.current, video);
+            faceCount = await scanner.detect(video);
           } catch {
-            faceCount = null;
-          }
-        } else if (blazeFaceRef.current) {
-          try {
-            // Cùng flip với bước chụp mặt đầu bài (selfie).
-            const { count } = await detectFacesInVideo(video, false);
-            faceCount = count;
-          } catch {
-            faceCount = null;
+            if (cancelled) return;
+            if (scanner.mode === 'worker') {
+              scanner.close();
+              faceScannerRef.current = null;
+              const fallback = await createFaceScanner(fallbackController.signal, false);
+              if (cancelled) { fallback.close(); return; }
+              runtimeFallback = fallback;
+              faceScannerRef.current = fallback;
+              return;
+            }
           }
         }
+        if (cancelled || pageIsHidden() || getActiveVideo() !== video || video.srcObject !== source) return;
         if (faceCount !== null) {
           await updateSignal('ai_no_face', faceCount === 0, FACE_SCAN_INTERVAL_MS);
           await updateSignal('ai_multiple_face', faceCount > 1, FACE_SCAN_INTERVAL_MS);
@@ -316,6 +302,15 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       } catch {
         /* một frame lỗi — bỏ qua */
       }
+    };
+
+    const resetWindows = () => {
+      for (const kind of Object.keys(signalStatesRef.current) as AiViolationKind[]) {
+        const state = signalStatesRef.current[kind];
+        // Missing frames neither confirm an incident nor count as clean recovery scans.
+        signalStatesRef.current[kind] = { ...state, samples: [], recoveryCount: 0 };
+      }
+      coveredStateRef.current = { ...coveredStateRef.current, samples: [], recoveryCount: 0 };
     };
 
     const isCovered = (video: HTMLVideoElement): boolean => {
@@ -352,7 +347,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     };
 
     const maybeHit = async (kind: AiViolationKind, detection: AiDetectionDetails) => {
-      if (cancelled) return;
+      if (cancelled || document.visibilityState === 'hidden') return;
       const last = lastHitRef.current[kind] ?? 0;
       // Face violations: cooldown 5s (phát hiện nhanh hơn); object violations: 10s (nặng hơn, tránh false positive)
       const cooldownMs = (kind === 'ai_no_face' || kind === 'ai_multiple_face') ? 5_000 : 10_000;
@@ -382,25 +377,32 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       );
     };
 
-    let detectionInFlight = false;
     const runDetection = async () => {
-      if (detectionInFlight) return;
-      detectionInFlight = true;
-      try {
-        await detectOnce();
-      } finally {
-        detectionInFlight = false;
-      }
+      if (detectionPromiseRef.current || cancelled) return;
+      const pending = detectOnce();
+      detectionPromiseRef.current = pending;
+      try { await pending; }
+      finally { if (detectionPromiseRef.current === pending) detectionPromiseRef.current = null; }
     };
 
     void runDetection();
+    const visibilityChanged = () => {
+      resetWindows();
+      previousVideoTime = -1;
+    };
+    document.addEventListener('visibilitychange', visibilityChanged);
     timersRef.current.tick = window.setInterval(() => {
       void runDetection();
     }, FACE_SCAN_INTERVAL_MS);
 
     return () => {
       cancelled = true;
-      stopTimersAndOwnStream();
+      fallbackController.abort();
+      document.removeEventListener('visibilitychange', visibilityChanged);
+      runtimeFallback?.close();
+      if (runtimeFallback && faceScannerRef.current === runtimeFallback) faceScannerRef.current = null;
+      clearTick();
+      previousVideo = null;
     };
   }, [
     enabled,
@@ -414,14 +416,6 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     onViolation,
   ]);
 
-  // Video dự phòng: chỉ phát huy tác dụng khi shared video từ ProctoringEvidenceCapture chưa sẵn sàng
-  return (
-    <video
-      ref={ownVideoRef}
-      muted
-      playsInline
-      style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
-    />
-  );
+  return null;
 }
 

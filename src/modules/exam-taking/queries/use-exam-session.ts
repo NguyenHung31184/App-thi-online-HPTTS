@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { cameraHasUsableTrack, openCamera, stopCamera } from '../../../platform/media/camera';
+import { activeFullscreenElement, listenForFullscreenChange, requestPageFullscreen, supportsFullscreen } from '../../../platform/browser/fullscreen';
 import type { Attempt, Exam, QuestionForStudent } from '../../../types';
 import { useAuth } from '../../identity-access/public';
 import { isTtdtSyncConfigured, syncAttemptToTtdt } from '../../integrations/public';
-import type { AiDetectionDetails, EvidenceKind, ProctoringEvidenceCaptureRef } from '../domain/proctoring-evidence';
+import type { AiDetectionDetails, EvidenceKind, ProctoringEvidenceCaptureRef, ProctoringCameraStatus } from '../domain/proctoring-evidence';
 import { hashStringToSeed, shuffleWithSeed } from '../domain/session-paper';
 import { loadTheorySession } from '../application/load-session';
 import {
@@ -60,14 +62,8 @@ export function useExamSession() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(!!document.fullscreenElement);
-  const [fullscreenSupported] = useState<boolean>(() => {
-    if (typeof document === 'undefined') return false;
-    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
-    const hasStandard = typeof el.requestFullscreen === 'function';
-    const hasWebkit = typeof el.webkitRequestFullscreen === 'function';
-    return hasStandard || hasWebkit;
-  });
+  const [isFullscreen, setIsFullscreen] = useState(() => Boolean(activeFullscreenElement(document)));
+  const [fullscreenSupported, setFullscreenSupported] = useState(() => supportsFullscreen(document));
   const [fullscreenError, setFullscreenError] = useState<string>('');
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autosaveInFlightRef = useRef(false);
@@ -112,6 +108,9 @@ export function useExamSession() {
   const [photoVerified, setPhotoVerified] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string>('');
+  const [cameraRetry, setCameraRetry] = useState(0);
+  const [proctoringCameraStatus, setProctoringCameraStatus] = useState<ProctoringCameraStatus>('stopped');
+  const retryStartCamera = useCallback(() => setCameraRetry((retry) => retry + 1), []);
   const [capturing, setCapturing] = useState(false);
   /** Video đã có khung hình thật (tránh đếm nóng khi stream có nhưng preview vẫn đen 10–15s trên một số máy Android). */
   const [startPhotoVideoReady, setStartPhotoVideoReady] = useState(false);
@@ -141,7 +140,7 @@ export function useExamSession() {
   const aiEnabled = (import.meta.env.VITE_AI_PROCTORING_ENABLED ?? '') === '1';
 
   /** Sau khi chụp mặt xong, trì hoãn bật camera giám sát để tránh chồng với lúc vừa stop luồng chụp mặt (Android). */
-  const proctoringBaseEnabled = photoVerified && Boolean(attemptId && attempt && exam);
+  const proctoringBaseEnabled = photoVerified && !submitting && !violationsCapActive && attempt?.status === 'in_progress' && Boolean(attemptId && exam);
   const [proctoringArmDelay, setProctoringArmDelay] = useState(false);
   useEffect(() => {
     if (!proctoringBaseEnabled) {
@@ -155,15 +154,9 @@ export function useExamSession() {
 
   const enterFullscreen = useCallback(async () => {
     setFullscreenError('');
-    const el = document.documentElement;
-    if (!fullscreenSupported || !el.requestFullscreen) {
-      setFullscreenError('Trình duyệt không hỗ trợ toàn màn hình. Bạn vẫn có thể tiếp tục làm bài bình thường.');
-      // Nếu không hỗ trợ, không bắt buộc fullscreen nữa.
-      setIsFullscreen(true);
-      leaveViolationIgnoreUntilRef.current = Math.max(
-        leaveViolationIgnoreUntilRef.current,
-        Date.now() + 2_000,
-      );
+    if (!fullscreenSupported || !supportsFullscreen(document)) {
+      setFullscreenSupported(false);
+      setIsFullscreen(false);
       return;
     }
     const ignoreMs = getPostFullscreenLeaveIgnoreMs();
@@ -172,14 +165,19 @@ export function useExamSession() {
       Date.now() + ignoreMs,
     );
     try {
-      await el.requestFullscreen();
-      fullscreenRequestedRef.current = true;
-      setIsFullscreen(true);
+      await requestPageFullscreen(document);
+      const active = Boolean(activeFullscreenElement(document));
+      fullscreenRequestedRef.current = active;
+      setIsFullscreen(active);
       leaveViolationIgnoreUntilRef.current = Math.max(
         leaveViolationIgnoreUntilRef.current,
         Date.now() + ignoreMs,
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'NotSupportedError') {
+        setFullscreenSupported(false);
+        return;
+      }
       // Thường xảy ra khi không có thao tác người dùng hoặc user từ chối
       setFullscreenError('Không thể bật toàn màn hình. Hãy bấm nút lần nữa hoặc kiểm tra quyền/trình duyệt.');
     }
@@ -192,34 +190,50 @@ export function useExamSession() {
   useEffect(() => {
     if ((!showCameraStep && !showWorkspaceStep) || !attemptId) return;
     setCameraError('');
+    const controller = new AbortController();
     let stream: MediaStream | null = null;
+    let detachTrackListeners: (() => void) | null = null;
     // Bước chụp bàn làm việc dùng camera sau (environment) để quét không gian xung quanh;
     // bước chụp khuôn mặt dùng camera trước (user) để xác thực danh tính.
     const facingMode: VideoFacingModeEnum = showWorkspaceStep ? 'environment' : 'user';
-    navigator.mediaDevices
-      .getUserMedia({
+    openCamera({
         video: {
           facingMode: { ideal: facingMode },
           width: { ideal: 640, max: 1280 },
           height: { ideal: 480, max: 720 },
         },
-      })
+      }, { signal: controller.signal })
       .then((s) => {
+        if (controller.signal.aborted) { stopCamera(s); return; }
         stream = s;
+        const track = s.getVideoTracks()[0];
+        const interrupted = () => {
+          setStartPhotoVideoReady(false);
+          setCameraError('Camera bị gián đoạn. Bấm thử lại camera để tiếp tục.');
+        };
+        track?.addEventListener('mute', interrupted);
+        track?.addEventListener('ended', interrupted);
+        detachTrackListeners = () => {
+          track?.removeEventListener('mute', interrupted);
+          track?.removeEventListener('ended', interrupted);
+        };
         setCameraStream(s);
       })
       .catch((err) => {
+        if (controller.signal.aborted) return;
         setCameraError(
           err?.name === 'NotAllowedError'
             ? 'Bạn cần cấp quyền camera để làm bài. Vui lòng bật quyền camera trong cài đặt trình duyệt rồi tải lại trang.'
-            : 'Không thể bật camera. Vui lòng kiểm tra thiết bị và tải lại trang.'
+            : err instanceof Error ? err.message : 'Không thể bật camera. Vui lòng kiểm tra thiết bị rồi thử lại.'
         );
       });
     return () => {
-      if (stream) stream.getTracks().forEach((t) => t.stop());
+      controller.abort();
+      detachTrackListeners?.();
+      stopCamera(stream);
       setCameraStream(null);
     };
-  }, [showCameraStep, showWorkspaceStep, attemptId]);
+  }, [showCameraStep, showWorkspaceStep, attemptId, cameraRetry]);
 
   useEffect(() => {
     setStartPhotoVideoReady(false);
@@ -254,7 +268,10 @@ export function useExamSession() {
   const handleCaptureAndStart = useCallback(async () => {
     if (!attemptId || !videoRef.current || !cameraStream || capturing || !startPhotoCanCapture) return;
     const video = videoRef.current;
-    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+    if (!cameraHasUsableTrack(cameraStream) || video.paused || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+      setCameraError('Camera chưa phát hình. Bấm thử lại camera để tiếp tục.');
+      return;
+    }
     setCapturing(true);
     setCameraError('');
     try {
@@ -301,21 +318,28 @@ export function useExamSession() {
     if (!cameraStream || !videoRef.current) return;
     const v = videoRef.current;
     v.srcObject = cameraStream;
-    v.play().catch(() => { });
+    v.play().catch(() => setCameraError('Camera chưa phát hình. Bấm thử lại camera để tiếp tục.'));
     let raf = 0;
     let stopped = false;
     const poll = () => {
       if (stopped) return;
-      if (v.videoWidth > 0 && v.videoHeight > 0) {
+      if (v.readyState >= 2 && !v.paused && v.videoWidth > 0 && v.videoHeight > 0) {
         setStartPhotoVideoReady(true);
         return;
       }
       raf = requestAnimationFrame(poll);
     };
     poll();
+    const timeout = window.setTimeout(() => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+      if (v.readyState < 2 || v.paused) setCameraError('Camera chưa phát hình. Kiểm tra quyền camera rồi bấm thử lại.');
+    }, 15_000);
     return () => {
       stopped = true;
       cancelAnimationFrame(raf);
+      window.clearTimeout(timeout);
+      v.srcObject = null;
     };
   }, [cameraStream]);
 
@@ -323,7 +347,10 @@ export function useExamSession() {
   const handleCaptureWorkspace = useCallback(async () => {
     if (!attemptId || !videoRef.current || !cameraStream || capturingWorkspace) return;
     const video = videoRef.current;
-    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+    if (!cameraHasUsableTrack(cameraStream) || video.paused || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+      setCameraError('Camera chưa phát hình. Bấm thử lại camera để tiếp tục.');
+      return;
+    }
     setCapturingWorkspace(true);
     setCameraError('');
     try {
@@ -777,8 +804,10 @@ export function useExamSession() {
   useEffect(() => {
     if (!photoVerified || !attemptId || !attempt || questions.length === 0) return;
     const onFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-      if (document.fullscreenElement) {
+      const active = Boolean(activeFullscreenElement(document));
+      setIsFullscreen(active);
+      if (active) {
+        fullscreenRequestedRef.current = true;
         leaveViolationIgnoreUntilRef.current = Math.max(
           leaveViolationIgnoreUntilRef.current,
           Date.now() + 2_000,
@@ -786,6 +815,7 @@ export function useExamSession() {
         return;
       }
       if (fullscreenRequestedRef.current && attemptId) {
+        fullscreenRequestedRef.current = false;
         const t = Date.now();
         if (!canRecordLeaveViolation(leaveViolationBundleAtRef.current, t)) return;
         leaveViolationBundleAtRef.current = t;
@@ -793,8 +823,7 @@ export function useExamSession() {
         showViolationAlert('fullscreen_exited');
       }
     };
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+    return listenForFullscreenChange(document, onFullscreenChange);
   }, [
     attempt,
     attemptId,
@@ -819,6 +848,7 @@ export function useExamSession() {
     setStartPhotoVideoReady, handleCaptureWorkspace, capturingWorkspace, startPhotoVideoReady,
     showCameraStep, startPhotoCanCapture, startPhotoWarmupLeftSec, handleCaptureAndStart,
     capturing, fullscreenSupported, isFullscreen, fullscreenError, enterFullscreen,
+    retryStartCamera, proctoringCameraStatus, setProctoringCameraStatus,
     autosaveStatus, remainingMs, setError, setShowSubmitConfirm, navigate, shuffledQuestions,
     setAnswers, showSubmitConfirm, handleSubmit,
   };

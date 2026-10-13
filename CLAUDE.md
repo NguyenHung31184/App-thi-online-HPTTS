@@ -31,7 +31,7 @@ src/
   platform/            # Shared integrations such as Supabase
   modules/             # Modular-monolith domains; cross-module imports use public.ts only
     exam-taking/       # Theory exam P0 flow
-  App.tsx              # All routes (no lazy loading — direct imports)
+  App.tsx              # Routes load module pages lazily with Suspense and a load-error boundary
   contexts/
     AuthContext.tsx    # Supabase Auth session
   lib/

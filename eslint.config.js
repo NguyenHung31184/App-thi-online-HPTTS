@@ -6,7 +6,12 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', '.qa-dist']),
+  {
+    files: ['src/**/*.worker.js'],
+    extends: [js.configs.recommended],
+    languageOptions: { globals: globals.worker },
+  },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

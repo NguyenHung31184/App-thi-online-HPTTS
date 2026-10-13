@@ -40,7 +40,7 @@ export default function ConfirmationModal({
   const iconColorClass = confirmColor === 'danger' ? 'text-red-600' : 'text-indigo-600';
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+    <div className="viewport-modal fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-xl shadow-xl max-w-sm w-full">
         <div className="p-6 text-center">
           <div

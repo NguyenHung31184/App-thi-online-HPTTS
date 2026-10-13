@@ -78,7 +78,7 @@ export function ViolationAlertModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50"
+      className="viewport-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/50"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="violation-title"

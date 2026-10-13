@@ -1,5 +1,4 @@
 import type { ExamWindow } from '../../../types';
-import { listAvailableTheoryWindows } from '../../exam-taking/public';
 import {
   deleteExamWindowRow, deleteTrialWindowAttempts, insertExamWindow, selectExamWindow, selectExamWindows, updateExamWindowRow,
 } from '../data/exam-window-repository';
@@ -41,7 +40,8 @@ export function deleteAllTrialAttempts(): Promise<number> {
 }
 
 /** Open windows the current student may enter. */
-export function getAllowedWindows(): Promise<ExamWindowWithExam[]> {
+export async function getAllowedWindows(): Promise<ExamWindowWithExam[]> {
+  const { listAvailableTheoryWindows } = await import('../../exam-taking/public');
   return listAvailableTheoryWindows() as Promise<ExamWindowWithExam[]>;
 }
 

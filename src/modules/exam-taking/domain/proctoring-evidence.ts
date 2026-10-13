@@ -20,7 +20,10 @@ export interface ProctoringEvidenceCaptureRef {
   captureSequenceAndUpload: (kind: EvidenceKind, opts?: { toastOnceKey?: string }) => Promise<CaptureEvidenceResult>;
   /** Trả về video element nội bộ để AiObjectProctorBurst tái dụng, tránh mở 2 luồng camera */
   getVideoElement: () => HTMLVideoElement | null;
+  restartCamera: () => Promise<void>;
 }
+
+export type ProctoringCameraStatus = 'starting' | 'ready' | 'interrupted' | 'error' | 'stopped';
 
 export interface AiDetectionDetails {
   confidence?: number;

@@ -5,8 +5,10 @@ import {
   LEAVE_EVENT_BUNDLE_MS,
   advanceDetectionWindow,
   canRecordLeaveViolation,
+  createDetectionStates,
   createDetectionWindowState,
   frameLooksCovered,
+  lockedDetectionKinds,
   shouldAutoSubmitForAi,
 } from './proctoring-policy';
 
@@ -19,7 +21,7 @@ describe('proctoring policy', () => {
     expect(canRecordLeaveViolation(first, first + LEAVE_EVENT_BUNDLE_MS)).toBe(true);
   });
 
-  it('confirms no-face after five scans and waits for three clean scans before rearming', () => {
+  it('confirms no-face after five scans and waits for five clean scans before rearming', () => {
     const rule = AI_DETECTION_RULES.ai_no_face;
     let state = createDetectionWindowState();
     for (let scan = 1; scan <= 4; scan += 1) {
@@ -32,10 +34,70 @@ describe('proctoring policy', () => {
     state = confirmed.state;
 
     expect(advanceDetectionWindow(state, true, rule).confirmed).toBe(false);
-    for (let scan = 1; scan <= 3; scan += 1) {
+    for (let scan = 1; scan <= 4; scan += 1) {
       state = advanceDetectionWindow(state, false, rule).state;
     }
-    expect(state.armed).toBe(true);
+    expect(state.armed).toBe(false);
+    expect(advanceDetectionWindow(state, false, rule).state.armed).toBe(true);
+  });
+
+  it('counts a second person who stays, and is missed for a few scans, as one incident', () => {
+    const rule = AI_DETECTION_RULES.ai_multiple_face;
+    let state = createDetectionWindowState();
+    let incidents = 0;
+    const scan = (detected: boolean) => {
+      const result = advanceDetectionWindow(state, detected, rule);
+      state = result.state;
+      if (result.confirmed) incidents += 1;
+    };
+    for (let i = 0; i < 10; i += 1) scan(true);
+    for (let i = 0; i < 4; i += 1) scan(false);
+    for (let i = 0; i < 10; i += 1) scan(true);
+    expect(incidents).toBe(1);
+
+    for (let i = 0; i < 5; i += 1) scan(false);
+    for (let i = 0; i < 3; i += 1) scan(true);
+    expect(incidents).toBe(2);
+  });
+
+  it('records a second person who stays again every 30 seconds, and not a missing face', () => {
+    const count = (kind: 'ai_multiple_face' | 'ai_no_face', seconds: number) => {
+      let state = createDetectionWindowState();
+      let incidents = 0;
+      let repeats = 0;
+      for (let second = 1; second <= seconds; second += 1) {
+        const result = advanceDetectionWindow(state, true, AI_DETECTION_RULES[kind], second * 1_000);
+        state = result.state;
+        if (result.confirmed) incidents += 1;
+        if (result.repeated) repeats += 1;
+      }
+      return { incidents, repeats };
+    };
+    // First record at second 3, then at 33 and 63.
+    expect(count('ai_multiple_face', 32)).toEqual({ incidents: 1, repeats: 0 });
+    expect(count('ai_multiple_face', 63)).toEqual({ incidents: 3, repeats: 2 });
+    expect(count('ai_no_face', 120)).toEqual({ incidents: 1, repeats: 0 });
+  });
+
+  it('counts 30 seconds from the reload when a locked kind was restored', () => {
+    const rule = AI_DETECTION_RULES.ai_multiple_face;
+    let state = createDetectionStates(['ai_multiple_face']).ai_multiple_face;
+    const at = (ms: number) => {
+      const result = advanceDetectionWindow(state, true, rule, ms);
+      state = result.state;
+      return result.confirmed;
+    };
+    expect(at(500_000)).toBe(false);
+    expect(at(529_000)).toBe(false);
+    expect(at(530_000)).toBe(true);
+  });
+
+  it('restores the locked kinds of a reloaded page and reports them back', () => {
+    const states = createDetectionStates(['ai_multiple_face']);
+    expect(states.ai_multiple_face.armed).toBe(false);
+    expect(states.ai_no_face.armed).toBe(true);
+    expect(lockedDetectionKinds(states)).toEqual(['ai_multiple_face']);
+    expect(lockedDetectionKinds(createDetectionStates())).toEqual([]);
   });
 
   it('still confirms no-face when a face shows up in one of five scans, but not in two', () => {

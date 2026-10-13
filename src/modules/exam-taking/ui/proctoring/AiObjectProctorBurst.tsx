@@ -7,13 +7,17 @@ import {
   CAMERA_COVERED_RULE,
   FACE_SCAN_INTERVAL_MS,
   advanceDetectionWindow,
+  createDetectionStates,
   createDetectionWindowState,
   frameLooksCovered,
+  lockedDetectionKinds,
+  lockedDetectionWindowState,
   type AiViolationKind,
   type DetectionWindowState,
 } from '../../domain/proctoring-policy';
 import {
-  createFaceScanner, forgetObjectDetector, loadObjectDetector, logAuditEvent, proctoringWasPreloaded,
+  createFaceScanner, forgetObjectDetector, loadLockedDetectionKinds, loadObjectDetector, logAuditEvent,
+  proctoringWasPreloaded, saveLockedDetectionKinds,
   type ObjectDetector,
 } from '../../queries/session-actions';
 import type { ProctoringEvidenceCaptureRef } from '../../domain/proctoring-evidence';
@@ -88,12 +92,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   const detectionPromiseRef = useRef<Promise<void> | null>(null);
   const timersRef = useRef<{ tick?: number }>({});
   const lastHitRef = useRef<Record<string, number>>({});
-  const signalStatesRef = useRef<Record<AiViolationKind, DetectionWindowState>>({
-    ai_no_face: createDetectionWindowState(),
-    ai_multiple_face: createDetectionWindowState(),
-    ai_cell_phone: createDetectionWindowState(),
-    ai_prohibited_object: createDetectionWindowState(),
-  });
+  const signalStatesRef = useRef<Record<AiViolationKind, DetectionWindowState>>(createDetectionStates());
+  const savedLocksRef = useRef('');
   const coveredStateRef = useRef<DetectionWindowState>(createDetectionWindowState());
   const lastObjectScanRef = useRef(0);
   const probeCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -165,12 +165,10 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     };
 
     setBurstReady(false);
-    signalStatesRef.current = {
-      ai_no_face: createDetectionWindowState(),
-      ai_multiple_face: createDetectionWindowState(),
-      ai_cell_phone: createDetectionWindowState(),
-      ai_prohibited_object: createDetectionWindowState(),
-    };
+    // A reload during a violation starts with that kind still locked, so it is not recorded a second time.
+    const lockedKinds = loadLockedDetectionKinds(attemptId);
+    signalStatesRef.current = createDetectionStates(lockedKinds);
+    savedLocksRef.current = lockedKinds.join(',');
     coveredStateRef.current = createDetectionWindowState();
     lastObjectScanRef.current = 0;
     cocoDoneRef.current = false;
@@ -196,7 +194,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         void (detectionPromiseRef.current ?? Promise.resolve()).finally(() => model.dispose());
       }
     };
-  }, [enabled, evidenceRef, detectObjects]);
+  }, [enabled, attemptId, evidenceRef, detectObjects]);
 
   useEffect(() => {
     if (!enabled || !burstReady) return;
@@ -275,9 +273,16 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
           });
         }
 
-        const covered = advanceDetectionWindow(coveredStateRef.current, isCovered(video), CAMERA_COVERED_RULE);
-        coveredStateRef.current = covered.state;
+        // A covered lens and a missing face are one incident: whichever confirms first takes the no-face lock,
+        // and the covered rule stays silent until that lock has recovered.
+        const coveredNow = isCovered(video);
+        const covered = signalStatesRef.current.ai_no_face.armed
+          ? advanceDetectionWindow(coveredStateRef.current, coveredNow, CAMERA_COVERED_RULE)
+          : { confirmed: false, state: createDetectionWindowState() };
+        coveredStateRef.current = covered.confirmed ? createDetectionWindowState() : covered.state;
         if (covered.confirmed) {
+          signalStatesRef.current.ai_no_face = lockedDetectionWindowState();
+          persistLocks();
           await maybeHit('ai_no_face', {
             cameraCovered: true,
             observedScans: CAMERA_COVERED_RULE.windowScans,
@@ -324,6 +329,9 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
           }
           await updateSignal('ai_no_face', !hasPerson, detectIntervalMs);
           await updateSignal('ai_multiple_face', personCount > 1, detectIntervalMs);
+        } else if (!(detectObjects && model)) {
+          // No face signal at all: the lens check alone moves the no-face window, so its lock can still recover.
+          await updateSignal('ai_no_face', coveredNow, FACE_SCAN_INTERVAL_MS);
         }
       } catch {
         /* một frame lỗi — bỏ qua */
@@ -353,6 +361,14 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       coveredStateRef.current = { ...coveredStateRef.current, samples: [], recoveryCount: 0 };
     };
 
+    const persistLocks = () => {
+      const kinds = lockedDetectionKinds(signalStatesRef.current);
+      const serialized = kinds.join(',');
+      if (serialized === savedLocksRef.current) return;
+      savedLocksRef.current = serialized;
+      saveLockedDetectionKinds(attemptId, kinds);
+    };
+
     const isCovered = (video: HTMLVideoElement): boolean => {
       try {
         const canvas = probeCanvasRef.current ?? (probeCanvasRef.current = document.createElement('canvas'));
@@ -374,15 +390,17 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       details?: Pick<AiDetectionDetails, 'confidence' | 'bboxRatio'>,
     ) => {
       const rule = AI_DETECTION_RULES[kind];
-      const result = advanceDetectionWindow(signalStatesRef.current[kind], detected, rule);
+      const result = advanceDetectionWindow(signalStatesRef.current[kind], detected, rule, now());
       signalStatesRef.current[kind] = result.state;
+      persistLocks();
       if (!result.confirmed) return;
       await maybeHit(kind, {
         ...details,
         observedScans: result.state.samples.length || rule.windowScans,
         requiredHits: rule.requiredHits,
         windowScans: rule.windowScans,
-        durationMs: rule.windowScans * scanIntervalMs,
+        durationMs: result.repeated && rule.repeatAfterMs ? rule.repeatAfterMs : rule.windowScans * scanIntervalMs,
+        ...(result.repeated ? { stillPresent: true } : {}),
       });
     };
 

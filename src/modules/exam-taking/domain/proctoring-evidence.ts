@@ -34,5 +34,7 @@ export interface AiDetectionDetails {
   durationMs: number;
   /** The frame was black or one flat colour: the lens was covered. */
   cameraCovered?: boolean;
+  /** Recorded again because the same violation was still going on; `durationMs` is the time since the last record. */
+  stillPresent?: boolean;
 }
 

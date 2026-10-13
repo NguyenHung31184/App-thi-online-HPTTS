@@ -22,7 +22,55 @@ export interface LiveAttemptRow {
   disqualified: boolean;
   secondsSinceSeen: number;
   secondsSinceViolation: number | null;
+  /** Signals per group; null when there are none or the breakdown could not be loaded. */
+  signalCounts: SignalCounts | null;
 }
+
+export type SignalGroup = 'multiple_face' | 'no_face' | 'phone' | 'object' | 'left_page';
+
+export type SignalCounts = Partial<Record<SignalGroup, number>>;
+
+/** Heaviest first, as the card lists them. */
+export const SIGNAL_GROUP_ORDER: SignalGroup[] = ['multiple_face', 'phone', 'object', 'no_face', 'left_page'];
+
+export const SIGNAL_GROUP_LABELS: Record<SignalGroup, string> = {
+  multiple_face: 'Nhiều người',
+  phone: 'Điện thoại',
+  object: 'Vật cấm',
+  no_face: 'Không thấy mặt',
+  left_page: 'Rời trang thi',
+};
+
+/** The three browser events are one group: each is the student leaving the exam page. */
+export const SIGNAL_EVENT_GROUP: Record<string, SignalGroup> = {
+  ai_multiple_face: 'multiple_face',
+  ai_cell_phone: 'phone',
+  ai_prohibited_object: 'object',
+  ai_no_face: 'no_face',
+  visibility_hidden: 'left_page',
+  focus_lost: 'left_page',
+  fullscreen_exited: 'left_page',
+};
+
+export interface SignalEvent {
+  attemptId: string;
+  event: string;
+}
+
+export function tallySignals(events: SignalEvent[]): Map<string, SignalCounts> {
+  const byAttempt = new Map<string, SignalCounts>();
+  for (const { attemptId, event } of events) {
+    const group = SIGNAL_EVENT_GROUP[event];
+    if (!group) continue;
+    const counts = byAttempt.get(attemptId) ?? {};
+    counts[group] = (counts[group] ?? 0) + 1;
+    byAttempt.set(attemptId, counts);
+  }
+  return byAttempt;
+}
+
+/** A signal this recent is drawn as still going on. Longer than the 30 s repeat of a second person who stays. */
+export const RECENT_SIGNAL_SECONDS = 45;
 
 export type LiveStatus = 'disconnected' | 'violation' | 'working' | 'disqualified' | 'submitted';
 
@@ -39,7 +87,7 @@ export const LIVE_STATUS_LABELS: Record<LiveStatus, string> = {
 
 export const VIOLATION_LABELS: Record<string, string> = {
   visibility_hidden: 'Rời tab',
-  focus_lost: 'Mất focus',
+  focus_lost: 'Rời cửa sổ thi',
   fullscreen_exited: 'Thoát toàn màn hình',
   ai_no_face: 'Không thấy mặt',
   ai_multiple_face: 'Nhiều người',

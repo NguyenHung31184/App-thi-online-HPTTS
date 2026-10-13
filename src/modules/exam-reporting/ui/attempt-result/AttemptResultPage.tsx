@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { attemptScore, formatAttemptDuration } from '../../domain/attempt-review';
 import { useAttemptResult } from '../../queries/use-exam-reporting';
 import { QuestionReviewList } from './QuestionReviewList';
@@ -40,6 +41,10 @@ export default function AttemptResultPage() {
         passed,
         startPhotoUrl,
         reviewItems,
+      });
+    } catch (error) {
+      toast.error('Không tạo được file PDF', {
+        description: error instanceof Error ? error.message : 'Thử lại, hoặc dùng lệnh in của trình duyệt (Ctrl+P).',
       });
     } finally {
       setPdfLoading(false);

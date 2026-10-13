@@ -5,6 +5,55 @@
 
 ---
 
+## 2026-10-13 | Giám sát AI: một vi phạm kéo dài không bị ghi thành hai lỗi
+
+**Câu hỏi của chủ dự án**: người thứ hai nhìn vào điện thoại mà không rời đi thì có tính là một lỗi không; không thấy
+mặt cũng vậy? Đọc code: đúng là một lỗi (bộ đếm khóa sau khi ghi, chỉ mở khi đủ số lần quét sạch), nhưng có ba
+trường hợp vẫn thành hai lỗi. Chủ dự án duyệt sửa cả ba.
+
+**Đã làm** (chỉ frontend, không có migration)
+- Nhận diện chập chờn: `recoveryScans` của nhiều mặt và không thấy mặt 3 → 5 (`domain/proctoring-policy.ts`).
+  Người thứ hai phải khuất khoảng 5 giây liên tục mới tính là đã rời đi. Đánh đổi: vi phạm lặp lại trong khoảng đó
+  gộp vào lỗi trước. Bản đầu đặt nhiều mặt là 10; chủ dự án chọn 5 để người ngó vào, lùi ra 5–10 giây rồi ngó lại
+  bị tính lỗi mới.
+- Che camera: luật che ống kính dùng chung khóa với luật không thấy mặt. Luật nào ghi lỗi trước thì khóa cả hai; luật
+  che ống kính im cho tới khi thấy lại mặt đủ 5 lần quét. Trước đây hai luật đếm riêng và chỉ dựa vào khoảng chặn
+  trùng 5 giây, nên máy quét chậm ghi hai lỗi.
+- Tải lại trang: loại lỗi đang khóa được lưu vào `sessionStorage` (khóa `exam_ai_locks_<attemptId>`) và khôi phục khi
+  bộ quét khởi tạo (`data/detection-lock-storage.ts`, `application/detection-locks.ts`).
+- Khi không có tín hiệu mặt nào (bộ quét mặt hỏng, không bật nhận diện vật thể), tín hiệu che ống kính đẩy cửa sổ
+  không thấy mặt, để khóa vẫn mở lại được.
+- Người thứ hai đứng lì: lỗi nhiều mặt được ghi lại mỗi 30 giây khi vi phạm còn tiếp diễn (`repeatAfterMs` trong
+  luật, chủ dự án duyệt chu kỳ). Dòng ghi lặp có `detection.stillPresent = true`. Ở chế độ nghiêm ngặt với ngưỡng 6
+  điểm, đứng khoảng 63 giây là đủ 3 lỗi và bài tự nộp. Không áp dụng cho không thấy mặt, điện thoại, vật cấm.
+- Màn giám sát trực tuyến: ô "Tín hiệu giám sát" trước đây chỉ có tổng số và tên tín hiệu mới nhất. Nay mỗi nhóm
+  tín hiệu là một ô nhỏ gồm biểu tượng và số lần (nhiều người, điện thoại, vật cấm, không thấy mặt, rời trang thi;
+  ba sự kiện trình duyệt gộp thành "rời trang thi"). Ô của tín hiệu mới nhất tô nền đậm khi tín hiệu xảy ra trong 45
+  giây gần đây. Chú thích biểu tượng một dòng cho cả lớp, thẻ học viên không cao thêm. Không có migration: màn giám
+  sát đọc thêm `attempt_audit_logs` của các lượt thi có tín hiệu (`fetchSignalEvents`); đọc lỗi thì hiện như cũ.
+  Nhãn "Mất focus" ở màn này đổi thành "Rời cửa sổ thi"; các màn báo cáo vẫn dùng chữ cũ.
+- Trang kết quả một lượt thi (`exam-reporting/ui/attempt-result`), theo ba báo của chủ dự án:
+  - Nút "In kết quả": trang in được dựng thành một khối HTML gắn vào cuối trang rồi chụp thành PDF bằng html2pdf; lỗi
+    giữa chừng thì khối đó nằm lại trên màn hình và không có thông báo. Nay khối HTML không gắn vào trang nữa
+    (html2pdf tự dựng bản sao ẩn), lỗi thì hiện thông báo. Chưa tìm ra vì sao lần của chủ dự án không ra file.
+  - Câu tự luận: đáp án hiện từng ý một dòng kèm điểm thay cho chuỗi JSON; trạng thái "Tự luận: giáo viên chấm" thay
+    cho "Sai".
+  - Câu nối: đáp án và bài làm hiện từng cặp "vế trái ↔ nội dung vế phải". Sửa luôn lỗi so đáp án: bài nối đúng hết
+    trước đây vẫn hiện "Sai" ở trang này vì so cả khóa lưu `{right, map}` (điểm do `grade_attempt` chấm, không đổi).
+  - Câu đúng/sai nhiều ý hiện "phát biểu: Đúng/Sai" từng dòng; câu nhiều lựa chọn hiện tên từng lựa chọn.
+  - File PDF dùng chung cách hiển thị trên và thoát ký tự HTML cho mọi giá trị lấy từ database.
+- Kiểm tra: 299 test, typecheck, lint ba thư mục `exam-taking`, `exam-monitoring`, `exam-reporting`, ranh giới module
+  đạt. Chạy thử tạo PDF bằng Edge không giao diện với dữ liệu mẫu (câu nối, câu tự luận): tạo xong, không để lại gì
+  trên trang. Chưa xem trang kết quả thật và chưa mở file PDF để xem bố cục.
+
+**Chưa làm / chưa kiểm**
+- Chưa chạy trên trình duyệt với camera thật: chưa thử người thứ hai đứng lâu, che ống kính, tải lại trang giữa lúc
+  vi phạm.
+- Chưa commit, chưa triển khai.
+- Rollback: hoàn tác các file trên; không có thay đổi database.
+
+---
+
 ## 2026-10-13 | Thi thử trên iPhone 12 (Safari): lag đầu bài, đồng hồ, lối vào bỏ qua thể lệ
 
 **Báo của chủ dự án** sau khi thi thử bằng Safari: 2–3 phút đầu lag; thời gian trên điện thoại và trên màn giám sát

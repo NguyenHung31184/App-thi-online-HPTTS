@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatSecondsAgo, groupByClass, initials, liveStatusOf, scoreOutOf10, tabCounter, type LiveAttemptRow } from './live-status';
+import {
+  formatDuration, formatSecondsAgo, groupByClass, initials, liveStatusOf, scoreOutOf10, tabCounter, tallySignals,
+  type LiveAttemptRow,
+} from './live-status';
 
 function row(overrides: Partial<LiveAttemptRow> = {}): LiveAttemptRow {
   return {
@@ -7,7 +10,7 @@ function row(overrides: Partial<LiveAttemptRow> = {}): LiveAttemptRow {
     windowEndAt: 1000, attemptId: 'a1', studentCode: 'hv1', studentName: 'An', status: 'in_progress', startedAt: 1,
     completedAt: null, score: null, attemptNumber: 1,
     answered: 3, totalQuestions: 50, violations: 0, lastViolation: null, disqualified: false,
-    secondsSinceSeen: 10, secondsSinceViolation: null, ...overrides,
+    secondsSinceSeen: 10, secondsSinceViolation: null, signalCounts: null, ...overrides,
   };
 }
 
@@ -23,6 +26,22 @@ describe('liveStatusOf', () => {
 
   it('puts a lost connection before violations', () => {
     expect(liveStatusOf(row({ violations: 3, secondsSinceSeen: 90 }))).toBe('disconnected');
+  });
+});
+
+describe('tallySignals', () => {
+  it('counts per attempt and folds the three leave events into one group', () => {
+    const tally = tallySignals([
+      { attemptId: 'a1', event: 'ai_multiple_face' },
+      { attemptId: 'a1', event: 'ai_multiple_face' },
+      { attemptId: 'a1', event: 'focus_lost' },
+      { attemptId: 'a1', event: 'visibility_hidden' },
+      { attemptId: 'a1', event: 'fullscreen_exited' },
+      { attemptId: 'a2', event: 'ai_cell_phone' },
+      { attemptId: 'a2', event: 'proctoring_timing' },
+    ]);
+    expect(tally.get('a1')).toEqual({ multiple_face: 2, left_page: 3 });
+    expect(tally.get('a2')).toEqual({ phone: 1 });
   });
 });
 

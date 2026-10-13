@@ -1,11 +1,22 @@
-import { answerLabel, type QuestionReviewItem } from '../../domain/attempt-review';
+import { answerLines, matchingRightOf, type QuestionReviewItem } from '../../domain/attempt-review';
+
+function AnswerLines({ lines, className }: { lines: string[]; className: string }) {
+  if (lines.length === 1) return <p className={`${className} whitespace-pre-wrap`}>{lines[0]}</p>;
+  return (
+    <ul className={`${className} space-y-1`}>
+      {lines.map((line, index) => (
+        <li key={index}>{line}</li>
+      ))}
+    </ul>
+  );
+}
 
 export function QuestionReviewList({ items }: { items: QuestionReviewItem[] }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm print:border-0 print:shadow-none print:p-0">
       <h2 className="text-base font-semibold text-slate-800 mb-1">Chi tiết từng câu</h2>
       <p className="text-xs text-slate-500 mb-4">
-        Đáp án học viên đã chọn so với đáp án đúng.
+        Câu trả lời của học viên so với đáp án. Câu tự luận do giáo viên chấm theo các ý trong đáp án.
       </p>
       <ol className="space-y-4 list-decimal list-inside marker:font-semibold marker:text-slate-400">
         {items.map((it, idx) => (
@@ -14,7 +25,7 @@ export function QuestionReviewList({ items }: { items: QuestionReviewItem[] }) {
             className={`rounded-xl border p-4 pl-5 shadow-sm print:break-inside-avoid ${
               it.correct
                 ? 'border-emerald-200 bg-emerald-50/40'
-                : it.chosen === null
+                : it.chosen === null || it.manual
                   ? 'border-slate-200 bg-slate-50'
                   : 'border-red-200 bg-red-50/30'
             }`}
@@ -33,20 +44,31 @@ export function QuestionReviewList({ items }: { items: QuestionReviewItem[] }) {
             )}
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
-                <p className="text-xs text-slate-500 mb-0.5">Học viên đã chọn</p>
-                <p className={it.correct ? 'text-emerald-700 font-medium' : it.chosen ? 'text-red-700 font-medium' : 'text-slate-400 italic'}>
-                  {answerLabel(it.options, it.chosen, it.question_type)}
-                </p>
+                <p className="text-xs text-slate-500 mb-0.5">{it.manual ? 'Học viên trả lời' : 'Học viên đã chọn'}</p>
+                <AnswerLines
+                  lines={answerLines(it.options, it.chosen, it.question_type, matchingRightOf(it.answer_key))}
+                  className={
+                    it.correct
+                      ? 'text-emerald-700 font-medium'
+                      : !it.chosen
+                        ? 'text-slate-400 italic'
+                        : it.manual
+                          ? 'text-slate-800'
+                          : 'text-red-700 font-medium'
+                  }
+                />
               </div>
               <div>
-                <p className="text-xs text-slate-500 mb-0.5">Đáp án đúng</p>
-                <p className="text-emerald-700 font-medium">
-                  {answerLabel(it.options, it.answer_key, it.question_type)}
-                </p>
+                <p className="text-xs text-slate-500 mb-0.5">{it.manual ? 'Các ý cần có' : 'Đáp án đúng'}</p>
+                <AnswerLines lines={answerLines(it.options, it.answer_key, it.question_type)} className="text-emerald-700 font-medium" />
               </div>
             </div>
-            <p className={`mt-2 text-xs font-semibold ${it.correct ? 'text-emerald-600' : 'text-red-600'}`}>
-              {it.correct ? '✓ Đúng' : it.chosen ? '✗ Sai' : '— Chưa trả lời'}
+            <p
+              className={`mt-2 text-xs font-semibold ${
+                it.correct ? 'text-emerald-600' : it.manual && it.chosen ? 'text-slate-600' : 'text-red-600'
+              }`}
+            >
+              {it.correct ? '✓ Đúng' : !it.chosen ? '— Chưa trả lời' : it.manual ? 'Tự luận: giáo viên chấm' : '✗ Sai'}
             </p>
           </li>
         ))}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Attempt, Exam } from '../../../types';
-import { answerLabel, attemptScore, formatAttemptDuration, orderByIds, parseOptions, studentFactsOf, toReviewItems } from './attempt-review';
+import { answerLabel, answerLines, matchingRightOf, attemptScore, formatAttemptDuration, orderByIds, parseOptions, studentFactsOf, toReviewItems } from './attempt-review';
 
 const options = [{ id: 'a', text: 'Một' }, { id: 'b', text: 'Hai' }];
 
@@ -9,10 +9,25 @@ describe('answerLabel', () => {
     expect(answerLabel(options, null, 'multiple_choice')).toBe('— (chưa chọn)');
     expect(answerLabel(options, 'b', 'multiple_choice')).toBe('Hai');
     expect(answerLabel(options, 'x', 'multiple_choice')).toBe('x');
-    expect(answerLabel(options, '["T","F"]', 'true_false_multi')).toBe('Đúng / Sai');
+    expect(answerLabel(options, '["T","F"]', 'true_false_multi')).toBe('Một: Đúng\nHai: Sai');
+    expect(answerLabel(options, '["T","F","T"]', 'true_false_multi')).toBe('Đúng / Sai / Đúng');
+    expect(answerLabel(options, '["b","a"]', 'multiple_choice')).toBe('Hai\nMột');
     expect(answerLabel(options, '["b","a"]', 'ordering')).toBe('Hai → Một');
     expect(answerLabel(options, '{"a":"1"}', 'matching')).toBe('Một ↔ 1');
     expect(answerLabel(options, 'not json', 'matching')).toBe('not json');
+  });
+
+  it('shows a matching key and a matching answer as pairs of texts', () => {
+    const key = '{"right":["Xử lý logic, tín hiệu vào/ra","Điều chỉnh tốc độ"],"map":{"a":"1","b":"2"}}';
+    expect(answerLines(options, key, 'matching')).toEqual(['Một ↔ Xử lý logic, tín hiệu vào/ra', 'Hai ↔ Điều chỉnh tốc độ']);
+    expect(answerLines(options, '{"a":"2","b":""}', 'matching', matchingRightOf(key)))
+      .toEqual(['Một ↔ Điều chỉnh tốc độ', 'Hai ↔ (chưa nối)']);
+  });
+
+  it('lists the key points of an essay and keeps the student text as written', () => {
+    const key = '[{"text":"dừng ngay thao tác","points":1},{"text":"chờ boong tàu xác nhận","points":1.5}]';
+    expect(answerLines([], key, 'main_idea')).toEqual(['dừng ngay thao tác (1 điểm)', 'chờ boong tàu xác nhận (1.5 điểm)']);
+    expect(answerLines([], 'Em dừng cẩu [ngay]', 'main_idea')).toEqual(['Em dừng cẩu [ngay]']);
   });
 });
 

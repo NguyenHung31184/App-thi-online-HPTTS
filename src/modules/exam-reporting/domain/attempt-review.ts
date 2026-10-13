@@ -18,6 +18,8 @@ export interface QuestionReviewItem {
   question_type: string;
   chosen: string | null;
   correct: boolean;
+  /** Essay question: a teacher scores it against the key points, so there is no right or wrong here. */
+  manual: boolean;
 }
 
 /** A question as stored in `question_bank` or the legacy `questions` table. */
@@ -55,29 +57,89 @@ export function optionLabel(options: ReviewOption[], key: string | null): string
   return options.find((o) => o.id === key)?.text ?? key;
 }
 
-const COMPLEX_TYPES = new Set(['true_false_multi', 'matching', 'drag_drop', 'ordering']);
+const ESSAY_TYPES = new Set(['video_paragraph', 'main_idea']);
+const ORDER_TYPES = new Set(['drag_drop', 'ordering']);
 
-/** The answer in words for each question type: option text, Đúng/Sai list, order, or pairs. */
-export function answerLabel(options: ReviewOption[], key: string | null, questionType: string): string {
-  if (!key) return '— (chưa chọn)';
-  if (!COMPLEX_TYPES.has(questionType)) return optionLabel(options, key);
+export function isEssayQuestion(questionType: string): boolean {
+  return ESSAY_TYPES.has(questionType);
+}
+
+function parseJson(value: string): unknown {
   try {
-    const parsed = JSON.parse(key);
-    if (Array.isArray(parsed)) {
-      // true_false_multi: ["T","F","T"]; drag_drop and ordering: option ids in order.
-      if (typeof parsed[0] === 'string' && (parsed[0] === 'T' || parsed[0] === 'F')) {
-        return parsed.map((v: string) => (v === 'T' ? 'Đúng' : 'Sai')).join(' / ');
-      }
-      return parsed.map((id: string) => optionLabel(options, id)).join(' → ');
-    }
-    if (typeof parsed === 'object' && parsed !== null) {
-      // matching: { leftId: rightId }
-      return Object.entries(parsed as Record<string, string>).map(([l, r]) => `${optionLabel(options, l)} ↔ ${r}`).join(', ');
-    }
-    return String(parsed);
+    return JSON.parse(value);
   } catch {
-    return key;
+    return undefined;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** A matching key is stored as { right: texts, map: { leftId: position from 1 } }. */
+function matchingKeyOf(answerKey: string): { right: string[]; map: Record<string, string> } | null {
+  const parsed = parseJson(answerKey);
+  if (!isRecord(parsed) || !Array.isArray(parsed.right) || !isRecord(parsed.map)) return null;
+  const map: Record<string, string> = {};
+  for (const [left, position] of Object.entries(parsed.map)) map[left] = String(position);
+  return { right: parsed.right.map((text) => String(text ?? '')), map };
+}
+
+/** Right-hand texts of a matching question, in stored order; empty for any other key. */
+export function matchingRightOf(answerKey: string): string[] {
+  return matchingKeyOf(answerKey)?.right ?? [];
+}
+
+/**
+ * The answer in words, one line per part: option text, a Đúng/Sai line per statement, the order, the pairs of a
+ * matching question, or the key points of an essay. `matchingRight` turns a student's position into its text.
+ */
+export function answerLines(
+  options: ReviewOption[],
+  key: string | null,
+  questionType: string,
+  matchingRight: string[] = [],
+): string[] {
+  if (!key) return ['— (chưa chọn)'];
+  const parsed = key.startsWith('[') || key.startsWith('{') ? parseJson(key) : undefined;
+
+  if (isEssayQuestion(questionType)) {
+    // The key is [{ text, points }]; a student's answer is plain text.
+    if (!Array.isArray(parsed)) return [key];
+    const points = parsed.filter(isRecord).map((item) => `${String(item.text ?? '')} (${Number(item.points ?? 0)} điểm)`);
+    return points.length > 0 ? points : [key];
+  }
+
+  if (questionType === 'matching' && isRecord(parsed)) {
+    const stored = matchingKeyOf(key);
+    const right = stored?.right ?? matchingRight;
+    const pairs = stored?.map ?? parsed;
+    return Object.entries(pairs).map(([left, position]) => {
+      const text = right[Number(position) - 1];
+      return `${optionLabel(options, left)} ↔ ${text || (position ? String(position) : '(chưa nối)')}`;
+    });
+  }
+
+  if (Array.isArray(parsed)) {
+    const values = parsed.map((value) => String(value));
+    if (questionType === 'true_false_multi' || values.every((value) => value === 'T' || value === 'F' || value === '')) {
+      const words = values.map((value) => (value === 'T' ? 'Đúng' : value === 'F' ? 'Sai' : '(chưa chọn)'));
+      return words.length === options.length
+        ? words.map((word, index) => `${options[index].text}: ${word}`)
+        : [words.join(' / ')];
+    }
+    const texts = values.map((id) => optionLabel(options, id));
+    return ORDER_TYPES.has(questionType) ? [texts.join(' → ')] : texts;
+  }
+
+  if (isRecord(parsed)) {
+    return Object.entries(parsed).map(([left, value]) => `${optionLabel(options, left)} ↔ ${String(value)}`);
+  }
+  return [optionLabel(options, key)];
+}
+
+export function answerLabel(options: ReviewOption[], key: string | null, questionType: string, matchingRight: string[] = []): string {
+  return answerLines(options, key, questionType, matchingRight).join('\n');
 }
 
 export function formatAttemptDuration(startedAt: number, completedAt: number | null | undefined): string {
@@ -119,14 +181,22 @@ export function orderByIds<T extends { id: string }>(ids: string[], rows: T[]): 
 }
 
 function isCorrect(chosen: string | null, answerKey: string, questionType: string): boolean {
-  if (chosen === null) return false;
-  if (questionType === 'multiple_choice' || questionType === 'true_false') return chosen === answerKey;
-  // JSON answers compare after normalising.
-  try {
-    return JSON.stringify(JSON.parse(chosen)) === JSON.stringify(JSON.parse(answerKey));
-  } catch {
-    return chosen === answerKey;
+  if (chosen === null || isEssayQuestion(questionType)) return false;
+  if (chosen === answerKey) return true;
+  const answer = parseJson(chosen);
+  if (questionType === 'matching') {
+    // The stored key also carries the right-hand texts; only the pairs are compared.
+    const key = matchingKeyOf(answerKey);
+    if (!key || !isRecord(answer)) return false;
+    return Object.entries(key.map).every(([left, position]) => String(answer[left] ?? '') === position);
   }
+  const key = parseJson(answerKey);
+  if (answer === undefined || key === undefined) return false;
+  if (questionType === 'multiple_choice' && Array.isArray(answer) && Array.isArray(key)) {
+    // Ticked options have no order.
+    return JSON.stringify([...answer].map(String).sort()) === JSON.stringify([...key].map(String).sort());
+  }
+  return JSON.stringify(answer) === JSON.stringify(key);
 }
 
 export function toReviewItems(questions: ReviewQuestionRecord[], answers: Record<string, string>): QuestionReviewItem[] {
@@ -144,6 +214,7 @@ export function toReviewItems(questions: ReviewQuestionRecord[], answers: Record
       question_type: questionType,
       chosen,
       correct: isCorrect(chosen, q.answer_key, questionType),
+      manual: isEssayQuestion(questionType),
     };
   });
 }

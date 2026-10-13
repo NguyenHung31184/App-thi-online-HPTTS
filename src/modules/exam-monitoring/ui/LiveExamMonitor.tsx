@@ -1,6 +1,8 @@
 import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Ban, CheckCircle2, PenLine, WifiOff, type LucideIcon } from 'lucide-react';
+import {
+  AlertTriangle, Ban, BookOpen, CheckCircle2, LogOut, PenLine, Smartphone, UserX, Users, WifiOff, type LucideIcon,
+} from 'lucide-react';
 import { useLiveExamMonitor } from '../queries/use-live-monitor';
 import {
   formatDuration,
@@ -8,13 +10,26 @@ import {
   initials,
   LIVE_STATUS_LABELS,
   LIVE_STATUS_ORDER,
+  RECENT_SIGNAL_SECONDS,
   scoreOutOf10,
+  SIGNAL_EVENT_GROUP,
+  SIGNAL_GROUP_LABELS,
+  SIGNAL_GROUP_ORDER,
   tabCounter,
   VIOLATION_LABELS,
   type LiveClassGroup,
   type LiveStatus,
   type LiveStudent,
+  type SignalGroup,
 } from '../domain/live-status';
+
+const SIGNAL_ICON: Record<SignalGroup, LucideIcon> = {
+  multiple_face: Users,
+  phone: Smartphone,
+  object: BookOpen,
+  no_face: UserX,
+  left_page: LogOut,
+};
 
 // Operator, 2026-09-28: 6 cards per class tab (two rows of three); the rest behind "Xem cả lớp".
 const VISIBLE_PER_CLASS = 6;
@@ -43,6 +58,46 @@ function CardRow({ label, children }: { label: string; children: ReactNode }) {
       <dt className="text-slate-500">{label}</dt>
       <dd className="text-right font-medium text-slate-800">{children}</dd>
     </div>
+  );
+}
+
+/** One icon and a count per signal group; the group of the latest signal is filled while that signal is recent. */
+function SignalChips({ student }: { student: LiveStudent }) {
+  const counts = student.signalCounts;
+  if (!counts) {
+    return (
+      <span className="text-amber-800">
+        {student.violations}
+        {student.lastViolation && ` · ${VIOLATION_LABELS[student.lastViolation] ?? student.lastViolation}`}
+      </span>
+    );
+  }
+  const latest = student.lastViolation ? SIGNAL_EVENT_GROUP[student.lastViolation] : undefined;
+  const ago = student.secondsSinceViolation;
+  const ongoing = student.liveStatus === 'violation' && ago != null && ago <= RECENT_SIGNAL_SECONDS;
+  return (
+    <ul className="flex flex-wrap justify-end gap-1">
+      {SIGNAL_GROUP_ORDER.filter((group) => (counts[group] ?? 0) > 0).map((group) => {
+        const Icon = SIGNAL_ICON[group];
+        const isLatest = group === latest;
+        const description = `${SIGNAL_GROUP_LABELS[group]}: ${counts[group]} lần${
+          isLatest && ago != null ? `, mới nhất ${formatSecondsAgo(ago)}` : ''
+        }`;
+        return (
+          <li
+            key={group}
+            title={description}
+            className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-semibold tabular-nums ${
+              isLatest && ongoing ? 'border-amber-700 bg-amber-700 text-white' : 'border-amber-200 bg-amber-50 text-amber-900'
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+            <span aria-hidden="true">{counts[group]}</span>
+            <span className="sr-only">{description}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -90,10 +145,7 @@ function StudentCard({ student, now }: { student: LiveStudent; now: number }) {
         <CardRow label="Thời gian nộp bài">{student.completedAt ? formatDateTime(student.completedAt) : '—'}</CardRow>
         <CardRow label="Tín hiệu giám sát">
           {student.violations > 0 ? (
-            <span className="text-amber-800">
-              {student.violations}
-              {student.lastViolation && ` · ${VIOLATION_LABELS[student.lastViolation] ?? student.lastViolation}`}
-            </span>
+            <SignalChips student={student} />
           ) : (
             <span className="text-slate-400">0</span>
           )}
@@ -142,6 +194,20 @@ function ClassPanel({ group, now }: { group: LiveClassGroup; now: number }) {
             Chưa vào thi: <strong>{group.notStarted}</strong>
           </span>
         </p>
+        {group.students.some((student) => student.signalCounts) && (
+          <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-slate-500">
+            {SIGNAL_GROUP_ORDER.map((signal) => {
+              const Icon = SIGNAL_ICON[signal];
+              return (
+                <span key={signal} className="inline-flex items-center gap-1">
+                  <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+                  {SIGNAL_GROUP_LABELS[signal]}
+                </span>
+              );
+            })}
+            <span>· Ô nền đậm: tín hiệu vừa xảy ra</span>
+          </p>
+        )}
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((student) => (

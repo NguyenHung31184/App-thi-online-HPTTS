@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-10-13 | Kế hoạch e-learning: soạn và học đều ở App thi
+
+**Bối cảnh**: chủ dự án đưa mã Frappe Learning (`D:\Data\New folder (2)\lms`) để tham khảo và chốt: app quản lý chỉ
+theo dõi, giám sát, báo cáo; App thi là nơi soạn. Hiện chỉ admin soạn, sau này mở cho giáo viên và giáo vụ.
+
+**Đã làm**: viết `docs/PLAN_ELEARNING.md` (7 giai đoạn). Kế hoạch 04–05/10 bên app quản lý đặt phần soạn bài ở app
+quản lý; phần bố trí đó nay được thay.
+
+**Ghi nhận**: production có 2 bài học, 0 khối nội dung, 0 bài được giao. Không chép mã Frappe (khác nền tảng, giấy
+phép AGPL-3.0).
+
+**Chưa làm**: chưa bắt đầu giai đoạn nào; chờ chủ dự án quyết bốn điểm ở mục 5 của kế hoạch.
+
+---
+
 ## 2026-10-12 | Màn thể lệ thi hiện trước khi tính giờ
 
 **Hiện trạng cũ**: bấm "Vào thi" là tạo lượt thi ngay (đồng hồ chạy, mất một lượt), sau đó mới hiện trang quy định kèm

@@ -41,6 +41,10 @@ for (const match of app.matchAll(/import\s+(?:(\w+)\s*,?\s*)?(?:\{([^}]*)\})?\s*
   const names = [match[1], ...(match[2] ?? '').split(',').map((name) => name.trim().split(/\s+as\s+/).pop())].filter(Boolean);
   for (const name of names) origin.set(name, match[3]);
 }
+// A page loaded on demand, `const Name = lazy(() => import('…'))`, has the same origin as a static import of that path.
+for (const match of app.matchAll(/const\s+(\w+)\s*=\s*lazy\(\s*\(\)\s*=>\s*import\(\s*['"]([^'"]+)['"]\s*\)/g)) {
+  origin.set(match[1], match[2]);
+}
 const routeElements = [...app.matchAll(/element=\{<(\w+)/g)].map((match) => match[1]).filter((name) => !ROUTE_SHELLS.has(name));
 const ownedRoutes = routeElements.filter((name) => /modules\/[^/]+\/public$/.test(origin.get(name) ?? ''));
 

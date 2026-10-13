@@ -166,7 +166,7 @@ export default function ExamsPage() {
         isLoading={deleting}
         confirmText="Xóa"
       >
-        {confirmDelete ? `Xóa đề thi "${confirmDelete.title}"? Kỳ thi dùng đề này không cho vào thi được nữa; bài đã làm vẫn giữ. Mục vào Thùng rác của app quản lý, khôi phục được ở đó.` : ''}
+        {confirmDelete ? `Xóa đề thi "${confirmDelete.title}"? Kỳ thi dùng đề này không cho vào thi được nữa; bài đã làm vẫn giữ. Mục vào Thùng rác của HPTTS Training Manager, khôi phục được ở đó.` : ''}
       </ConfirmationModal>
     </div>
   );

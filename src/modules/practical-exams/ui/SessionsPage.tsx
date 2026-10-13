@@ -41,7 +41,7 @@ export default function SessionsPage() {
         </Link>
       </div>
       <p className="text-slate-600 text-sm mb-4">
-        Mỗi kỳ thi gắn một mẫu đánh giá với một lớp. Giáo viên thấy kỳ thi này trên Sổ chuyên cần và chấm theo đó.
+        Mỗi kỳ thi gắn một mẫu đánh giá với một lớp. Giáo viên thấy kỳ thi này trên HPTTS Class Log và chấm theo đó.
       </p>
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
         <table className="min-w-full divide-y divide-slate-200">
@@ -90,7 +90,7 @@ export default function SessionsPage() {
         isLoading={remove.isPending}
         confirmText="Xóa"
       >
-        Xóa kỳ thi thực hành này? Sổ chuyên cần không còn thấy kỳ thi; điểm đã chấm vẫn giữ. Mục vào Thùng rác của app quản lý, khôi phục được ở đó.
+        Xóa kỳ thi thực hành này? HPTTS Class Log không còn thấy kỳ thi; điểm đã chấm vẫn giữ. Mục vào Thùng rác của HPTTS Training Manager, khôi phục được ở đó.
       </ConfirmationModal>
     </div>
   );

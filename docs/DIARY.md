@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-10-13 | Đổi tên hiển thị của ba app
+
+Chủ dự án chốt ngày 13/10/2026, vì app thi nay có cả phần học:
+
+| Tên cũ | Tên mới |
+|---|---|
+| App Thi Online | HPTTS Learn & Exam |
+| Quản lý TTDT-HPTTS (app quản lý) | HPTTS Training Manager |
+| Sổ chuyên cần | HPTTS Class Log |
+
+Chỉ đổi chữ người dùng nhìn thấy: tiêu đề tab, trang đăng nhập, khung menu, và các câu nhắc tới app khác. Giữ nguyên
+địa chỉ web, tên repo, tên gói, tên bảng và cột trong database, chú thích trong mã và tài liệu cũ. Ở app này: 12 file, 14 dòng. Test, lint, build đạt; tên trên menu quản trị nằm gọn một dòng.
+
+---
+
 ## 2026-10-13 | Migration rút bài đã áp; nút "Rút bài" chạy trên production
 
 Chủ dự án duyệt. `20261013090000_elearning_archive_assignment.sql` (repo app quản lý) đã áp production cùng migration

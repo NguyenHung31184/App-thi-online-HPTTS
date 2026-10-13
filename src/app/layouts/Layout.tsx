@@ -66,7 +66,7 @@ export default function Layout() {
   const title = useMemo(() => {
     const path = location.pathname;
     if (path.startsWith('/admin')) return 'Quản trị';
-    return viewTitles[path] ?? 'App Thi Online';
+    return viewTitles[path] ?? 'HPTTS Learn & Exam';
   }, [location.pathname]);
 
   const access = studentAreaAccess({ loading, user, studentSession });

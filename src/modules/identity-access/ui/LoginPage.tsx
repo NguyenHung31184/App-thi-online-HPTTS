@@ -25,7 +25,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-brand-50 p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
         <img src="/brand/hptts-logo.png" alt="HPTTS" className="h-20 w-auto mx-auto mb-4" />
-        <h1 className="text-2xl font-bold text-slate-900 text-center mb-2">App Thi Online</h1>
+        <h1 className="text-2xl font-bold text-slate-900 text-center mb-2">HPTTS Learn & Exam</h1>
         <p className="text-slate-500 text-sm text-center mb-6">Đăng nhập để tiếp tục</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

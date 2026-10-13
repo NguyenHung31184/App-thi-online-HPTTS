@@ -124,7 +124,7 @@ export default function AppLayout({
         {/* Dải nền trắng vì chưa có logo âm bản cho nền tối (DESIGN.md mục 1.6), giống thanh bên app quản lý. */}
         <div className="-mx-4 -mt-4 mb-6 px-4 py-3 bg-white flex items-center">
           <img src="/brand/hptts-logo.png" alt="HPTTS" className="h-10 w-auto flex-shrink-0" />
-          <h1 className="text-sm font-bold leading-tight text-brand-700 pl-3">App Thi Online</h1>
+          <h1 className="text-sm font-bold leading-tight text-brand-700 pl-3">HPTTS Learn & Exam</h1>
         </div>
 
         <nav className="flex-1 space-y-4 overflow-y-auto pr-1">

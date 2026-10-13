@@ -62,7 +62,7 @@ export default function ResultsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-800">Kết quả thi thực hành</h1>
-          <p className="text-sm text-slate-600">Giáo viên chấm trên Sổ chuyên cần. Trang này chỉ xem, tự cập nhật mỗi 10 giây.</p>
+          <p className="text-sm text-slate-600">Giáo viên chấm trên HPTTS Class Log. Trang này chỉ xem, tự cập nhật mỗi 10 giây.</p>
         </div>
         {results.dataUpdatedAt > 0 && (
           <p className="text-sm text-slate-600" aria-live="polite">

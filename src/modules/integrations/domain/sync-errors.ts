@@ -26,7 +26,7 @@ export function explainTheorySyncError(response: string | null | undefined): str
       'Lỗi liên quan student_id / enrollment (học viên chưa map sang TTDT).',
       '',
       '1. Kiểm tra tài khoản thi của học viên đã được xác thực CCCD và gắn với học viên TTDT chưa.',
-      '2. Nếu chưa, thực hiện bước xác thực CCCD / gắn student_id trong app thi hoặc app quản lý.',
+      '2. Nếu chưa, thực hiện bước xác thực CCCD / gắn student_id trong HPTTS Learn & Exam hoặc HPTTS Training Manager.',
       '3. Khi tài khoản đã có student_id, quay lại màn Đồng bộ điểm và bấm "Thử lại".',
     ].join('\n');
   }
@@ -34,7 +34,7 @@ export function explainTheorySyncError(response: string | null | undefined): str
     return [
       'Lỗi xác thực API TTDT (401 / JWT / authorization).',
       '',
-      '1. Mở file .env của app thi online.',
+      '1. Mở file .env của HPTTS Learn & Exam.',
       '2. Kiểm tra TTDT_RECEIVE_GRADES_URL và TTDT_API_KEY trong cấu hình máy chủ Vercel.',
       '3. Kiểm tra SUPABASE_SERVICE_ROLE_KEY chỉ được đặt trong biến môi trường máy chủ.',
       '4. Deploy lại sau khi cập nhật cấu hình, rồi bấm "Thử lại".',

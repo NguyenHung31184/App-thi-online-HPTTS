@@ -119,7 +119,7 @@ function TimeEditor({ config, onChange }: { config: FieldConfig; onChange: (conf
 export function FieldConfigEditor({ config, onChange }: { config: FieldConfig; onChange: (config: FieldConfig) => void }) {
   return (
     <section className="space-y-5 border border-slate-200 rounded-lg p-4">
-      <h2 className="text-lg font-medium text-slate-800">Chấm tại sân (Sổ chuyên cần)</h2>
+      <h2 className="text-lg font-medium text-slate-800">Chấm tại sân (HPTTS Class Log)</h2>
       <StepsEditor steps={config.steps} onChange={(steps) => onChange({ ...config, steps })} />
       <div>
         <h3 className="text-sm font-medium text-slate-700 mb-1">Thời gian một chu kỳ</h3>

@@ -88,7 +88,7 @@ export default function SessionFormPage() {
           </div>
         </div>
         <p className="text-sm text-slate-600">
-          Giáo viên chấm kỳ thi này trên Sổ chuyên cần. Thời gian để giáo viên biết ngày thi; app không chặn chấm ngoài khoảng này.
+          Giáo viên chấm kỳ thi này trên HPTTS Class Log. Thời gian để giáo viên biết ngày thi; app không chặn chấm ngoài khoảng này.
         </p>
         <div className="flex gap-2">
           <button type="submit" disabled={save.isPending} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">

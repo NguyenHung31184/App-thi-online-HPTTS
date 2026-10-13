@@ -232,7 +232,7 @@ export default function WindowsPage() {
         isLoading={deleting}
         confirmText="Xóa"
       >
-        Xóa kỳ thi này? Thí sinh không vào thi bằng mã này được nữa; bài đã làm vẫn giữ. Mục vào Thùng rác của app quản lý, khôi phục được ở đó.
+        Xóa kỳ thi này? Thí sinh không vào thi bằng mã này được nữa; bài đã làm vẫn giữ. Mục vào Thùng rác của HPTTS Training Manager, khôi phục được ở đó.
       </ConfirmationModal>
 
       <ConfirmationModal

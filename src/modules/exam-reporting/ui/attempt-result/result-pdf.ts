@@ -130,20 +130,34 @@ function resultHtml(opts: ResultPdfInput): string {
 /**
  * Saves the result as an A4 PDF with the center header, start photo and a box for the student's signature.
  * The page is handed to html2pdf as a detached element: it lays the copy out itself, so nothing is added to the
- * screen and a failure leaves nothing behind.
+ * screen.
  */
 export async function downloadResultPdf(opts: ResultPdfInput): Promise<void> {
   const html2pdf = (await import('html2pdf.js')).default;
   const el = document.createElement('div');
   el.innerHTML = resultHtml(opts);
-  await html2pdf()
-    .set({
-      margin: [8, 8, 12, 8],
-      filename: `ket-qua-${opts.examTitle.replace(/\s+/g, '-')}-${Date.now()}.pdf`,
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    })
-    .from(el)
-    .save();
+  try {
+    await html2pdf()
+      .set({
+        margin: [8, 8, 12, 8],
+        filename: `ket-qua-${opts.examTitle.replace(/\s+/g, '-')}-${Date.now()}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          // html2canvas cannot read the oklch() colours of the app's Tailwind stylesheet and stops on the first one.
+          // The printed page is styled inline, so its copy of the document is drawn without any stylesheet.
+          onclone: (copy: Document) => {
+            copy.querySelectorAll('style, link[rel="stylesheet"]').forEach((sheet) => sheet.remove());
+          },
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      })
+      .from(el)
+      .save();
+  } finally {
+    // On a failure html2pdf leaves its invisible full-screen layer in place, and that layer takes every click.
+    document.querySelectorAll('.html2pdf__overlay').forEach((overlay) => overlay.remove());
+  }
 }

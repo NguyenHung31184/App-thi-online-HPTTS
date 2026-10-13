@@ -42,6 +42,12 @@ trường hợp vẫn thành hai lỗi. Chủ dự án duyệt sửa cả ba.
     trước đây vẫn hiện "Sai" ở trang này vì so cả khóa lưu `{right, map}` (điểm do `grade_attempt` chấm, không đổi).
   - Câu đúng/sai nhiều ý hiện "phát biểu: Đúng/Sai" từng dòng; câu nhiều lựa chọn hiện tên từng lựa chọn.
   - File PDF dùng chung cách hiển thị trên và thoát ký tự HTML cho mọi giá trị lấy từ database.
+  - Sau khi đẩy `86a8052`, chủ dự án báo lỗi `Attempting to parse an unsupported color function "oklch"` và màn hình
+    không bấm được gì. Nguyên nhân: html2canvas 1.4.1 không đọc được màu `oklch()` của Tailwind 4 nên dừng; khi dừng,
+    html2pdf để lại lớp phủ vô hình toàn màn hình (`.html2pdf__overlay`) chặn mọi cú bấm. Đây cũng là lý do nút in
+    không ra file từ trước. Sửa: bỏ hết stylesheet khỏi bản sao tài liệu mà html2canvas vẽ (`onclone`; trang in chỉ
+    dùng style nội tuyến) và luôn gỡ lớp phủ trong `finally`. Lần thử đầu của tôi không bắt được lỗi vì trang thử
+    không nạp `index.css`; thử lại có nạp thì tái hiện đúng lỗi, sau khi sửa thì ra file và đã mở file xem bố cục.
 - Kiểm tra: 299 test, typecheck, lint ba thư mục `exam-taking`, `exam-monitoring`, `exam-reporting`, ranh giới module
   đạt. Chạy thử tạo PDF bằng Edge không giao diện với dữ liệu mẫu (câu nối, câu tự luận): tạo xong, không để lại gì
   trên trang. Chưa xem trang kết quả thật và chưa mở file PDF để xem bố cục.

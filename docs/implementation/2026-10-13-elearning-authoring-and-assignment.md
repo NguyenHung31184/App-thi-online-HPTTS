@@ -3,7 +3,8 @@
 Date: 2026-10-13. Plan: `docs/PLAN_ELEARNING.md`. Rollback: `docs/rollback/2026-10-13-elearning-authoring-and-assignment.md`.
 
 Status: commit `27e21b1`, pushed and live on production 2026-10-13 (CI and Vercel passed; admin pages and the learner
-list checked in Edge on production). The migration for withdrawing an assignment is written and dry-run, not applied.
+list checked in Edge on production). The migration for withdrawing an assignment was applied to production on 2026-10-13 after operator approval;
+"Rút bài" was then checked in Edge on production (withdraw, then re-assign version 3 to `TEST-TH`).
 
 ## Why
 

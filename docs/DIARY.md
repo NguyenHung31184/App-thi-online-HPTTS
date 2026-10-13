@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-10-13 | Migration rút bài đã áp; nút "Rút bài" chạy trên production
+
+Chủ dự án duyệt. `20261013090000_elearning_archive_assignment.sql` (repo app quản lý) đã áp production cùng migration
+Thùng rác `20261012090000`. Thử trên Edge, production, tài khoản admin: rút bài thử khỏi lớp `TEST-TH` (dòng bản giao
+ghi người rút và thời điểm), rồi giao lại phiên bản 3 để bài vẫn còn cho lần thử trên điện thoại.
+
+---
+
 ## 2026-10-13 | Push e-learning giai đoạn 1 và 2 cùng bản ổn định iOS
 
 **Bối cảnh**: chủ dự án báo phiên làm phần iOS đã xong và yêu cầu kiểm tra lại rồi push.

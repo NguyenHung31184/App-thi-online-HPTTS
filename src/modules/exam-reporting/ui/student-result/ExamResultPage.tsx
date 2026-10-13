@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import { isExamPassed } from '../../../../shared/domain/exam-result';
 import { useStudentResult } from '../../queries/use-student-result';
+import { SIGNATURE_STATEMENT } from '../../domain/signature';
+import { SignaturePad } from './SignaturePad';
 
 export default function ExamResultPage() {
   const {
     loading, error, attempt, exam, location, totalMax, studentSession, user, startPhotoUrl,
-    autoSyncStatus, handlePrint,
+    autoSyncStatus, handlePrint, signatureUrl, saveSignature,
   } = useStudentResult();
   if (loading) return <p className="p-4 text-slate-500">Đang tải...</p>;
   if (error) return <p className="p-4 text-red-600">{error}</p>;
@@ -168,21 +170,40 @@ export default function ExamResultPage() {
             </div>
           )}
 
-        <div className="mt-8 flex gap-3 print:hidden">
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800"
-          >
-            In kết quả
-          </button>
-          <Link
-            to="/dashboard"
-            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
-          >
-            Về trang chủ
-          </Link>
-        </div>
+        {signatureUrl === undefined && <p className="mt-6 text-sm text-slate-500">Đang kiểm tra chữ ký…</p>}
+        {signatureUrl === null && (
+          <div className="print:hidden">
+            <SignaturePad onSave={saveSignature} />
+          </div>
+        )}
+        {signatureUrl && (
+          <>
+            <div className="mt-6 print:break-inside-avoid">
+              <p className="text-xs text-slate-500 mb-1">Chữ ký học viên</p>
+              <img
+                src={signatureUrl}
+                alt="Chữ ký xác nhận kết quả của học viên"
+                className="w-56 rounded-lg border border-slate-200 bg-white"
+              />
+              <p className="mt-1 text-xs text-slate-500">{SIGNATURE_STATEMENT}</p>
+            </div>
+            <div className="mt-8 flex gap-3 print:hidden">
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800"
+              >
+                In kết quả
+              </button>
+              <Link
+                to="/dashboard"
+                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                Về trang chủ
+              </Link>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

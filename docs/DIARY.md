@@ -48,7 +48,17 @@ trường hợp vẫn thành hai lỗi. Chủ dự án duyệt sửa cả ba.
     không ra file từ trước. Sửa: bỏ hết stylesheet khỏi bản sao tài liệu mà html2canvas vẽ (`onclone`; trang in chỉ
     dùng style nội tuyến) và luôn gỡ lớp phủ trong `finally`. Lần thử đầu của tôi không bắt được lỗi vì trang thử
     không nạp `index.css`; thử lại có nạp thì tái hiện đúng lỗi, sau khi sửa thì ra file và đã mở file xem bố cục.
-- Kiểm tra: 299 test, typecheck, lint ba thư mục `exam-taking`, `exam-monitoring`, `exam-reporting`, ranh giới module
+- Chữ ký học viên trên màn hình (chủ dự án chọn: ký sau khi nộp bài, bắt buộc). Màn kết quả của học viên hiện ô
+  ký bằng ngón tay (`ui/student-result/SignaturePad.tsx`); chưa ký thì chưa có nút "In kết quả" và "Về trang chủ".
+  Ảnh chữ ký đi qua Edge `upload-exam-file` với `kind = signature`, nằm cùng thư mục với ảnh lúc vào thi
+  (`proctoring/<user>/<attempt>/signature_<ts>.jpg`); không có migration, không đổi Edge Function. Trang biết đã ký
+  hay chưa bằng cách liệt kê thư mục đó (học viên đọc được thư mục của mình, giám thị đọc được mọi thư mục theo
+  policy sẵn có); thêm dòng nhật ký `signature_taken` để có giờ ký. Trang kết quả của giám thị và file PDF hiện
+  chữ ký, chưa ký thì để ô trống cho ký tay. Lưu ý: lượt thi cũ mở lại trang kết quả cũng sẽ được yêu cầu ký; ảnh
+  chữ ký bị dọn cùng ảnh giám sát theo script `storage:cleanup:exam-photos` (tốt nghiệp + 365 ngày).
+  Đã thử ô ký trên Edge giả lập điện thoại 390 px có chạm: ký được, trang không cuộn khi ký, nét ngắn không cho xác
+  nhận, lưu lỗi thì báo và giữ nét ký. **Chưa thử** phần tải ảnh lên và đọc lại với lượt thi thật.
+- Kiểm tra: 301 test, typecheck, lint ba thư mục `exam-taking`, `exam-monitoring`, `exam-reporting`, ranh giới module
   đạt. Chạy thử tạo PDF bằng Edge không giao diện với dữ liệu mẫu (câu nối, câu tự luận): tạo xong, không để lại gì
   trên trang. Chưa xem trang kết quả thật và chưa mở file PDF để xem bố cục.
 

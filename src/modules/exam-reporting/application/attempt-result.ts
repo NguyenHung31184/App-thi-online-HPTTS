@@ -3,6 +3,7 @@ import {
   selectAttempt, selectAttemptReviewQuestions, selectExam, selectProfile, selectStudentByExamEmail, selectStudentById,
 } from '../data/attempt-result-repository';
 import { signStartPhoto } from '../data/evidence-storage';
+import { signAttemptSignature } from '../data/signature-storage';
 import { normalizePrintable, studentFactsOf, toReviewItems, type QuestionReviewItem, type StudentFacts } from '../domain/attempt-review';
 
 export interface AttemptResult {
@@ -14,6 +15,8 @@ export interface AttemptResult {
   /** Null when the attempt has no saved answers. */
   reviewItems: QuestionReviewItem[] | null;
   startPhotoUrl: string | null;
+  /** The student's signature under the result; null when they have not signed. */
+  signatureUrl: string | null;
 }
 
 export class AttemptNotFoundError extends Error {
@@ -48,5 +51,6 @@ export async function getAttemptResult(attemptId: string): Promise<AttemptResult
     student: studentFactsOf(studentRow),
     reviewItems,
     startPhotoUrl: await signStartPhoto(attemptId),
+    signatureUrl: attempt.user_id ? await signAttemptSignature(attempt.user_id, attemptId).catch(() => null) : null,
   };
 }

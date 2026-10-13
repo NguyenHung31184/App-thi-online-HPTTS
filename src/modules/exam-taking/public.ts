@@ -26,6 +26,7 @@ export {
   createDetectionWindowState,
   shouldAutoSubmitForAi,
 } from './domain/proctoring-policy';
+export { uploadExamFileViaEdge } from './application/upload-exam-file';
 export { examTakingKeys } from './queries/keys';
 export { useAvailableTheoryWindows, useStartTheoryAttempt } from './queries/use-theory-attempt';
 export { useAttemptHeartbeat } from './queries/use-attempt-heartbeat';

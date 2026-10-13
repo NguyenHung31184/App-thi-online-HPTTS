@@ -13,6 +13,7 @@ export interface ResultPdfInput {
   passValue: number | null;
   passed: boolean;
   startPhotoUrl: string | null;
+  signatureUrl: string | null;
   reviewItems: QuestionReviewItem[] | null;
 }
 
@@ -64,7 +65,7 @@ function questionHtml(it: QuestionReviewItem, idx: number): string {
 function resultHtml(opts: ResultPdfInput): string {
   const {
     examTitle, studentDisplay, studentDob, studentCccd, completedAtStr, durationStr,
-    disqualified, earned, denom, passValue, passed, startPhotoUrl, reviewItems,
+    disqualified, earned, denom, passValue, passed, startPhotoUrl, signatureUrl, reviewItems,
   } = opts;
 
   const resultColor = passed ? '#065f46' : '#991b1b';
@@ -80,7 +81,9 @@ function resultHtml(opts: ResultPdfInput): string {
   const signatureHtml = `
     <div style="text-align:center;flex-shrink:0;">
       <p style="font-size:10px;color:#94a3b8;margin:0 0 4px 0;">Chữ ký học viên</p>
-      <div style="width:110px;height:128px;border:1px dashed #cbd5e1;border-radius:8px;"></div>
+      ${signatureUrl
+        ? `<img src="${esc(signatureUrl)}" style="width:150px;height:128px;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0;background:#ffffff;" />`
+        : '<div style="width:110px;height:128px;border:1px dashed #cbd5e1;border-radius:8px;"></div>'}
     </div>`;
 
   return `

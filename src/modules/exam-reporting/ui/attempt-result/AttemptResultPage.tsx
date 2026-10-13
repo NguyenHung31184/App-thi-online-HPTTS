@@ -16,7 +16,7 @@ export default function AttemptResultPage() {
   if (error) return <p className="text-red-600 text-sm p-4">{error instanceof Error ? error.message : 'Lỗi tải dữ liệu.'}</p>;
   if (!data?.exam) return null;
 
-  const { attempt, exam, student, reviewItems, startPhotoUrl } = data;
+  const { attempt, exam, student, reviewItems, startPhotoUrl, signatureUrl } = data;
   const { earned, denom, passValue, passed } = attemptScore(attempt, exam);
   const studentDisplay = student.name || data.profileName || data.profileEmail || '—';
   const completedAtStr = typeof attempt.completed_at === 'number' && attempt.completed_at
@@ -40,6 +40,7 @@ export default function AttemptResultPage() {
         passValue,
         passed,
         startPhotoUrl,
+        signatureUrl,
         reviewItems,
       });
     } catch (error) {
@@ -78,6 +79,20 @@ export default function AttemptResultPage() {
               <p><span className="font-medium text-slate-600 w-32 inline-block">Thời gian làm:</span> {durationStr}</p>
               {attempt.disqualified && (
                 <p className="text-amber-700 font-semibold mt-1">⚠ Bài bị loại (disqualified)</p>
+              )}
+            </div>
+            <div className="shrink-0 flex flex-col items-center sm:items-end print:break-inside-avoid">
+              <p className="text-xs text-slate-500 mb-1 w-full text-center sm:text-right">Chữ ký học viên</p>
+              {signatureUrl ? (
+                <img
+                  src={signatureUrl}
+                  alt="Chữ ký xác nhận kết quả của học viên"
+                  className="w-40 h-36 sm:h-40 object-contain rounded-lg border border-slate-200 bg-white"
+                />
+              ) : (
+                <p className="w-40 h-36 sm:h-40 flex items-center justify-center text-center text-xs text-slate-500 rounded-lg border border-dashed border-slate-300 px-2">
+                  Học viên chưa ký
+                </p>
               )}
             </div>
             {startPhotoUrl && (

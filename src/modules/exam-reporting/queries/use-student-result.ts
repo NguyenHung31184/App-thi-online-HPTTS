@@ -1,5 +1,6 @@
 import { loadStudentResult } from '../application/student-results';
-import { useEffect, useState } from 'react';
+import { loadAttemptSignatureUrl, saveAttemptSignature } from '../application/student-signature';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import type { Attempt, Exam } from '../../../types';
 import { getTheoryAttemptWindowContext as getAttemptWindowContext } from '../../exam-taking/public';
@@ -18,6 +19,8 @@ export function useStudentResult() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [totalMax, setTotalMax] = useState<number | null>(null);
   const [startPhotoUrl, setStartPhotoUrl] = useState<string | null>(null);
+  /** undefined while it is being looked up; null when the student has not signed. */
+  const [signatureUrl, setSignatureUrl] = useState<string | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [autoSyncStatus, setAutoSyncStatus] = useState<'idle' | 'retrying' | 'success' | 'failed'>('idle');
@@ -71,6 +74,29 @@ export function useStudentResult() {
     };
   }, [attemptId]);
 
+  const ownerId = attempt?.user_id ?? null;
+  useEffect(() => {
+    if (!attemptId || !ownerId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const url = await loadAttemptSignatureUrl(ownerId, attemptId);
+        if (!cancelled) setSignatureUrl(url);
+      } catch {
+        // The lookup failed: ask for the signature rather than leave the page waiting.
+        if (!cancelled) setSignatureUrl(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [attemptId, ownerId]);
+
+  const saveSignature = useCallback(async (image: Blob) => {
+    if (!attemptId) return;
+    setSignatureUrl(await saveAttemptSignature(attemptId, image));
+  }, [attemptId]);
+
   // Tự động retry sync nếu lần đầu thất bại (vd: mạng ngắt lúc nộp bài)
   useEffect(() => {
     const search = new URLSearchParams(location.search ?? '');
@@ -118,6 +144,6 @@ export function useStudentResult() {
 
   return {
     loading, error, attempt, exam, location, totalMax, studentSession, user, startPhotoUrl,
-    autoSyncStatus, handlePrint,
+    autoSyncStatus, handlePrint, signatureUrl, saveSignature,
   };
 }

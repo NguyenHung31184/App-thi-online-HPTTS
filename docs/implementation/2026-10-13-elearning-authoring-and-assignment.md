@@ -2,8 +2,8 @@
 
 Date: 2026-10-13. Plan: `docs/PLAN_ELEARNING.md`. Rollback: `docs/rollback/2026-10-13-elearning-authoring-and-assignment.md`.
 
-Status: code committed locally and tested against production data with the test class `TEST-TH`. Not pushed. The
-migration for withdrawing an assignment is written and dry-run, not applied.
+Status: commit `27e21b1`, pushed and live on production 2026-10-13 (CI and Vercel passed; admin pages and the learner
+list checked in Edge on production). The migration for withdrawing an assignment is written and dry-run, not applied.
 
 ## Why
 

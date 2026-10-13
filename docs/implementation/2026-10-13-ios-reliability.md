@@ -1,7 +1,7 @@
 # Nâng cấp độ ổn định iOS
 
 Ngày bắt đầu: 2026-10-13 (Asia/Saigon).
-Trạng thái: đã triển khai P0–P5; kiểm thử tự động và fixture trình duyệt đạt; P6 còn nghiệm thu trên thiết bị thật. Chưa deploy.
+Trạng thái: đã triển khai P0–P5; kiểm thử tự động và fixture trình duyệt đạt; P6 còn nghiệm thu trên thiết bị thật. Đã commit (`a6bd241`) và lên production ngày 13/10/2026 theo yêu cầu của chủ dự án, khi chưa có kết quả thiết bị thật.
 Người dùng đã yêu cầu ghi kế hoạch và tiến độ vào repo, sau đó triển khai; chọn áp dụng antislop trong lúc sửa.
 
 ## Mục tiêu và phạm vi

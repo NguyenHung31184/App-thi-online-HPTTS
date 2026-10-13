@@ -6,7 +6,8 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ## 2026-10-13 — E-learning: soạn bài và giao bài trong App thi
 
-**Commit:** xem `git log --oneline -- src/modules/elearning/ui/authoring`. Chưa push. Migration
+**Commit:** `27e21b1`, đã push 13/10 cùng `bd493b4` (công cụ đo kiến trúc) và `a6bd241` (ổn định iOS, rollback riêng ở
+`docs/rollback/2026-10-13-ios-reliability.md`). Bản production trước đó: `b9def29`. Migration
 `20261013090000_elearning_archive_assignment.sql` (repo app quản lý) chưa áp. Rollback:
 `docs/rollback/2026-10-13-elearning-authoring-and-assignment.md`.
 **Branch:** main

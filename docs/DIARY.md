@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-10-13 | Push e-learning giai đoạn 1 và 2 cùng bản ổn định iOS
+
+**Bối cảnh**: chủ dự án báo phiên làm phần iOS đã xong và yêu cầu kiểm tra lại rồi push.
+
+**Đã làm**
+- Chạy lại trên toàn bộ bản làm việc: kiểm tra kiểu, lint, 287 test, ranh giới module, build đều đạt. `arch:score`
+  trượt: `App.tsx` mới dùng `lazy(() => import(...))`, công cụ đo chỉ đọc `import` tĩnh nên chỉ nhận 3/48 route, CI
+  sẽ đỏ. Sửa `scripts/architecture-score.mjs` cho đọc cả kiểu khai báo này (`bd493b4`): 48/48, 10/10.
+- Commit phần iOS thành một commit riêng (`a6bd241`), kiểm tra trên bản tách riêng trước khi commit. Phần quét CCCD
+  (`.env.example`, `api/scan-id-card.ts`, `api/_lib/`, `ocr-proxy.ts`, `ocr-image.ts`) vẫn để ngoài.
+- Push `0ac2751`, `27e21b1`, `bd493b4`, `a6bd241`. CI và Vercel đạt.
+- Edge trên production: 12 trang quản trị (có "Bài học") tải được, không lỗi mạng; học viên thử đăng nhập, thấy màn thể
+  lệ, thấy bài được giao trong "Học trực tuyến".
+
+**Chưa làm**
+- Phần thi có camera (ảnh vào thi, giám sát, toàn màn hình) của bản iOS chưa được thử trên thiết bị thật, kể cả máy
+  tính: Edge ở đây không có camera. Checklist ở `docs/implementation/2026-10-13-ios-reliability.md`.
+- Migration `20261013090000_elearning_archive_assignment.sql` chưa áp: nút "Rút bài" báo "Máy chủ chưa có chức năng này".
+
+**Quay lui nhanh nếu thi thử lỗi**: Vercel > Deployments > bản của commit `b9def29` > Promote to Production.
+
+---
+
 ## 2026-10-13 | E-learning giai đoạn 1 và 2: soạn bài và giao bài trong App thi
 
 **Đã làm**

@@ -5,11 +5,12 @@ import { SIGNATURE_STATEMENT } from '../../domain/signature';
 import { SignaturePad } from './SignaturePad';
 import { ResultPrintSheet } from './ResultPrintSheet';
 import { formatAttemptDuration } from '../../domain/attempt-review';
+import { resultIdentity } from '../../domain/result-identity';
 
 export default function ExamResultPage() {
   const {
     loading, error, attempt, exam, location, totalMax, studentSession, user, startPhotoUrl,
-    autoSyncStatus, handlePrint, signatureUrl, saveSignature,
+    autoSyncStatus, handlePrint, signatureUrl, saveSignature, studentRecord,
   } = useStudentResult();
   if (loading) return <p className="p-4 text-slate-500">Đang tải...</p>;
   if (error) return <p className="p-4 text-red-600">{error}</p>;
@@ -39,17 +40,7 @@ export default function ExamResultPage() {
   const passValue = typeof denom === 'number' ? (exam.pass_threshold ?? 0.7) * denom : null;
   const passed = isExamPassed(attempt.score, attempt.disqualified, exam.pass_threshold ?? 0.7);
 
-  const displayFullName =
-    [studentSession?.student_name, user?.student_name, user?.name].find(
-      (s) => typeof s === 'string' && s.trim() !== '',
-    )?.trim() ?? '—';
-  const rawDob = studentSession?.student_dob?.trim() || '';
-  const displayDob = (() => {
-    if (!rawDob) return '—';
-    const m = rawDob.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    return m ? `${m[3]}/${m[2]}/${m[1]}` : rawDob;
-  })();
-  const displayCccd = studentSession?.id_card_number?.trim() || '—';
+  const { fullName: displayFullName, dob: displayDob, cccd: displayCccd } = resultIdentity(studentRecord, studentSession, user);
 
   const completedAtStr = typeof attempt.completed_at === 'number' && attempt.completed_at
     ? new Date(attempt.completed_at).toLocaleString('vi-VN')
@@ -65,12 +56,15 @@ export default function ExamResultPage() {
         cccd={displayCccd}
         completedAt={completedAtStr}
         duration={formatAttemptDuration(attempt.started_at, attempt.completed_at)}
-        score={`${Number(earned.toFixed(2))} / ${denom ?? '—'}`}
-        passMark={`${typeof passValue === 'number' ? Number(passValue.toFixed(2)) : '—'} / ${denom ?? '—'}`}
+        earned={earned}
+        max={denom}
+        passMark={passValue}
         passed={passed}
         disqualified={Boolean(attempt.disqualified)}
         startPhotoUrl={startPhotoUrl}
         signatureUrl={signatureUrl ?? null}
+        attemptCode={attempt.id.slice(0, 8).toUpperCase()}
+        printedAt={new Date().toLocaleString('vi-VN')}
       />
       <div className="bg-white border border-slate-200 rounded-lg p-6 print:hidden">
         <h1 className="text-xl font-semibold text-slate-800 mb-2">Kết quả bài thi</h1>

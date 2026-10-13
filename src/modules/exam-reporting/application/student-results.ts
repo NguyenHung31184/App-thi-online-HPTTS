@@ -1,4 +1,4 @@
-export { selectStudentResults as listStudentResults, currentResultUserId, selectLegacyTotalPoints as getLegacyTotalPoints, fetchStartExamPhotoSignedUrl } from '../data/student-result-repository';
+export { selectStudentResults as listStudentResults, currentResultUserId, selectLegacyTotalPoints as getLegacyTotalPoints, fetchStartExamPhotoSignedUrl, fetchMyStudentRecord } from '../data/student-result-repository';
 
 import { getAttempt } from '../../exam-taking/public';
 import { getExam } from '../../exam-management/public';

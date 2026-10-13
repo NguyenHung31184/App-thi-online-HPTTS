@@ -1,5 +1,19 @@
 import { supabase } from '../../../platform/supabase/client';
 import type { AttemptWithExam } from '../domain/student-results';
+import type { StudentRecord } from '../domain/result-identity';
+
+/**
+ * The student row linked to the signed-in exam account (students cannot read the students table themselves).
+ * Null when the account has no student, or the database does not have the function yet.
+ */
+export async function fetchMyStudentRecord(): Promise<StudentRecord | null> {
+  const { data, error } = await supabase.rpc('get_my_exam_student');
+  if (error) return null;
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null | undefined;
+  if (!row) return null;
+  const text = (value: unknown) => (typeof value === 'string' && value.trim() !== '' ? value.trim() : null);
+  return { name: text(row.name), dob: text(row.dob), idCardNumber: text(row.id_card_number), studentCode: text(row.student_code) };
+}
 
 export async function selectStudentResults(userId: string): Promise<AttemptWithExam[]> {
   const { data, error } = await supabase.from('attempts')

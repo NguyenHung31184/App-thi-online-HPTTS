@@ -5,6 +5,37 @@
 
 ---
 
+## 2026-10-14 | Phiếu in kết quả: họ tên thật của học viên, bố cục mới
+
+**Báo của chủ dự án**: phiếu in ghi tên tài khoản thay cho tên học viên; bố cục phiếu chưa hợp mắt.
+
+**Nguyên nhân tên tài khoản**: `profiles.name` của tài khoản thi là chính địa chỉ đăng nhập (`hv100238@hptts.vn`).
+Tên thật nằm ở `students`, bảng này chỉ nhân viên đọc được. Trang kết quả lấy tên từ lần xác thực CCCD lưu trong
+`sessionStorage` của tab; mở tab mới hoặc mở lại trình duyệt thì mất, và trang lùi về tên tài khoản. Ngày sinh và
+CCCD mất theo cùng lý do.
+
+**Đã làm**
+- Migration `20261014090000_my_exam_student_identity.sql` (**ĐÃ áp production** rạng sáng 14/10/2026, chủ dự án duyệt): hàm `get_my_exam_student()` trả
+  đúng một dòng học viên gắn với tài khoản đang đăng nhập (họ tên, ngày sinh, CCCD). `profiles.student_id` đã được
+  trigger `guard_profile_privileged_columns` chặn tự đổi sang học viên khác.
+- `domain/result-identity.ts`: thứ tự lấy thông tin là dòng học viên, rồi phiên CCCD của tab. Tên có dấu `@` không
+  bao giờ được hiện làm tên người; không có tên thật thì hiện "—". Frontend chạy được khi hàm chưa có (lúc đó vẫn
+  dựa vào phiên CCCD).
+- `ResultPrintSheet.tsx` dựng lại: đầu phiếu có logo, tên công ty và mã lượt thi; băng tiêu đề nền `brand-50`; khối
+  thông tin học viên kèm ảnh; khối kết quả có điểm lớn, thanh điểm với vạch ngưỡng đạt và nhãn Đạt / Chưa đạt; ô chữ
+  ký; chân trang liên hệ nằm sát cuối trang. Mọi màu mang nghĩa đều là chữ hoặc viền nên in không nền vẫn đọc được.
+- Kiểm tra: 305 test, typecheck, lint, ranh giới module, build đạt. In thử PDF A4 bằng Edge không giao diện, hai
+  biến thể (có và không có ảnh, chữ ký, màu nền): một trang.
+
+**Chưa làm / chưa kiểm**
+- Đã gọi thử hàm trên production với danh tính tài khoản `hv100238` trong một giao dịch hoàn tác: trả đúng một dòng
+  (Đinh Quốc Huy, 1988-08-18, có CCCD); `anon` không gọi được. Chưa thử qua giao diện thật, chưa in từ điện thoại thật.
+- Lịch sử migration: file nằm ở repo này, lệnh `migration repair` phải chạy từ repo app quản lý (nơi CLI đã link) với
+  một bản sao tạm của file.
+- Rollback: `DROP FUNCTION public.get_my_exam_student();` và hoàn tác commit.
+
+---
+
 ## 2026-10-13 | Giám sát AI: một vi phạm kéo dài không bị ghi thành hai lỗi
 
 **Câu hỏi của chủ dự án**: người thứ hai nhìn vào điện thoại mà không rời đi thì có tính là một lỗi không; không thấy

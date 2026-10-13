@@ -6,7 +6,8 @@ import type { Attempt, Exam } from '../../../types';
 import { getTheoryAttemptWindowContext as getAttemptWindowContext } from '../../exam-taking/public';
 import { useAuth } from '../../identity-access/public';
 import { isTtdtSyncConfigured, syncAttemptToTtdt } from '../../integrations/public';
-import { fetchStartExamPhotoSignedUrl, getLegacyTotalPoints } from './student-results';
+import { fetchMyStudentRecord, fetchStartExamPhotoSignedUrl, getLegacyTotalPoints } from './student-results';
+import type { StudentRecord } from '../domain/result-identity';
 
 export function useStudentResult() {
 
@@ -19,6 +20,7 @@ export function useStudentResult() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [totalMax, setTotalMax] = useState<number | null>(null);
   const [startPhotoUrl, setStartPhotoUrl] = useState<string | null>(null);
+  const [studentRecord, setStudentRecord] = useState<StudentRecord | null>(null);
   /** undefined while it is being looked up; null when the student has not signed. */
   const [signatureUrl, setSignatureUrl] = useState<string | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -73,6 +75,17 @@ export function useStudentResult() {
       cancelled = true;
     };
   }, [attemptId]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void fetchMyStudentRecord().then((record) => {
+      if (!cancelled) setStudentRecord(record);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const ownerId = attempt?.user_id ?? null;
   useEffect(() => {
@@ -144,6 +157,6 @@ export function useStudentResult() {
 
   return {
     loading, error, attempt, exam, location, totalMax, studentSession, user, startPhotoUrl,
-    autoSyncStatus, handlePrint, signatureUrl, saveSignature,
+    autoSyncStatus, handlePrint, signatureUrl, saveSignature, studentRecord,
   };
 }

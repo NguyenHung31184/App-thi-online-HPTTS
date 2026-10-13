@@ -76,6 +76,20 @@ html, body {
   height: 100dvh;
 }
 
+/* On paper the app shell is one screen tall and clips its scrolling area: let the page run its full length. */
+@media print {
+  :root, body, #root {
+    height: auto;
+    min-height: 0;
+    background: #fff;
+  }
+  .app-viewport {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+}
+
 .min-h-screen {
   min-height: 100vh;
   min-height: 100dvh;

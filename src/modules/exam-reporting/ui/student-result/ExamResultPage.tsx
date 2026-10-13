@@ -3,6 +3,8 @@ import { isExamPassed } from '../../../../shared/domain/exam-result';
 import { useStudentResult } from '../../queries/use-student-result';
 import { SIGNATURE_STATEMENT } from '../../domain/signature';
 import { SignaturePad } from './SignaturePad';
+import { ResultPrintSheet } from './ResultPrintSheet';
+import { formatAttemptDuration } from '../../domain/attempt-review';
 
 export default function ExamResultPage() {
   const {
@@ -49,9 +51,28 @@ export default function ExamResultPage() {
   })();
   const displayCccd = studentSession?.id_card_number?.trim() || '—';
 
+  const completedAtStr = typeof attempt.completed_at === 'number' && attempt.completed_at
+    ? new Date(attempt.completed_at).toLocaleString('vi-VN')
+    : '—';
+
   return (
-    <div className="max-w-2xl mx-auto p-4 print:max-w-none">
-      <div className="bg-white border border-slate-200 rounded-lg p-6 print:border-0 print:shadow-none">
+    <div className="max-w-2xl mx-auto p-4 print:max-w-none print:p-0">
+      <ResultPrintSheet
+        examTitle={exam.title}
+        isTrial={isTrial}
+        fullName={displayFullName}
+        dob={displayDob}
+        cccd={displayCccd}
+        completedAt={completedAtStr}
+        duration={formatAttemptDuration(attempt.started_at, attempt.completed_at)}
+        score={`${Number(earned.toFixed(2))} / ${denom ?? '—'}`}
+        passMark={`${typeof passValue === 'number' ? Number(passValue.toFixed(2)) : '—'} / ${denom ?? '—'}`}
+        passed={passed}
+        disqualified={Boolean(attempt.disqualified)}
+        startPhotoUrl={startPhotoUrl}
+        signatureUrl={signatureUrl ?? null}
+      />
+      <div className="bg-white border border-slate-200 rounded-lg p-6 print:hidden">
         <h1 className="text-xl font-semibold text-slate-800 mb-2">Kết quả bài thi</h1>
         <p className="text-slate-600 mb-4">{exam.title}</p>
 

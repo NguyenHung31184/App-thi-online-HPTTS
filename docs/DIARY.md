@@ -58,6 +58,17 @@ trường hợp vẫn thành hai lỗi. Chủ dự án duyệt sửa cả ba.
   chữ ký bị dọn cùng ảnh giám sát theo script `storage:cleanup:exam-photos` (tốt nghiệp + 365 ngày).
   Đã thử ô ký trên Edge giả lập điện thoại 390 px có chạm: ký được, trang không cuộn khi ký, nét ngắn không cho xác
   nhận, lưu lỗi thì báo và giữ nét ký. **Chưa thử** phần tải ảnh lên và đọc lại với lượt thi thật.
+- Phiếu in kết quả của học viên theo nhận diện HPTTS (`ui/student-result/ResultPrintSheet.tsx`, chỉ hiện khi in,
+  thay cho bố cục màn hình). Đối chiếu `DESIGN.md` mục 1 của app quản lý: logo nguyên bản trên nền trắng cạnh tên
+  công ty in hoa đậm `brand-500` ngắt đúng hai dòng; tiêu đề phiếu in hoa `brand-500`; cyan chỉ làm nền nhãn "kỳ thi
+  thử" với chữ `brand-900`; chân trang là thông tin liên hệ chính thức (mục 1.8). Không vẽ dải "Tín – Tâm – Trí" vì
+  chưa có file vector gốc (mục 1.7 cấm vẽ phỏng). Phiếu gồm thông tin học viên, ảnh lúc vào thi, khung điểm / ngưỡng
+  đạt / kết quả, chữ ký.
+  Sửa kèm hai lỗi in của cả app: khung menu và đầu trang bị in theo (`AppLayout` thêm `print:hidden`), và nội dung bị
+  cắt theo chiều cao màn hình vì khung app cao đúng một màn hình và cuộn bên trong (`index.css` thêm khối
+  `@media print`). Hai sửa này áp cho mọi trang in bằng lệnh in của trình duyệt.
+  Đã in thử ra PDF A4 từ khung nhìn điện thoại 390 px bằng Edge không giao diện: một trang, không có menu, có và
+  không bật in màu nền đều đọc được. Chưa in thử từ điện thoại thật (Safari, Chrome Android).
 - Kiểm tra: 301 test, typecheck, lint ba thư mục `exam-taking`, `exam-monitoring`, `exam-reporting`, ranh giới module
   đạt. Chạy thử tạo PDF bằng Edge không giao diện với dữ liệu mẫu (câu nối, câu tự luận): tạo xong, không để lại gì
   trên trang. Chưa xem trang kết quả thật và chưa mở file PDF để xem bố cục.

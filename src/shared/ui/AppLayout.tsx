@@ -107,7 +107,7 @@ export default function AppLayout({
       {/* Overlay mobile */}
       <div
         onClick={() => setSidebarOpen(false)}
-        className={`fixed inset-0 bg-gray-900 bg-opacity-50 z-30 transition-opacity duration-300 lg:hidden ${
+        className={`fixed inset-0 bg-gray-900 bg-opacity-50 z-30 transition-opacity duration-300 lg:hidden print:hidden ${
           isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       />
@@ -117,7 +117,7 @@ export default function AppLayout({
         id="app-sidebar"
         ref={sidebarRef}
         inert={sidebarInert}
-        className={`safe-area-content fixed lg:static inset-y-0 left-0 z-40 w-72 max-w-full bg-brand-900 text-white flex flex-col p-4 transform transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none ${
+        className={`safe-area-content fixed lg:static inset-y-0 left-0 z-40 w-72 max-w-full bg-brand-900 text-white flex flex-col p-4 transform transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none print:hidden ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -175,9 +175,9 @@ export default function AppLayout({
         </div>
       </aside>
 
-      <div className="flex-1 min-h-0 min-w-0 flex flex-col h-full w-full overflow-hidden bg-slate-50">
+      <div className="flex-1 min-h-0 min-w-0 flex flex-col h-full w-full overflow-hidden bg-slate-50 print:block print:h-auto print:overflow-visible print:bg-white">
         {/* Header với nút menu mobile */}
-        <header className="safe-area-header flex-shrink-0 flex items-center justify-between px-4 py-3 lg:px-6 border-b border-slate-200 bg-white">
+        <header className="safe-area-header flex-shrink-0 flex items-center justify-between px-4 py-3 lg:px-6 border-b border-slate-200 bg-white print:hidden">
           <div className="flex min-w-0 items-center gap-3">
             <button
               ref={menuButtonRef}
@@ -197,7 +197,7 @@ export default function AppLayout({
           </div>
           {headerChips && <div className="flex items-center gap-2 shrink-0">{headerChips}</div>}
         </header>
-        <div className="safe-area-content flex-1 min-h-0 min-w-0 p-4 sm:p-6 overflow-y-auto w-full relative">{children}</div>
+        <div className="safe-area-content flex-1 min-h-0 min-w-0 p-4 sm:p-6 overflow-y-auto w-full relative print:overflow-visible print:p-0">{children}</div>
       </div>
     </div>
   );

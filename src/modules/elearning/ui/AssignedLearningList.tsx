@@ -11,7 +11,7 @@ export function AssignedLearningList({userId}:{userId:string}) {
       <p>Không tải được bài được giao: {catalog.error.message}</p>
       <button type="button" onClick={()=>void catalog.refetch()} className="mt-2 underline">Tải lại</button>
     </div>}
-    {catalog.data && catalog.data.every((group)=>group.lessons.length===0) && <p className="text-slate-500">Chưa có bài học được giao theo phiên bản.</p>}
+    {catalog.data && catalog.data.every((group)=>group.lessons.length===0) && <p className="text-slate-500">Lớp của bạn chưa được giao bài học nào. Bài sẽ hiện ở đây khi giảng viên giao.</p>}
     {catalog.data?.filter((group)=>group.lessons.length>0).map(({enrollment,lessons,progress})=><section key={enrollment.id} className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">
       <h4 className="font-semibold text-slate-700 mb-3">{enrollment.className}</h4>
       <ol className="space-y-2">{lessons.map((lesson)=>{

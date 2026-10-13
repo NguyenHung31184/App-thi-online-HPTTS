@@ -12,14 +12,27 @@ import {
   type AiViolationKind,
   type DetectionWindowState,
 } from '../../domain/proctoring-policy';
-import { createFaceScanner } from '../../queries/session-actions';
+import {
+  createFaceScanner, forgetObjectDetector, loadObjectDetector, logAuditEvent, proctoringWasPreloaded,
+  type ObjectDetector,
+} from '../../queries/session-actions';
 import type { ProctoringEvidenceCaptureRef } from '../../domain/proctoring-evidence';
 
-type CocoSsd = typeof import('@tensorflow-models/coco-ssd');
-type CocoModel = Awaited<ReturnType<CocoSsd['load']>>;
+type CocoModel = ObjectDetector;
+
+/** Scans measured before the timing line is written to the attempt log. */
+const TIMED_SCANS = 15;
+
+function summary(values: number[]) {
+  if (values.length === 0) return null;
+  const total = values.reduce((sum, value) => sum + value, 0);
+  return { first: Math.round(values[0]), avg: Math.round(total / values.length), max: Math.round(Math.max(...values)) };
+}
 
 export interface AiObjectProctorBurstProps {
   enabled: boolean;
+  /** Attempt that receives one `proctoring_timing` log line, used to judge how the device copes. */
+  attemptId?: string;
   evidenceRef: React.RefObject<ProctoringEvidenceCaptureRef | null>;
   /**
    * Ghi nhận vi phạm: gọi 2 lần — (1) chỉ `kind` để UI cảnh báo ngay; (2) sau khi chụp evidence để ghi audit.
@@ -60,6 +73,7 @@ function pageIsHidden(): boolean { return document.visibilityState === 'hidden';
 export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   const {
     enabled,
+    attemptId,
     evidenceRef,
     onViolation,
     detectObjects = true,
@@ -83,6 +97,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
   const coveredStateRef = useRef<DetectionWindowState>(createDetectionWindowState());
   const lastObjectScanRef = useRef(0);
   const probeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const timingRef = useRef({ objectLoadMs: null as number | null, faceLoadMs: null as number | null, objectMs: [] as number[], faceMs: [] as number[], sent: false });
   /** Sẵn sàng quét khi bộ nhận diện mặt và, nếu bật, bộ nhận diện vật thể đã khởi tạo xong. */
   const [burstReady, setBurstReady] = useState(false);
 
@@ -99,6 +114,8 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     let cancelled = false;
     const controller = new AbortController();
     let ownedModel: CocoModel | null = null;
+    let ownedLoad: Promise<CocoModel> | null = null;
+    const loadStartedAt = performance.now();
     let ownedScanner: FaceScanner | null = null;
     const cocoDoneRef = { current: false };
     const faceDoneRef = { current: false };
@@ -111,11 +128,13 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
 
     const loadModel = async () => {
       try {
-        await import('@tensorflow/tfjs');
-        const coco = await import('@tensorflow-models/coco-ssd');
-        const m = await coco.load();
-        if (cancelled) { m.dispose(); return; }
+        const loading = loadObjectDetector();
+        const m = await loading;
+        // Unmounted while loading: keep the model cached for the next mount.
+        if (cancelled) return;
+        ownedLoad = loading;
         ownedModel = m;
+        timingRef.current.objectLoadMs = Math.round(performance.now() - loadStartedAt);
         modelRef.current = m;
         cocoDoneRef.current = true;
         trySetBurstReady();
@@ -135,6 +154,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         if (cancelled) { scanner.close(); return; }
         ownedScanner = scanner;
         faceScannerRef.current = scanner;
+        timingRef.current.faceLoadMs = Math.round(performance.now() - loadStartedAt);
         faceDoneRef.current = true;
         trySetBurstReady();
       } catch (e) {
@@ -170,6 +190,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       if (faceScannerRef.current === ownedScanner) faceScannerRef.current = null;
       if (modelRef.current === ownedModel) modelRef.current = null;
       const model = ownedModel;
+      if (ownedLoad) forgetObjectDetector(ownedLoad);
       if (model) {
         // An asynchronous COCO scan may still be using its tensors.
         void (detectionPromiseRef.current ?? Promise.resolve()).finally(() => model.dispose());
@@ -219,7 +240,9 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         const objectScanDue = now() - lastObjectScanRef.current >= detectIntervalMs;
         if (detectObjects && model && objectScanDue) {
           lastObjectScanRef.current = now();
+          const objectStartedAt = performance.now();
           preds = await model.detect(video);
+          if (timingRef.current.objectMs.length < TIMED_SCANS) timingRef.current.objectMs.push(performance.now() - objectStartedAt);
           if (cancelled || pageIsHidden() || getActiveVideo() !== video || video.srcObject !== source) return;
           let phoneScore = 0;
           let phoneBboxRatio = 0;
@@ -268,7 +291,10 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
         const scanner = faceScannerRef.current;
         if (scanner) {
           try {
+            const faceStartedAt = performance.now();
             faceCount = await scanner.detect(video);
+            if (timingRef.current.faceMs.length < TIMED_SCANS) timingRef.current.faceMs.push(performance.now() - faceStartedAt);
+            reportTiming(scanner.mode);
           } catch {
             if (cancelled) return;
             if (scanner.mode === 'worker') {
@@ -302,6 +328,20 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
       } catch {
         /* một frame lỗi — bỏ qua */
       }
+    };
+
+    const reportTiming = (faceMode: string) => {
+      const timing = timingRef.current;
+      if (timing.sent || !attemptId || timing.faceMs.length < TIMED_SCANS) return;
+      timing.sent = true;
+      void logAuditEvent(attemptId, 'proctoring_timing', {
+        preloaded: proctoringWasPreloaded(),
+        object_load_ms: timing.objectLoadMs,
+        face_load_ms: timing.faceLoadMs,
+        face_mode: faceMode,
+        object_scan_ms: summary(timing.objectMs),
+        face_scan_ms: summary(timing.faceMs),
+      }).catch(() => undefined);
     };
 
     const resetWindows = () => {
@@ -406,6 +446,7 @@ export function AiObjectProctorBurst(props: AiObjectProctorBurstProps) {
     };
   }, [
     enabled,
+    attemptId,
     configKey,
     detectIntervalMs,
     detectObjects,

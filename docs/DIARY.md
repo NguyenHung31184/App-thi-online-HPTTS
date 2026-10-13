@@ -5,6 +5,38 @@
 
 ---
 
+## 2026-10-13 | Thi thử trên iPhone 12 (Safari): lag đầu bài, đồng hồ, lối vào bỏ qua thể lệ
+
+**Báo của chủ dự án** sau khi thi thử bằng Safari: 2–3 phút đầu lag; thời gian trên điện thoại và trên màn giám sát
+"không đồng bộ"; phần học trực tuyến hơi lag và sơ sài.
+
+**Đối chiếu nhật ký lượt thi `5d7ad45f`**
+- Lượt thi được tạo 14:51:21 (lúc còn mở trong Zalo), ảnh bàn làm việc 15:10:28, ảnh khuôn mặt 15:10:51. Hạn nộp tính
+  từ lúc tạo lượt (`started_at` + thời lượng), nên khi câu hỏi hiện ra chỉ còn khoảng 10 phút trên 30. Hai đồng hồ
+  khớp nhau (điện thoại đếm ngược, màn giám sát đếm xuôi từ cùng một mốc); cái sai là mốc.
+- Không có dòng `rules_accepted`: lượt thi được tạo từ nút "Vào thi" ở Bảng điều khiển, nút này gọi thẳng
+  `start_exam_attempt`, bỏ qua thể lệ, ô đồng ý và màn chặn Zalo. Đây là thiếu sót của bản thể lệ `b9def29`.
+- Bản production bật nhận diện vật thể (COCO-SSD, TensorFlow.js, chạy trên luồng giao diện). Bộ này chỉ bắt đầu tải
+  khi câu hỏi đã hiện; lúc tải có một lần suy luận đầu. Đây là nguyên nhân nghi ngờ của đoạn lag, chưa đo trên máy.
+
+**Đã làm** (chỉ frontend)
+- Bảng điều khiển: bỏ ô mã và nút vào thi riêng, thay bằng liên kết sang danh sách kỳ thi (nơi có thể lệ).
+- `application/object-detector.ts`: một bộ nhận diện vật thể cho cả trang; màn thể lệ gọi `preloadProctoring()` để tải
+  trước bộ này và file mẫu khuôn mặt, khi chưa có lượt thi nào.
+- Dòng nhật ký `proctoring_timing` cho mỗi lượt thi sau 15 lần quét: thời gian tải, thời gian quét đầu, trung bình, lớn
+  nhất, chế độ quét mặt. Không tính là vi phạm (màn giám sát và báo cáo lọc theo tên sự kiện).
+- Trang thi: bỏ chữ "mất focus", "fullscreen"; trình duyệt không có toàn màn hình thì không nhắc tới.
+- Trang học của học viên: bỏ dòng "Chưa có bài học nào cho lớp của bạn" hiện ngay dưới bài đã giao.
+- Kiểm tra: 292 test, lint, ranh giới module, `arch:score`, build đạt. Edge (camera giả, cổng 9334): Bảng điều khiển
+  không còn ô mã; ở màn thể lệ 7 file mẫu tải xong sau 11 giây, `start_exam_attempt` = 0.
+
+**Chưa làm / chưa kiểm**
+- Chưa chạy trọn bài thi sau bản sửa (camera giả không qua được bước kiểm tra khuôn mặt), chưa đo trên iPhone.
+- Mốc tính giờ: cần đổi ở máy chủ (migration), chờ chủ dự án quyết định.
+- Rollback: `git revert` commit này; không có thay đổi database.
+
+---
+
 ## 2026-10-13 | iPhone mở app trong Zalo: camera không chụp được, thêm hướng dẫn mở bằng Safari
 
 **Báo lỗi của chủ dự án** (iPhone, quét mã QR bằng Zalo, 14:57): bước "Chụp ảnh bàn làm việc" báo "Camera chưa phát hình"

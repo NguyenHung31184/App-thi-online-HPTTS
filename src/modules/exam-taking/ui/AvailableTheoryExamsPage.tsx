@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../identity-access/public';
 import { ExamCard } from '../../../shared/ui/ExamCard';
 import { useAvailableTheoryWindows, useExamForRules, useStartTheoryAttempt } from '../queries/use-theory-attempt';
 import { ExamRules } from './intro/ExamRules';
+import { preloadProctoring } from '../queries/session-actions';
 import { currentInAppBrowser } from '../../../platform/browser/in-app-browser';
 import { InAppBrowserNotice } from '../../../shared/ui/InAppBrowserNotice';
 
@@ -24,6 +25,9 @@ export default function AvailableTheoryExamsPage() {
   // A window that draws one of several exams has no single exam to describe before the attempt starts.
   const rulesExamId = rulesWindow && !(rulesWindow.exam_ids?.length) ? rulesWindow.exam_id : null;
   const rulesExam = useExamForRules(rulesExamId).data ?? null;
+
+  // The student reads the rules while the monitoring models download, instead of waiting inside the exam.
+  useEffect(() => { if (rulesWindowId) preloadProctoring(); }, [rulesWindowId]);
 
   /** Checks what can be checked without starting the clock, then shows the rules. */
   const handleEnter = (windowId: string) => {

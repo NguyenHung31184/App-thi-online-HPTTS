@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../../identity-access/public';
 import {
   getAllowedWindows,
   type ExamWindowWithExam,
 } from '../../../exam-management/public';
-import { startExamAttempt } from '../../queries/session-actions';
 import { getAdminDashboardStats, type AdminDashboardStats } from '../../../exam-reporting/public';
 
 export default function DashboardPage() {
@@ -149,13 +148,9 @@ function AdminTeacherDashboard() {
 
 function StudentDashboard() {
   const { user, studentSession } = useAuth();
-  const navigate = useNavigate();
   const [windows, setWindows] = useState<ExamWindowWithExam[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [enteringWindowId, setEnteringWindowId] = useState<string | null>(null);
-  const [codeByWindow, setCodeByWindow] = useState<Record<string, string>>({});
-  const [enterError, setEnterError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -171,39 +166,6 @@ function StudentDashboard() {
       });
     return () => { cancelled = true; };
   }, [user?.student_id, studentSession?.student_id]);
-
-  const handleEnterExam = async (windowId: string) => {
-    const code = (codeByWindow[windowId] ?? '').trim();
-    if (!code) {
-      setEnterError('Vui lòng nhập mã truy cập.');
-      return;
-    }
-    setEnterError('');
-    setEnteringWindowId(windowId);
-    try {
-      if (!windows.some((window) => window.id === windowId)) {
-        setEnterError('Hiện không trong thời gian làm bài của kỳ thi này.');
-        return;
-      }
-      if (!user?.id) {
-        setEnterError('Bạn chưa đăng nhập tài khoản thi. Vui lòng đăng nhập rồi thử lại.');
-        setEnteringWindowId(null);
-        return;
-      }
-      // Chỉ chặn xác thực CCCD đối với tài khoản thí sinh (không áp dụng cho Admin).
-      if (user.role !== 'admin' && !user?.student_id && !studentSession?.student_id) {
-        setEnterError('Vui lòng xác thực CCCD trước khi vào phòng thi (bấm "Xác thực CCCD" bên trên).');
-        setEnteringWindowId(null);
-        return;
-      }
-      const attempt = await startExamAttempt(windowId, code);
-      navigate(`/exam/${attempt.id}`);
-    } catch (e) {
-      setEnterError(e instanceof Error ? e.message : 'Lỗi tạo bài làm.');
-    } finally {
-      setEnteringWindowId(null);
-    }
-  };
 
   const formatTime = (ts: number) => new Date(ts).toLocaleString('vi-VN');
 
@@ -239,7 +201,6 @@ function StudentDashboard() {
           Không có kỳ thi nào trong thời gian làm bài. Nếu bạn đã xác thực CCCD, hãy kiểm tra bạn thuộc lớp được gắn với kỳ thi.
         </p>
       )}
-      {enterError && <p className="text-amber-600 mb-2">{enterError}</p>}
 
       <div className="space-y-4">
         {windows.map((w) => (
@@ -252,23 +213,13 @@ function StudentDashboard() {
             <p className="text-sm text-slate-600">
               {formatTime(w.start_at)} — {formatTime(w.end_at)}
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                placeholder="Mã truy cập"
-                value={codeByWindow[w.id] ?? ''}
-                onChange={(e) => setCodeByWindow((prev) => ({ ...prev, [w.id]: e.target.value }))}
-                className="border border-slate-300 rounded-lg px-3 py-2 w-40"
-              />
-              <button
-                type="button"
-                disabled={enteringWindowId === w.id}
-                onClick={() => handleEnterExam(w.id)}
-                className="px-4 py-2 bg-brand-500 text-white font-medium rounded-lg hover:bg-brand-600 disabled:opacity-50 transition-colors"
-              >
-                {enteringWindowId === w.id ? 'Đang vào...' : 'Vào thi'}
-              </button>
-            </div>
+            {/* The exam list owns the rules screen and the consent tick; an attempt is only created there. */}
+            <Link
+              to="/student/exams"
+              className="mt-3 inline-flex min-h-11 items-center px-4 bg-brand-500 text-white font-medium rounded-lg hover:bg-brand-600 transition-colors"
+            >
+              Xem thể lệ và vào thi
+            </Link>
           </div>
         ))}
       </div>

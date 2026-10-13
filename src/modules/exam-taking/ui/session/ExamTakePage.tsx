@@ -45,6 +45,7 @@ export default function ExamTakePage() {
       {/* MediaPipe nhận diện mặt; BlazeFace dự phòng. COCO nhận diện điện thoại/sách khi VITE_AI_PROCTORING_ENABLED=1. */}
       <AiObjectProctorBurst
         enabled={proctoringCameraEnabled}
+        attemptId={attemptId}
         evidenceRef={evidenceRef}
         detectObjects={aiEnabled}
         detectIntervalMs={2_500}
@@ -232,7 +233,7 @@ export default function ExamTakePage() {
 
       {photoVerified && !fullscreenSupported && (
         <p className="mb-3 rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-700" role="status">
-          Trình duyệt này không hỗ trợ toàn màn hình cho bài thi. Bạn vẫn có thể làm bài; việc rời trang thi vẫn được ghi nhận.
+          Trình duyệt này không có chế độ toàn màn hình. Bạn vẫn làm bài được; việc rời trang thi vẫn được ghi nhận.
         </p>
       )}
       {photoVerified && proctoringCameraEnabled && (
@@ -278,7 +279,10 @@ export default function ExamTakePage() {
       )}
 
       <p className="text-slate-500 text-sm mb-4">
-        Trình duyệt sẽ ghi nhận khi bạn chuyển tab, mất focus hoặc thoát toàn màn hình. Nếu vi phạm (ẩn tab / mất focus / thoát fullscreen) đủ{' '}<strong>{MAX_VIOLATIONS} lần</strong>, bài sẽ được <strong>tự động nộp</strong>; khi quay lại tab, trang sẽ chuyển sang kết quả nếu đã nộp.
+        {fullscreenSupported
+          ? 'Mỗi lần bạn chuyển sang tab khác, mở ứng dụng khác hoặc thoát toàn màn hình đều được ghi nhận.'
+          : 'Mỗi lần bạn chuyển sang tab khác hoặc mở ứng dụng khác đều được ghi nhận.'}{' '}
+        Đủ <strong>{MAX_VIOLATIONS} lần</strong> thì bài <strong>tự động nộp</strong>.
       </p>
 
       <TheoryQuestionList questions={shuffledQuestions} attemptId={attemptId} answers={answers} setAnswers={setAnswers} />

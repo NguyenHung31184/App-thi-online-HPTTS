@@ -53,7 +53,7 @@ export default function StudentLearnPage() {
             <p className="text-sm text-slate-500">Chọn một lớp ở trên để xem bài học của lớp đó.</p>
           )}
         </>
-      ) : (
+      ) : modules.length > 0 && (
         <p className="text-sm text-slate-600 mb-5">
           Bài giảng theo mô-đun của lớp bạn đang học. Hoàn thành bài trước để mở bài tiếp theo.
         </p>
@@ -61,11 +61,10 @@ export default function StudentLearnPage() {
 
       {loading && <p className="text-slate-500">Đang tải bài học...</p>}
       {error && <p className="text-red-600">{error}</p>}
-      {!loading && !error && modules.length === 0 && (isStaffPreview ? !!previewClassId : true) && (
+      {/* Students get their empty state from the assigned list above; a second one here contradicted it. */}
+      {!loading && !error && modules.length === 0 && isStaffPreview && !!previewClassId && (
         <p className="text-slate-500">
-          {isStaffPreview
-            ? 'Lớp này chưa có bài học e-learning nào được xuất bản (kiểm tra khóa học của lớp có mô-đun chứa bài đã Xuất bản chưa).'
-            : 'Chưa có bài học nào cho lớp của bạn. Nội dung sẽ xuất hiện khi trung tâm xuất bản bài giảng.'}
+          Lớp này chưa có bài học e-learning nào được xuất bản (kiểm tra khóa học của lớp có mô-đun chứa bài đã Xuất bản chưa).
         </p>
       )}
 

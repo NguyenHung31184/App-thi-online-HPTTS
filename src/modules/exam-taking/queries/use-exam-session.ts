@@ -14,6 +14,7 @@ import {
   getAttemptWindowContext,
   loadBlazeFaceModel,
   logAuditEvent,
+  objectDetectionEnabled,
   recordAiProctoringIncident,
   submitAttempt,
   updateAttemptAnswers,
@@ -137,7 +138,7 @@ export function useExamSession() {
   }, []);
 
 
-  const aiEnabled = (import.meta.env.VITE_AI_PROCTORING_ENABLED ?? '') === '1';
+  const aiEnabled = objectDetectionEnabled;
 
   /** Sau khi chụp mặt xong, trì hoãn bật camera giám sát để tránh chồng với lúc vừa stop luồng chụp mặt (Android). */
   const proctoringBaseEnabled = photoVerified && !submitting && !violationsCapActive && attempt?.status === 'in_progress' && Boolean(attemptId && exam);

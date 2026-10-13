@@ -12,6 +12,7 @@ import {
   SyncIcon,
   DashboardIcon,
   QuestionBankIcon,
+  LessonIcon,
 } from '../../shared/ui/Icons';
 
 const adminTitles: Record<string, string> = {
@@ -24,6 +25,7 @@ const adminTitles: Record<string, string> = {
   '/admin/practical-sessions': 'Ca thi thực hành',
   '/admin/practical-grading': 'Kết quả thực hành',
   '/admin/report': 'Báo cáo lý thuyết',
+  '/admin/lessons': 'Bài học',
   '/admin/sync': 'Nhật ký đồng bộ TTDT',
 };
 
@@ -88,6 +90,11 @@ export default function AdminLayout() {
           { to: '/admin/practical-sessions', label: 'Ca thi thực hành', icon: CalendarIcon },
           { to: '/admin/practical-grading', label: 'Kết quả thực hành', icon: ReportIcon },
         ],
+      },
+      {
+        id: 'learning',
+        title: 'Học trực tuyến',
+        items: [{ to: '/admin/lessons', label: 'Bài học', icon: LessonIcon }],
       },
       {
         id: 'system',

@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   ListChecks,
+  BookOpen,
 } from 'lucide-react';
 
 const defaultProps = { size: 20, strokeWidth: 1.5 };
@@ -29,4 +30,5 @@ export const ReportIcon = (p: IconProps) => <BarChart3 {...defaultProps} {...p} 
 export const SyncIcon = (p: IconProps) => <RefreshCw {...defaultProps} {...p} />;
 export const LogoutIcon = (p: IconProps) => <LogOut {...defaultProps} {...p} />;
 export const MenuIcon = (p: IconProps) => <Menu {...defaultProps} {...p} />;
+export const LessonIcon = (p: IconProps) => <BookOpen {...defaultProps} {...p} />;
 export const QuestionBankIcon = (p: IconProps) => <ListChecks {...defaultProps} {...p} />;

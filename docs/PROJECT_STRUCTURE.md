@@ -60,6 +60,8 @@ phiếu nhập tài liệu (P1). Các trang cũ `/admin/questions/...` đã bỏ
 | `/student/results` | StudentResultsPage | Kết quả thi |
 | `/student/learn` | StudentLearnPage | **Học trực tuyến** — bài học theo mô-đun lớp, học tuần tự |
 | `/student/learn/:lessonId` | LessonPlayerPage | Học 1 bài: video/pdf/bài viết + ghi tiến độ |
+| `/admin/lessons` | LessonsPage | **Bài học** — soạn bài theo mô-đun (từ 13/10/2026 soạn ở app này, không còn ở app quản lý) |
+| `/admin/lessons/:lessonId` | LessonEditorPage | Soạn khối nội dung, xem trước, xuất bản phiên bản, giao cho lớp |
 | `/verify-cccd` | VerifyCccdPage | Xác thực CCCD trước khi thi |
 
 ## Routes ngân hàng câu hỏi (admin, giáo viên)

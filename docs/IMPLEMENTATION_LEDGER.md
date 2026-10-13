@@ -51,6 +51,8 @@ Modular monolith completion (98.3%, 46/46 routes, 10/10 criteria) and six audit 
 2026-10-12; migration `20261006151544` applied and frontend deployed 2026-10-12: `docs/implementation/2026-10-06-modular-monolith-completion.md`,
 `docs/implementation/2026-10-06-audit-fixes.md`, rollback `docs/rollback/2026-10-06-modular-monolith-completion-and-audit-fixes.md`.
 
+E-learning phases 1 and 2 (plan `docs/PLAN_ELEARNING.md`): lesson authoring and class assignment in the admin area, written and tested locally 2026-10-13, not pushed; the withdraw-assignment migration `20261013090000_elearning_archive_assignment.sql` (management app repository) is dry-run, not applied: `docs/implementation/2026-10-13-elearning-authoring-and-assignment.md`.
+
 Trash keeps real results (Plan 79), migration applied 2026-10-06: `docs/implementation/2026-10-06-exam-trash-keep-real-results.md`.
 
 Document import from Word (item 4): Word path built 2026-09-28 in the browser, `docs/implementation/2026-09-28-word-import.md`; PDF and photos stay with the worker, later.

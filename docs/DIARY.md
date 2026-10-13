@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-10-13 | E-learning giai đoạn 1 và 2: soạn bài và giao bài trong App thi
+
+**Đã làm**
+- Menu quản trị có nhóm "Học trực tuyến" với mục "Bài học" (`/admin/lessons`, `/admin/lessons/:lessonId`).
+- Soạn bài theo mô-đun: thêm, sửa, sắp xếp, xóa khối video, PDF, bài viết; xem trước; xuất bản thành phiên bản cố định.
+- Giao phiên bản mới nhất cho lớp thuộc khóa có mô-đun: ngày mở, hạn học, thứ tự, bắt buộc, học tuần tự. Dòng của
+  từng lớp hiện phiên bản đang học và số học viên đã bắt đầu, đã học xong.
+- Video có đo thời gian phải dài từ 15 giây: trình phát tính theo giây tròn và mất giây lẻ cuối, clip ngắn hơn không
+  bao giờ đủ 90%.
+- Tài liệu: `docs/implementation/2026-10-13-elearning-authoring-and-assignment.md` và file rollback cùng tên.
+
+**Thử trên Edge, bản ở máy, dữ liệu production, lớp `TEST-TH`**
+- Admin: tạo bài "[THỬ] Bài học thử 13/10", ba khối, xuất bản ba phiên bản, giao và giao lại cho lớp. Các lỗi nhập
+  (tên trống, thiếu đường dẫn, thiếu độ dài, video 5 giây) đều bị từ chối kèm thông báo.
+- Học viên thử, cửa sổ cỡ điện thoại: thấy bài trong "Học trực tuyến"; đánh dấu bài viết thì lên 1/3; tua video tới
+  cuối rồi phát thì không gửi gì lên máy chủ; xem thật thì máy chủ ghi đúng khoảng đã xem.
+
+**Chưa làm**
+- Chưa push. Migration `20261013090000_elearning_archive_assignment.sql` (repo app quản lý) đã chạy thử, chưa áp; trước
+  khi áp thì nút "Rút bài" báo "Máy chủ chưa có chức năng này".
+- Chưa thử trên điện thoại thật; chưa xem trọn video 30 giây tới lúc hoàn thành (file mẫu tải quá chậm).
+- App quản lý: mục "Quản lý E-Learning" chưa đổi thành nút mở sang App thi.
+- Trang học viên còn hiện dòng "Chưa có bài học nào cho lớp của bạn" của danh sách cũ ngay dưới bài được giao.
+
+**Lưu ý**: trong lúc làm, một phiên khác đang sửa `exam-taking` và `platform/media` (độ ổn định trên iOS). `npx tsc -b`
+và lint trên bản làm việc đang báo lỗi ở các file đó; commit này được kiểm tra trên bản tách riêng, không kèm các file
+ấy.
+
+---
+
 ## 2026-10-13 | Kế hoạch e-learning: soạn và học đều ở App thi
 
 **Bối cảnh**: chủ dự án đưa mã Frappe Learning (`D:\Data\New folder (2)\lms`) để tham khảo và chốt: app quản lý chỉ

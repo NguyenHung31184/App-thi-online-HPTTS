@@ -4,6 +4,15 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-13 — E-learning: soạn bài và giao bài trong App thi
+
+**Commit:** xem `git log --oneline -- src/modules/elearning/ui/authoring`. Chưa push. Migration
+`20261013090000_elearning_archive_assignment.sql` (repo app quản lý) chưa áp. Rollback:
+`docs/rollback/2026-10-13-elearning-authoring-and-assignment.md`.
+**Branch:** main
+
+---
+
 ## 2026-10-12 — Hoàn thiện modular monolith và 6 bản sửa sau rà soát (khối làm ngày 06/10)
 
 **Commit:** `e164274` (migration, test database), `849528d` (mã nguồn), `124ce26` (tài liệu). Migration

@@ -24,7 +24,7 @@ import { AdminDashboardPage, AttemptResultPage, ReportPage } from './modules/exa
 import { SyncLogPage } from './modules/integrations/public';
 import { DashboardPage, ExamTakePage, ExamIntroPage, AvailableTheoryExamsPage as StudentExamsPage } from './modules/exam-taking/public';
 import { ExamResultPage, StudentResultsPage } from './modules/exam-reporting/public';
-import { StudentLearnPage, LessonPlayerPage } from './modules/elearning/public';
+import { StudentLearnPage, LessonPlayerPage, LessonsPage, LessonEditorPage } from './modules/elearning/public';
 import {
   LegacyQuestionBankRedirect,
   QuestionEditorPage,
@@ -85,6 +85,8 @@ function App() {
             <Route path="practical-grading/:attemptId" element={<PracticalResultDetailPage />} />
             <Route path="report" element={<ReportPage />} />
             <Route path="attempts/:attemptId/result" element={<AttemptResultPage />} />
+            <Route path="lessons" element={<LessonsPage />} />
+            <Route path="lessons/:lessonId" element={<LessonEditorPage />} />
             <Route path="sync" element={<SyncLogPage />} />
           </Route>
           <Route path="/" element={<Layout />}>

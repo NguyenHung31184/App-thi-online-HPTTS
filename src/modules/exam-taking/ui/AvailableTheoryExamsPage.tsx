@@ -4,6 +4,8 @@ import { useAuth } from '../../identity-access/public';
 import { ExamCard } from '../../../shared/ui/ExamCard';
 import { useAvailableTheoryWindows, useExamForRules, useStartTheoryAttempt } from '../queries/use-theory-attempt';
 import { ExamRules } from './intro/ExamRules';
+import { currentInAppBrowser } from '../../../platform/browser/in-app-browser';
+import { InAppBrowserNotice } from '../../../shared/ui/InAppBrowserNotice';
 
 export default function AvailableTheoryExamsPage() {
   const { user, studentSession } = useAuth();
@@ -12,6 +14,8 @@ export default function AvailableTheoryExamsPage() {
   const [enterError, setEnterError] = useState('');
   const [rulesWindowId, setRulesWindowId] = useState<string | null>(null);
   const [rulesConfirmed, setRulesConfirmed] = useState(false);
+  const [cameraBlocked, setCameraBlocked] = useState(false);
+  const inApp = currentInAppBrowser();
   const windowsQuery = useAvailableTheoryWindows();
   const startAttempt = useStartTheoryAttempt();
   const windows = windowsQuery.data ?? [];
@@ -35,6 +39,8 @@ export default function AvailableTheoryExamsPage() {
       return;
     }
     setEnterError('');
+    // Stop here, before an attempt exists: the exam cannot take its photos in this browser.
+    if (inApp?.blocksInlineCamera) { setCameraBlocked(true); return; }
     setRulesConfirmed(false);
     setRulesWindowId(windowId);
   };
@@ -52,6 +58,10 @@ export default function AvailableTheoryExamsPage() {
       setEnterError(reason instanceof Error ? reason.message : 'Lỗi tạo bài làm.');
     }
   };
+
+  if (cameraBlocked && inApp) {
+    return <InAppBrowserNotice browser={inApp} variant="block" onBack={() => setCameraBlocked(false)} />;
+  }
 
   if (rulesWindow) {
     return (

@@ -8,6 +8,8 @@ import { ProctoringEvidenceCapture } from '../proctoring/ProctoringEvidenceCaptu
 import { CameraRecoveryNotice } from '../proctoring/CameraRecoveryNotice';
 import { ViolationAlertModal } from '../proctoring/ViolationAlertModal';
 import { TheoryQuestionList } from './TheoryQuestionList';
+import { currentInAppBrowser } from '../../../../platform/browser/in-app-browser';
+import { InAppBrowserNotice } from '../../../../shared/ui/InAppBrowserNotice';
 
 export default function ExamTakePage() {
   const {
@@ -22,6 +24,7 @@ export default function ExamTakePage() {
     autosaveStatus, remainingMs, setError, setShowSubmitConfirm, navigate, shuffledQuestions,
     setAnswers, showSubmitConfirm, handleSubmit,
   } = useExamSession();
+  const inApp = currentInAppBrowser();
   if (error && !attempt) return <p className="p-4 text-red-600">{error}</p>;
   if (!attempt || !exam) return <p className="p-4 text-slate-500">Đang tải...</p>;
 
@@ -92,6 +95,7 @@ export default function ExamTakePage() {
             <p className="text-slate-600 text-sm mb-4">
               Xoay camera để <strong>cho thấy toàn bộ bàn làm việc</strong> xung quanh bạn — không có tài liệu, điện thoại hoặc thiết bị hỗ trợ khác. Ảnh này được lưu để xác nhận môi trường thi.
             </p>
+            {inApp?.blocksInlineCamera && <div className="mb-4 overflow-hidden rounded-lg border border-amber-300"><InAppBrowserNotice browser={inApp} variant="banner" /></div>}
             {cameraError && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
                 {cameraError}
@@ -142,6 +146,7 @@ export default function ExamTakePage() {
                 Đợi <strong>hình camera hiện rõ</strong>, sau đó giữ mặt trong oval thêm vài giây — nút chụp chỉ bật khi đã thấy hình và đủ thời gian căn khung.
               </span>
             </p>
+            {inApp?.blocksInlineCamera && <div className="mb-4 overflow-hidden rounded-lg border border-amber-300"><InAppBrowserNotice browser={inApp} variant="banner" /></div>}
             {cameraError && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
                 {cameraError}

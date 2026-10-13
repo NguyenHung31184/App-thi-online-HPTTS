@@ -3,6 +3,8 @@ import { lazy, Suspense } from 'react';
 import { Toaster } from 'sonner';
 import { AuthProvider, LoginPage, RoleSelectPage, VerifyCccdPage } from './modules/identity-access/public';
 import RouteLoadBoundary from './app/RouteLoadBoundary';
+import { currentInAppBrowser } from './platform/browser/in-app-browser';
+import { InAppBrowserNotice } from './shared/ui/InAppBrowserNotice';
 
 const Layout = lazy(() => import('./app/layouts/Layout'));
 const AdminLayout = lazy(() => import('./app/layouts/AdminLayout'));
@@ -44,10 +46,12 @@ const QuestionLibraryStructurePage = lazy(() => import('./modules/question-bank/
 const QuestionSpreadsheetImportPage = lazy(() => import('./modules/question-bank/public').then((m) => ({ default: m.QuestionSpreadsheetImportPage })));
 
 function App() {
+  const inApp = currentInAppBrowser();
   return (
     <AuthProvider>
       <BrowserRouter>
         <Toaster position="top-center" richColors closeButton />
+        {inApp?.ios && <InAppBrowserNotice browser={inApp} variant="banner" />}
         <RouteLoadBoundary>
         <Suspense fallback={<p className="p-6 text-slate-700" role="status">Đang tải trang…</p>}>
         <Routes>

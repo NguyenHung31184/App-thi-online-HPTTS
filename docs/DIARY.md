@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-10-13 | iPhone mở app trong Zalo: camera không chụp được, thêm hướng dẫn mở bằng Safari
+
+**Báo lỗi của chủ dự án** (iPhone, quét mã QR bằng Zalo, 14:57): bước "Chụp ảnh bàn làm việc" báo "Camera chưa phát hình"
+dù khung xem trước có hình; camera bật ra toàn màn hình với hai dải đen. Android không bị.
+
+**Nguyên nhân, suy ra từ ảnh chụp màn hình, chưa kiểm chứng trên máy thật**: trình duyệt nhúng trong Zalo trên iPhone
+không cho phát video ngay trong trang. Hình camera bị đẩy sang trình phát toàn màn hình của hệ thống; khi học viên
+thoát ra thì video dừng. Trang chỉ còn một khung hình đứng, nên bước kiểm tra "video đang phát" báo lỗi sau 15 giây và
+nút chụp từ chối. Trang web không tự bật lại được chế độ phát trong trang; đó là cấu hình của app Zalo.
+
+**Đã làm** (chỉ frontend)
+- `platform/browser/in-app-browser.ts` (+ test): nhận ra trình duyệt nhúng của Zalo, Facebook, Messenger, Instagram,
+  TikTok, Line qua user agent; riêng Zalo trên iPhone được đánh dấu là không dùng được camera.
+- `shared/ui/InAppBrowserNotice`: nút "Mở bằng Safari" (địa chỉ `x-safari-https://`, iOS 17 trở lên), nút chép địa chỉ,
+  và hướng dẫn mở bằng dấu ⋯.
+- Trên iPhone trong trình duyệt nhúng: băng nhắc ở đầu mọi trang. Trong Zalo trên iPhone: bấm "Vào thi" thì hiện màn
+  hướng dẫn thay cho thể lệ, không tạo lượt thi; hai bước chụp ảnh cũng hiện lời nhắc.
+- Kiểm tra: 292 test, lint, ranh giới module, `arch:score` đạt. Edge giả lập user agent của Zalo trên iPhone: có băng
+  nhắc, có màn chặn, không gọi `start_exam_attempt`; trình duyệt thường không bị ảnh hưởng.
+
+**Chưa làm**: chưa thử trên iPhone thật (cả việc nút "Mở bằng Safari" có mở được từ trong Zalo hay không); chưa push.
+
+---
+
 ## 2026-10-13 | Đổi tên hiển thị của ba app
 
 Chủ dự án chốt ngày 13/10/2026, vì app thi nay có cả phần học:

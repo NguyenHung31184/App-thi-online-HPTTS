@@ -54,6 +54,13 @@ export async function startTheoryAttempt(windowId: string, accessCode: string): 
   return data as Attempt;
 }
 
+/** Asks the server to start the working time; returns the deadline it now enforces (epoch ms). */
+export async function beginExamClock(attemptId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('begin_exam_clock', { p_attempt_id: attemptId });
+  if (error) throw error;
+  return Number(data);
+}
+
 export async function fetchAttemptWindowContext(attemptId: string): Promise<AttemptWindowContext | null> {
   const { data, error } = await supabase.rpc('get_attempt_window_context', { p_attempt_id: attemptId });
   if (error) throw error;

@@ -3,6 +3,7 @@ export const getAttempt = repository.fetchAttempt;
 
 export const listAvailableTheoryWindows = repository.fetchAvailableTheoryWindows;
 export const startTheoryAttempt = repository.startTheoryAttempt;
+export const beginTheoryAttemptClock = repository.beginExamClock;
 export const saveTheoryAttemptAnswers = repository.saveAttemptAnswers;
 export const getTheoryAttemptWindowContext = repository.fetchAttemptWindowContext;
 export const getTheoryAiProctoringState = repository.fetchAiProctoringState;

@@ -32,7 +32,10 @@
 
 **Chưa làm / chưa kiểm**
 - Chưa chạy trọn bài thi sau bản sửa (camera giả không qua được bước kiểm tra khuôn mặt), chưa đo trên iPhone.
-- Mốc tính giờ: cần đổi ở máy chủ (migration), chờ chủ dự án quyết định.
+- Mốc tính giờ: chủ dự án duyệt phương án (tính từ lúc chụp xong ảnh khuôn mặt, chuẩn bị tối đa 5 phút). Đã viết
+  migration `20261013100000_exam_clock_starts_after_preparation.sql` và nối trang thi gọi `begin_exam_clock`; sửa
+  câu thể lệ. Chạy thử trong khối tự hoàn tác đạt 5 trường hợp. **Chưa áp production**, chờ duyệt lần hai.
+  Rollback: `docs/rollback/2026-10-13-exam-clock-after-preparation.md`.
 - Rollback: `git revert` commit này; không có thay đổi database.
 
 ---

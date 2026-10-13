@@ -43,7 +43,8 @@ export function examRuleSections(input: ExamRulesInput): ExamRuleSection[] {
     {
       title: 'Trước khi bắt đầu',
       items: [
-        'Đồng hồ chạy ngay khi bạn bấm "Đồng ý và vào thi" và không dừng lại, kể cả khi bạn rời trang hoặc mất mạng.',
+        'Thời gian làm bài tính từ lúc bạn chụp xong ảnh khuôn mặt. Bạn có tối đa 5 phút để chụp ảnh; quá 5 phút thì đồng hồ tự chạy.',
+        'Đồng hồ đã chạy thì không dừng lại, kể cả khi bạn rời trang hoặc mất mạng.',
         attempts,
         'Bạn phải cho phép dùng camera và chụp ảnh khuôn mặt thì mới thấy câu hỏi.',
         'Kiểm tra pin và mạng. Đóng các ứng dụng khác trên thiết bị.',

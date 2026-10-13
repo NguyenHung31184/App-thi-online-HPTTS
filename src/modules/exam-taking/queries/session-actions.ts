@@ -7,6 +7,7 @@ export {
   recordTheoryAiProctoringIncident as recordAiProctoringIncident,
   saveTheoryAttemptAnswers as updateAttemptAnswers,
   startTheoryAttempt as startExamAttempt,
+  beginTheoryAttemptClock as beginExamClock,
   submitTheoryAttempt as submitAttempt,
   getBrowserProctoringState, recordBrowserViolation, attachBrowserViolationEvidence,
 } from '../application/manage-theory-attempt';

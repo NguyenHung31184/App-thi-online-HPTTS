@@ -14,6 +14,7 @@ import {
   getAttemptWindowContext,
   loadBlazeFaceModel,
   logAuditEvent,
+  beginExamClock,
   objectDetectionEnabled,
   recordAiProctoringIncident,
   submitAttempt,
@@ -404,6 +405,21 @@ export function useExamSession() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Working time starts on the server once both photos are taken. Until it answers, the loaded deadline
+  // (the latest one the server allows) stays on screen, so a failed call never shortens the exam locally.
+  useEffect(() => {
+    if (!photoVerified || !attemptId) return;
+    let cancelled = false;
+    let retry: number | undefined;
+    const ask = (triesLeft: number) => {
+      beginExamClock(attemptId)
+        .then((deadline) => { if (!cancelled && Number.isFinite(deadline) && deadline > 0) setEffectiveEndTime(deadline); })
+        .catch(() => { if (!cancelled && triesLeft > 0) retry = window.setTimeout(() => ask(triesLeft - 1), 3000); });
+    };
+    ask(5);
+    return () => { cancelled = true; window.clearTimeout(retry); };
+  }, [photoVerified, attemptId]);
 
   useEffect(() => {
     if (effectiveEndTime === null) return;

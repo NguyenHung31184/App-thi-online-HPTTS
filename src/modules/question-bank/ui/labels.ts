@@ -4,6 +4,9 @@ import { QUESTION_STATUS_LABELS, type QuestionImportJob, type QuestionLibrary, t
 export const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600';
 export const fieldClass = `min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm ${focusRing}`;
 
+/** fieldClass without its full width, for a field that sets its own (`w-28`): two widths on one element let the stylesheet order decide. */
+export const sizedFieldClass = `min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm ${focusRing}`;
+
 export const questionStatusLabels = QUESTION_STATUS_LABELS;
 
 export const questionStatusTone: Record<QuestionStatus, string> = {

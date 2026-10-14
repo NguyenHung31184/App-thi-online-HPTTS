@@ -62,6 +62,8 @@ const QUESTION_START = /^\s*Câu\s*(\d+)\s*[.:)]?\s*/iu;
 const SECTION = /^\s*PHẦN\s+([IVXLC]+|\d+)(?![\p{L}\p{N}])\s*[.:–—-]?\s*/u;
 // Signature block and distribution list after the last question.
 const FOOTER = /^\s*(Nơi nhận|Hải Phòng,?\s*ngày)|^\s*(TRƯỞNG|PHÓ GIÁM ĐỐC|GIÁM ĐỐC|NGƯỜI (LẬP|DUYỆT|RA ĐỀ|KIỂM TRA)|DUYỆT CỦA)\b/u;
+// A group count between questions: "Bậc 3-4: 13", "Bậc 5: 7 câu". It ends the question above; it is not an option.
+const LEVEL_COUNT = /^\s*Bậc\s+\d+(\s*[-–]\s*\d+)?\s*[:.]\s*\d+(\s*câu)?\s*\.?\s*$/iu;
 const ANSWER_HEADING = /^\s*(BẢNG\s+)?ĐÁP\s+ÁN(\s+(ĐÚNG|TRẮC NGHIỆM|CÂU HỎI))?\s*[:.]?\s*$/u;
 const ANSWER_LINE = /^\s*(Đáp\s*án(\s*đúng)?|ĐA)\s*[:：]\s*([a-j](\s*(,|;|và|&)\s*[a-j])*)\s*\.?\s*$/iu;
 const TYPED_OPTION = /(^|\s)([a-jA-J])\s*[.)]\s+/gu;
@@ -261,6 +263,11 @@ export function readWordQuestions(input: DocBlock[]): WordDocument {
     if (questions.length > 0 && FOOTER.test(text)) break;
     if (ANSWER_HEADING.test(text) && questions.length > 0) {
       answerRows = new Map();
+      current = null;
+      continue;
+    }
+
+    if (LEVEL_COUNT.test(text)) {
       current = null;
       continue;
     }

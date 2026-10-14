@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { ZonePositionPicker } from './ZonePositionPicker';
 import { OPTION_IDS, defaultZonePositions, distributeEssayPoints, dragDropZoneCount, isLabelOnImage, visibleOptionCount, type QuestionDraft, type ZonePosition } from '../../domain/question-draft';
-import { fieldClass, focusRing } from '../labels';
+import { fieldClass, focusRing, sizedFieldClass } from '../labels';
 
 const smallButton = `inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium ${focusRing}`;
 
@@ -80,12 +80,12 @@ export function TrueFalseField({ draft, update }: FieldProps) {
       {ids.map((id, index) => (
         <div key={id} className="flex items-center gap-2">
           <span className="w-6 shrink-0 font-semibold text-slate-700" aria-hidden="true">{id}.</span>
-          <input value={optionText(draft, id)} onChange={(event) => update({ options: setOptionText(draft, id, event.target.value) })} aria-label={`Phát biểu ${id}`} className={fieldClass} />
+          <input value={optionText(draft, id)} onChange={(event) => update({ options: setOptionText(draft, id, event.target.value) })} aria-label={`Phát biểu ${id}`} className={`${fieldClass} min-w-0 flex-1`} />
           <select
             value={draft.trueFalse[index] === 'F' ? 'F' : 'T'}
             onChange={(event) => update({ trueFalse: setAt(draft.trueFalse, index, event.target.value === 'F' ? 'F' : 'T', 'T') })}
             aria-label={`Phát biểu ${id} là`}
-            className={`${fieldClass} w-28 shrink-0`}
+            className={`${sizedFieldClass} w-28 shrink-0`}
           >
             <option value="T">Đúng</option>
             <option value="F">Sai</option>
@@ -190,7 +190,7 @@ export function DragDropField({ draft, update, imageSrc }: FieldProps & { imageS
                       });
                     }}
                     aria-label={`Ô ${index + 1}, ${axis === 'x' ? 'phần trăm từ trái' : 'phần trăm từ trên'}`}
-                    className={`${fieldClass} w-20`}
+                    className={`${sizedFieldClass} w-20`}
                   />
                 ))}
               </div>

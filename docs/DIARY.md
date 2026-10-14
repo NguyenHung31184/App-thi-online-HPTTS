@@ -34,6 +34,15 @@ CCCD mất theo cùng lý do.
   một bản sao tạm của file.
 - Rollback: `DROP FUNCTION public.get_my_exam_student();` và hoàn tác commit.
 
+**Sửa câu hỏi (cùng ngày)**
+- Màn sửa câu Đúng/Sai nhiều phát biểu: ô nhập phát biểu bị bóp còn vài pixel. Ô chọn Đúng/Sai mang cả `w-full` (từ
+  `fieldClass`) lẫn `w-28`; thứ tự trong stylesheet cho `w-full` thắng nên ô chọn chiếm hết hàng. Thêm
+  `sizedFieldClass` (không có `w-full`) cho ô tự đặt độ rộng, áp cho ô Đúng/Sai và ô tọa độ của câu kéo thả.
+  Đã chụp màn hình bản dựng thử ở 1000 px: phát biểu chiếm phần lớn hàng, ô Đúng/Sai rộng cố định.
+- Nhập đề từ Word: dòng đếm nhóm kiểu "Bậc 3-4: 13" (hoặc "Bậc 5: 7 câu") giữa hai câu bị nối vào cuối phương án
+  cuối của câu trước, kèm ghi chú "Cần xem lại". Nay dòng này kết thúc câu trước và bị bỏ qua. Test mới trong
+  `word-questions.test.ts`. Câu đã nhập trước đó vẫn phải xóa tay đoạn thừa.
+
 ---
 
 ## 2026-10-13 | Giám sát AI: một vi phạm kéo dài không bị ghi thành hai lỗi

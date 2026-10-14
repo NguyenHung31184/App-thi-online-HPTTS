@@ -132,6 +132,21 @@ describe('readWordQuestions', () => {
     expect(result.rows[0].reviewNotes).toEqual(['Đoạn "đường kính phanh hiệu quả" được nối vào cuối phương án A.']);
   });
 
+  it('skips a level count line between questions instead of joining it to the last option', () => {
+    const result = sheet([
+      p('Câu 172: Nhân viên giao nhận sẽ làm gì?'),
+      numbered([{ text: 'Ghi nhận vào tally report', red: true }]),
+      numbered(['Để nguyên hiện trạng và chờ chủ hàng xử lý sau']),
+      p('Bậc 3-4: 13'),
+      p('Câu 173: Câu tiếp theo?'),
+      numbered([{ text: 'Một', red: true }]),
+      numbered(['Hai']),
+    ].join(''));
+    expect(result.rows[0].optionTexts[1]).toBe('Để nguyên hiện trạng và chờ chủ hàng xử lý sau');
+    expect(result.rows[0].reviewNotes).toEqual([]);
+    expect(result.rows).toHaveLength(2);
+  });
+
   it('uses a PHẦN heading as topic but not "PHẦN LÝ THUYẾT"', () => {
     const result = sheet([
       p('PHẦN LÝ THUYẾT'),

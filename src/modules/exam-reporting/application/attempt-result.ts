@@ -15,6 +15,8 @@ export interface AttemptResult {
   /** Null when the attempt has no saved answers. */
   reviewItems: QuestionReviewItem[] | null;
   startPhotoUrl: string | null;
+  /** The start photo was taken without the automatic face check, so a proctor has to look at it. */
+  startPhotoUnchecked: boolean;
   /** The student's signature under the result; null when they have not signed. */
   signatureUrl: string | null;
 }
@@ -50,7 +52,7 @@ export async function getAttemptResult(attemptId: string): Promise<AttemptResult
     profileEmail,
     student: studentFactsOf(studentRow),
     reviewItems,
-    startPhotoUrl: await signStartPhoto(attemptId),
+    ...(await signStartPhoto(attemptId).then((photo) => ({ startPhotoUrl: photo?.url ?? null, startPhotoUnchecked: photo?.unchecked ?? false }))),
     signatureUrl: attempt.user_id ? await signAttemptSignature(attempt.user_id, attemptId).catch(() => null) : null,
   };
 }

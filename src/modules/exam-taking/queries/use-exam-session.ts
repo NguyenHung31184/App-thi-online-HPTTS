@@ -20,7 +20,9 @@ import {
   submitAttempt,
   updateAttemptAnswers,
   uploadExamFileViaEdge,
-  validateAndBuildStartExamPortrait,
+  buildUncheckedStartPortrait,
+  checkStartPortrait,
+  releaseStartPortraitDetector,
 } from './session-actions';
 import {
   DEFAULT_AI_RISK_THRESHOLD,
@@ -46,6 +48,9 @@ function getPostFullscreenLeaveIgnoreMs(): number {
   if (typeof navigator === 'undefined') return 2_800;
   return /Android/i.test(navigator.userAgent || '') ? 5_000 : 2_800;
 }
+/** Failed presses, each after every face detector was tried, before the unchecked photo is offered. */
+const FACE_CHECK_FAILURES_BEFORE_SKIP = 2;
+
 export function useExamSession() {
 
   const { attemptId } = useParams<{ attemptId: string }>();
@@ -114,6 +119,9 @@ export function useExamSession() {
   const [proctoringCameraStatus, setProctoringCameraStatus] = useState<ProctoringCameraStatus>('stopped');
   const retryStartCamera = useCallback(() => setCameraRetry((retry) => retry + 1), []);
   const [capturing, setCapturing] = useState(false);
+  /** Presses on which no face detector could run on this phone; from FACE_CHECK_FAILURES_BEFORE_SKIP on, the
+   * student may take the photo without the automatic check and a proctor reviews it. */
+  const [faceCheckFailures, setFaceCheckFailures] = useState(0);
   /** Video đã có khung hình thật (tránh đếm nóng khi stream có nhưng preview vẫn đen 10–15s trên một số máy Android). */
   const [startPhotoVideoReady, setStartPhotoVideoReady] = useState(false);
   /** Chỉ true sau START_PHOTO_WARMUP_MS kể từ khi preview đã sẵn sàng. */
@@ -267,54 +275,94 @@ export function useExamSession() {
     };
   }, [cameraStream, showCameraStep, startPhotoVideoReady]);
 
-  const handleCaptureAndStart = useCallback(async () => {
-    if (!attemptId || !videoRef.current || !cameraStream || capturing || !startPhotoCanCapture) return;
+  /** Uploads the start portrait, records it, and lets the exam begin. */
+  const finishStartPhoto = useCallback(async (blob: Blob, faceCheck: Record<string, unknown>) => {
+    if (!attemptId || !cameraStream) return;
+    const up = await uploadExamFileViaEdge({
+      category: 'proctoring',
+      attemptId,
+      kind: 'start_photo',
+      file: blob,
+    });
+    if (!up.ok) throw new Error(up.error || 'Upload ảnh giám sát thất bại.');
+    await logAuditEvent(attemptId, 'photo_taken', { url: up.signedUrl, path: up.path, ...faceCheck });
+    releaseStartPortraitDetector();
+    cameraStream.getTracks().forEach((t) => t.stop());
+    setCameraStream(null);
+    proctoringDoneRef.current = true;
+    setPhotoVerified(true);
+  }, [attemptId, cameraStream]);
+
+  const startVideoReady = useCallback((): HTMLVideoElement | null => {
     const video = videoRef.current;
+    if (!video || !cameraStream) return null;
     if (!cameraHasUsableTrack(cameraStream) || video.paused || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
       setCameraError('Camera chưa phát hình. Bấm thử lại camera để tiếp tục.');
-      return;
+      return null;
     }
+    return video;
+  }, [cameraStream]);
+
+  const handleCaptureAndStart = useCallback(async () => {
+    if (!attemptId || !videoRef.current || !cameraStream || capturing || !startPhotoCanCapture) return;
+    const video = startVideoReady();
+    if (!video) return;
     setCapturing(true);
     setCameraError('');
     try {
-      // Mục 1: crop chân dung 3:4 theo mặt. Mục 2a (lúc vào thi): chặn 0 mặt / nhiều mặt (BlazeFace).
-      const portrait = await validateAndBuildStartExamPortrait(video, {
-        // false: tọa độ mặt trùng pixel gốc của <video> (drawImage). true sẽ lệch ngang so với preview mirror.
-        flipHorizontal: false,
-        jpegQuality: 0.88,
-        maxLongSide: 720,
-      });
+      // Mục 1: crop chân dung 3:4 theo mặt. Mục 2a (lúc vào thi): chặn 0 mặt / nhiều mặt.
+      const portrait = await checkStartPortrait(video, { jpegQuality: 0.88, maxLongSide: 720 });
       if (!portrait.ok) {
+        if (portrait.reason === 'model_error') {
+          const failures = faceCheckFailures + 1;
+          setFaceCheckFailures(failures);
+          // The log is what tells us which phones cannot run the check; it must not block the student.
+          void logAuditEvent(attemptId, 'face_check_error', {
+            detail: portrait.detail,
+            user_agent: navigator.userAgent,
+            press: failures,
+          }).catch(() => undefined);
+          setCameraError(
+            failures >= FACE_CHECK_FAILURES_BEFORE_SKIP
+              ? 'Máy này không chạy được bộ nhận diện khuôn mặt. Bạn có thể chụp ảnh không kiểm tra tự động ở nút bên dưới; giám thị sẽ xem lại ảnh.'
+              : 'Máy chưa chạy được bộ nhận diện khuôn mặt. Giữ mặt trong khung oval rồi bấm chụp lại.',
+          );
+          return;
+        }
         const msg =
           portrait.reason === 'no_face'
             ? 'Không phát hiện khuôn mặt. Hãy chỉnh ánh sáng, bỏ khẩu trang và đưa mặt vào khung oval.'
             : portrait.reason === 'multiple_faces'
               ? 'Phát hiện nhiều hơn một người trong khung hình. Chỉ một người được phép trước camera.'
-              : portrait.reason === 'not_ready'
-                ? 'Camera chưa sẵn sàng. Đợi 1–2 giây rồi thử lại.'
-                : 'Không phân tích được hình ảnh (BlazeFace). Thử lại hoặc tải lại trang.';
+              : 'Camera chưa sẵn sàng. Đợi 1–2 giây rồi thử lại.';
         setCameraError(msg);
         return;
       }
-      const blob = portrait.blob;
-      const up = await uploadExamFileViaEdge({
-        category: 'proctoring',
-        attemptId,
-        kind: 'start_photo',
-        file: blob,
-      });
-      if (!up.ok) throw new Error(up.error || 'Upload ảnh giám sát thất bại.');
-      await logAuditEvent(attemptId, 'photo_taken', { url: up.signedUrl, path: up.path });
-      cameraStream.getTracks().forEach((t) => t.stop());
-      setCameraStream(null);
-      proctoringDoneRef.current = true;
-      setPhotoVerified(true);
+      await finishStartPhoto(portrait.blob, { face_check: 'passed', face_detector: portrait.detector });
     } catch (e) {
       setCameraError(e instanceof Error ? e.message : 'Chụp ảnh thất bại. Vui lòng thử lại.');
     } finally {
       setCapturing(false);
     }
-  }, [attemptId, cameraStream, capturing, startPhotoCanCapture]);
+  }, [attemptId, cameraStream, capturing, startPhotoCanCapture, startVideoReady, faceCheckFailures, finishStartPhoto]);
+
+  /** Last resort when no detector runs on the phone: the photo is kept and marked for a proctor to review. */
+  const handleCaptureUnchecked = useCallback(async () => {
+    if (!attemptId || !cameraStream || capturing || faceCheckFailures < FACE_CHECK_FAILURES_BEFORE_SKIP) return;
+    const video = startVideoReady();
+    if (!video) return;
+    setCapturing(true);
+    setCameraError('');
+    try {
+      const blob = await buildUncheckedStartPortrait(video, { jpegQuality: 0.88, maxLongSide: 720 });
+      await logAuditEvent(attemptId, 'face_check_skipped', { failures: faceCheckFailures, user_agent: navigator.userAgent });
+      await finishStartPhoto(blob, { face_check: 'skipped' });
+    } catch (e) {
+      setCameraError(e instanceof Error ? e.message : 'Chụp ảnh thất bại. Vui lòng thử lại.');
+    } finally {
+      setCapturing(false);
+    }
+  }, [attemptId, cameraStream, capturing, faceCheckFailures, startVideoReady, finishStartPhoto]);
 
   useEffect(() => {
     if (!cameraStream || !videoRef.current) return;
@@ -864,6 +912,7 @@ export function useExamSession() {
     autoSubmitReason, submitting, showWorkspaceStep, cameraError, cameraStream, videoRef,
     setStartPhotoVideoReady, handleCaptureWorkspace, capturingWorkspace, startPhotoVideoReady,
     showCameraStep, startPhotoCanCapture, startPhotoWarmupLeftSec, handleCaptureAndStart,
+    handleCaptureUnchecked, faceCheckSkipAvailable: faceCheckFailures >= FACE_CHECK_FAILURES_BEFORE_SKIP,
     capturing, fullscreenSupported, isFullscreen, fullscreenError, enterFullscreen,
     retryStartCamera, proctoringCameraStatus, setProctoringCameraStatus,
     autosaveStatus, remainingMs, setError, setShowSubmitConfirm, navigate, shuffledQuestions,

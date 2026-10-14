@@ -19,6 +19,7 @@ export default function ExamTakePage() {
     autoSubmitReason, submitting, showWorkspaceStep, cameraError, cameraStream, videoRef,
     setStartPhotoVideoReady, handleCaptureWorkspace, capturingWorkspace, startPhotoVideoReady,
     showCameraStep, startPhotoCanCapture, startPhotoWarmupLeftSec, handleCaptureAndStart,
+    handleCaptureUnchecked, faceCheckSkipAvailable,
     capturing, fullscreenSupported, isFullscreen, fullscreenError, enterFullscreen,
     retryStartCamera, proctoringCameraStatus, setProctoringCameraStatus,
     autosaveStatus, remainingMs, setError, setShowSubmitConfirm, navigate, shuffledQuestions,
@@ -201,6 +202,22 @@ export default function ExamTakePage() {
                         ? 'Đang chờ ổn định camera...'
                         : 'Chụp ảnh và bắt đầu làm bài'}
                 </button>
+                {faceCheckSkipAvailable && (
+                  <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                    <p>
+                      Máy này không kiểm tra được khuôn mặt. Chụp ảnh không kiểm tra để vào thi ngay; ảnh được lưu lại và
+                      giám thị sẽ xem lại.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleCaptureUnchecked}
+                      disabled={capturing || !startPhotoVideoReady}
+                      className="mt-2 w-full min-h-11 rounded-lg border border-amber-800 bg-white px-4 py-2 font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
+                    >
+                      Chụp ảnh không kiểm tra tự động
+                    </button>
+                  </div>
+                )}
               </>
             )}
             {!cameraStream && !cameraError && (

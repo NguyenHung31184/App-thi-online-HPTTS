@@ -43,6 +43,23 @@ CCCD mất theo cùng lý do.
   cuối của câu trước, kèm ghi chú "Cần xem lại". Nay dòng này kết thúc câu trước và bị bỏ qua. Test mới trong
   `word-questions.test.ts`. Câu đã nhập trước đó vẫn phải xóa tay đoạn thừa.
 
+**Chụp ảnh khuôn mặt lúc vào thi (cùng ngày, chiều)**
+- Báo: học viên Vũ Thị Thu Hiền (Samsung Android) kẹt ở bước chụp mặt với lỗi "Không phân tích được hình ảnh
+  (BlazeFace)". Nhật ký lượt thi: tạo lượt 15:08:36, chụp bàn làm việc hai lần, không có `photo_taken`; đồng hồ thi
+  đã tự chạy sau 5 phút chuẩn bị. Thẻ trên màn giám sát hiện "0/50 câu, 7 phút 50 giây" vì thời gian tính từ lúc tạo
+  lượt (đề xuất sửa màn giám sát, chưa làm).
+- Nguyên nhân: bước chụp mặt chỉ dùng BlazeFace (TensorFlow.js, WebGL); lỗi bất kỳ của bộ này thành "model_error",
+  không có dự phòng và không ghi lại lỗi gì.
+- Đã làm: `application/start-portrait.ts` thử lần lượt BlazeFace, MediaPipe (WebAssembly), BlazeFace trên CPU; bộ
+  nào chạy được thì giữ cho lần bấm sau. Mỗi lần mọi bộ đều hỏng ghi `face_check_error` (chi tiết lỗi từng bộ, user
+  agent). Sau 2 lần như vậy hiện nút "Chụp ảnh không kiểm tra tự động" (chủ dự án chọn): ảnh cắt giữa khung, ghi
+  `face_check_skipped` và `photo_taken` có `face_check: 'skipped'`; trang kết quả của giám thị ghi dưới ảnh "Chưa qua
+  kiểm tra khuôn mặt tự động, cần xem lại". Ảnh đạt kiểm tra ghi `face_check: 'passed'` kèm tên bộ nhận diện.
+- Kiểm tra: 311 test (5 test mới giả lập từng bộ hỏng), typecheck, lint, ranh giới module, build đạt. Edge không giao
+  diện với camera giả: bình thường dùng BlazeFace như cũ; tắt hẳn WebGL thì BlazeFace vẫn chạy (TensorFlow.js tự
+  chuyển sang CPU), nên máy của học viên nhiều khả năng có WebGL nhưng hỏng giữa chừng; trường hợp này chưa giả lập
+  được trên trình duyệt. Chưa thử trên máy Samsung của học viên.
+
 ---
 
 ## 2026-10-13 | Giám sát AI: một vi phạm kéo dài không bị ghi thành hai lỗi

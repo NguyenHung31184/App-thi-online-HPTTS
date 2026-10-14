@@ -20,8 +20,11 @@ export async function signEvidencePaths(paths: string[]): Promise<Map<string, st
   return result;
 }
 
-/** The face photo taken when the attempt started (first `photo_taken` audit log), signed for viewing. */
-export async function signStartPhoto(attemptId: string): Promise<string | null> {
+/**
+ * The face photo taken when the attempt started (first `photo_taken` audit log), signed for viewing.
+ * `unchecked` when the phone could not run the face check and the student took it without one.
+ */
+export async function signStartPhoto(attemptId: string): Promise<{ url: string; unchecked: boolean } | null> {
   const { data: rows, error } = await supabase
     .from('attempt_audit_logs')
     .select('metadata')
@@ -35,5 +38,5 @@ export async function signStartPhoto(attemptId: string): Promise<string | null> 
   if (!path) return null;
   const { data: signed, error: signErr } = await supabase.storage.from(EXAM_UPLOADS_BUCKET).createSignedUrl(path, SIGNED_SECONDS);
   if (signErr || !signed?.signedUrl) return null;
-  return signed.signedUrl;
+  return { url: signed.signedUrl, unchecked: meta?.face_check === 'skipped' };
 }

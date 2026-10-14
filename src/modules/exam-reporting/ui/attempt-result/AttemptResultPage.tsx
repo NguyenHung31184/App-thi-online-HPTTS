@@ -16,7 +16,7 @@ export default function AttemptResultPage() {
   if (error) return <p className="text-red-600 text-sm p-4">{error instanceof Error ? error.message : 'Lỗi tải dữ liệu.'}</p>;
   if (!data?.exam) return null;
 
-  const { attempt, exam, student, reviewItems, startPhotoUrl, signatureUrl } = data;
+  const { attempt, exam, student, reviewItems, startPhotoUrl, startPhotoUnchecked, signatureUrl } = data;
   const { earned, denom, passValue, passed } = attemptScore(attempt, exam);
   const studentDisplay = student.name || data.profileName || data.profileEmail || '—';
   const completedAtStr = typeof attempt.completed_at === 'number' && attempt.completed_at
@@ -103,6 +103,11 @@ export default function AttemptResultPage() {
                   alt="Ảnh khuôn mặt xác nhận lúc vào phòng thi"
                   className="w-28 h-36 sm:w-32 sm:h-40 object-cover rounded-lg border border-slate-200 bg-white print:w-28 print:h-36"
                 />
+                {startPhotoUnchecked && (
+                  <p className="mt-1 w-32 text-center sm:text-right text-xs font-medium text-amber-800">
+                    Chưa qua kiểm tra khuôn mặt tự động, cần xem lại
+                  </p>
+                )}
               </div>
             )}
           </div>

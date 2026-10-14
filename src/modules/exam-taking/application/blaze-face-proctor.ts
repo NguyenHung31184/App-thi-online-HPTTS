@@ -126,46 +126,28 @@ function canvasToJpegBlob(canvas: HTMLCanvasElement, quality: number): Promise<B
   });
 }
 
-export type StartPortraitResult =
-  | { ok: true; blob: Blob }
-  | { ok: false; reason: 'no_face' | 'multiple_faces' | 'model_error' | 'not_ready' };
+export interface PortraitOptions {
+  jpegQuality: number;
+  maxLongSide: number;
+}
 
-/**
- * Kiểm tra đúng 1 khuôn mặt + tạo JPEG chân dung 3:4 crop theo mặt (mục 1 + kiểm tra 2a lúc vào thi).
- */
-export async function validateAndBuildStartExamPortrait(
-  video: HTMLVideoElement,
-  opts: { flipHorizontal: boolean; jpegQuality: number; maxLongSide: number },
-): Promise<StartPortraitResult> {
+/** JPEG portrait 3:4 cropped on the face, or on the middle of the frame when there is no face box. */
+export async function buildStartPortrait(video: HTMLVideoElement, face: FaceBoxPx | null, opts: PortraitOptions): Promise<Blob> {
   const vw = video.videoWidth;
   const vh = video.videoHeight;
-  if (!vw || !vh) return { ok: false, reason: 'not_ready' };
+  const crop = face ? portraitCrop3x4FromFace(vw, vh, face) : centerPortraitCrop3x4(vw, vh);
+  const longSide = Math.max(crop.sw, crop.sh);
+  const scale = longSide > opts.maxLongSide ? opts.maxLongSide / longSide : 1;
+  const outW = Math.max(1, Math.round(crop.sw * scale));
+  const outH = Math.max(1, Math.round(crop.sh * scale));
 
-  try {
-    const { count, boxes } = await detectFacesInVideo(video, opts.flipHorizontal);
-    if (count === 0) return { ok: false, reason: 'no_face' };
-    if (count > 1) return { ok: false, reason: 'multiple_faces' };
-    const face = pickLargestFace(boxes);
-    if (!face) return { ok: false, reason: 'no_face' };
-
-    const crop = portraitCrop3x4FromFace(vw, vh, face);
-    const longSide = Math.max(crop.sw, crop.sh);
-    const scale = longSide > opts.maxLongSide ? opts.maxLongSide / longSide : 1;
-    const outW = Math.max(1, Math.round(crop.sw * scale));
-    const outH = Math.max(1, Math.round(crop.sh * scale));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = outW;
-    canvas.height = outH;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return { ok: false, reason: 'model_error' };
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, outW, outH);
-
-    const blob = await canvasToJpegBlob(canvas, opts.jpegQuality);
-    return { ok: true, blob };
-  } catch {
-    return { ok: false, reason: 'model_error' };
-  }
+  const canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Không tạo được canvas.');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, outW, outH);
+  return canvasToJpegBlob(canvas, opts.jpegQuality);
 }

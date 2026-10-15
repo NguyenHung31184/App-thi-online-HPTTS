@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-10-15 | E-learning giai đoạn 3 (quiz cuối bài) và 4 (báo cáo tiến độ): code xong, migration CHƯA áp
+
+**Chủ dự án yêu cầu**: làm nốt phần dang dở của giai đoạn 1–2, rồi giai đoạn 3 và 4.
+
+**Đã làm ở App thi**
+- Khối "Bài kiểm tra" soạn được: điểm đạt (mặc định 80%), số lượt (mặc định 3), chọn câu từ ngân hàng câu hỏi của
+  mô-đun (chỉ câu đã duyệt, ba dạng một đáp án, nhiều đáp án, Đúng/Sai từng ý). Khung `ui/authoring/QuizQuestionPicker`.
+  Xuất bản bị chặn khi quiz chưa có câu hoặc có câu đã bị xóa khỏi ngân hàng.
+- Học viên làm bài ở `ui/QuizBlock`: nộp, máy chủ chấm, hiện số câu đúng, điểm, đạt hay chưa, lượt còn lại. Câu bỏ trống
+  phải bấm nộp lần hai. Đạt thì khối tính hoàn thành và bài sau (nếu học tuần tự) mở.
+- `domain/quiz.ts` (10 test), sửa `domain/lesson-authoring.ts` (quiz soạn được, so bản nháp với phiên bản có tính câu
+  hỏi, số lượt, điểm đạt). 33 test của module, `tsc -b`, lint, ranh giới module đạt.
+
+**Máy chủ** (migration ở repo app quản lý): phiên bản lưu câu hỏi không kèm đáp án; đáp án chụp sang bảng riêng chỉ hàm
+chấm đọc được. Chạy thử trong khối tự hoàn tác 12 trường hợp đạt, gồm: không xuất bản được câu dạng nối; phiên bản không
+lộ đáp án; sai hai lần thì hết lượt; đúng hết thì đạt 100% và khối hoàn thành; đã đạt thì không nộp lại; học viên không
+đọc được bảng đáp án, không tự ghi lượt làm, không xem được báo cáo.
+
+**Chưa làm**: chưa áp migration (chờ chủ dự án cho phép), nên chưa thử thật trên trình duyệt; chưa push. Trước khi áp,
+màn soạn bài sẽ lỗi vì đọc cột `quiz_max_attempts` chưa có, nên phải áp migration trước rồi mới deploy bản này.
+
+---
+
 ## 2026-10-14 | Phiếu in kết quả: họ tên thật của học viên, bố cục mới
 
 **Báo của chủ dự án**: phiếu in ghi tên tài khoản thay cho tên học viên; bố cục phiếu chưa hợp mắt.

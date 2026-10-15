@@ -2,7 +2,9 @@ import {
   assignLesson, insertBlock, insertLesson, publishLesson, selectActiveAssignments, selectAssignmentMarks, selectBlockCounts,
   selectBlocks, selectClassSizes, selectClassesForModule, selectLatestVersionNumbers, selectLesson, selectLessons,
   selectVersions, updateBlockRow, updateLessonRow, withdrawAssignment,
+  insertQuizItem, removeQuizItem, searchBankQuestions, selectQuizItems,
 } from '../data/lesson-authoring-repository';
+import type { QuizItemRow } from '../domain/quiz';
 import {
   assignmentFormError, assignmentProgress, blockFieldsFromForm, blockFormError, nextOrderIndex, swapPair,
   type AssignmentForm, type BlockForm, type ClassAssignment, type LearningClass, type LessonBlockRow, type LessonRow,
@@ -63,13 +65,17 @@ export interface LessonDraft {
   lesson: LessonRow;
   blocks: LessonBlockRow[];
   versions: LessonVersion[];
+  /** Câu đã chọn vào các khối quiz của bản nháp. */
+  quizItems: QuizItemRow[];
 }
 
 export async function loadLessonDraft(lessonId: string): Promise<LessonDraft | null> {
   const lesson = await selectLesson(lessonId);
   if (!lesson) return null;
   const [blocks, versions] = await Promise.all([selectBlocks(lessonId), selectVersions(lessonId)]);
-  return { lesson, blocks, versions };
+  const quizBlockIds = blocks.filter((block) => block.block_type === 'quiz').map((block) => block.id);
+  const quizItems = await selectQuizItems(quizBlockIds);
+  return { lesson, blocks, versions, quizItems };
 }
 
 /** Adds a block at the end, or rewrites the block being edited. */
@@ -153,3 +159,12 @@ export async function submitAssignment(form: AssignmentForm): Promise<void> {
 }
 
 export { withdrawAssignment };
+
+/** Thêm một câu vào cuối khối quiz; câu đã có trong khối thì báo lỗi. */
+export async function addQuizQuestion(blockId: string, questionId: string, items: QuizItemRow[]): Promise<void> {
+  const own = items.filter((item) => item.block_id === blockId);
+  if (own.some((item) => item.question_id === questionId)) throw new Error('Câu này đã có trong bài kiểm tra.');
+  await insertQuizItem(blockId, questionId, own.reduce((max, item) => Math.max(max, item.order_index), -1) + 1);
+}
+
+export { removeQuizItem, searchBankQuestions };

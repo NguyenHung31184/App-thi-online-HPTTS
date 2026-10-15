@@ -5,6 +5,7 @@ import {
   BLOCK_LABELS, authoringErrorMessage, draftDiffersFromVersion, publishBlocker, sortByOrder,
   type LessonBlockRow, type LessonRow, type LessonVersion,
 } from '../../domain/lesson-authoring';
+import { firstUnusable, quizQuestionMap, type QuizItemRow } from '../../domain/quiz';
 import { usePublishLesson } from '../../queries/use-lesson-authoring';
 import { BlockContent } from '../BlockContent';
 
@@ -25,17 +26,21 @@ interface PublishPanelProps {
   lesson: LessonRow;
   blocks: LessonBlockRow[];
   versions: LessonVersion[];
+  quizItems: QuizItemRow[];
 }
 
 /** Preview of the draft, the publish button, and the published versions. */
-export function PublishPanel({ lesson, blocks, versions }: PublishPanelProps) {
+export function PublishPanel({ lesson, blocks, versions, quizItems }: PublishPanelProps) {
   const [showDraft, setShowDraft] = useState(false);
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const publish = usePublishLesson();
   const latest = versions[0] ?? null;
-  const blocker = publishBlocker(blocks);
-  const changed = draftDiffersFromVersion(lesson, blocks, latest);
+  const questionMap = quizQuestionMap(quizItems);
+  const unusable = blocks.map((block) => firstUnusable(quizItems, block.id)).find(Boolean) ?? null;
+  const blocker = publishBlocker(blocks, questionMap)
+    ?? (unusable ? 'Bài kiểm tra có câu đã bị xóa khỏi ngân hàng hoặc không chấm tự động được. Bỏ câu đó rồi xuất bản.' : null);
+  const changed = draftDiffersFromVersion(lesson, blocks, latest, questionMap);
 
   const handlePublish = async () => {
     setError('');

@@ -42,20 +42,26 @@ describe('blockFormError', () => {
     expect(blockFormError({ ...video, provider: 'youtube' })).toBeNull();
   });
 
-  it('refuses a quiz block', () => {
-    expect(blockFormError(emptyBlockForm('quiz'))).toBe('Khối quiz chưa soạn được ở bản này.');
+  it('checks the pass mark and attempts of a quiz block, not a link', () => {
+    expect(blockFormError(emptyBlockForm('quiz'))).toBeNull();
+    expect(blockFormError({ ...emptyBlockForm('quiz'), passPercent: '120' })).toMatch(/Điểm đạt/);
+    expect(blockFormError({ ...emptyBlockForm('quiz'), maxAttempts: '0' })).toMatch(/Số lượt/);
   });
 });
 
 describe('blockFieldsFromForm', () => {
   it('clears the fields that do not belong to the block type', () => {
-    expect(blockFieldsFromForm({ blockType: 'article', title: ' ', url: 'https://x.y', provider: 'drive', body: 'Chữ', minutes: '5' })).toEqual({
+    expect(blockFieldsFromForm({ blockType: 'article', title: ' ', url: 'https://x.y', provider: 'drive', body: 'Chữ', minutes: '5', passPercent: '80', maxAttempts: '3' })).toEqual({
       block_type: 'article', title: null, content_url: null, storage_provider: null, body_richtext: 'Chữ',
-      duration_seconds: null, quiz_pass_percent: null,
+      duration_seconds: null, quiz_pass_percent: null, quiz_max_attempts: null,
     });
-    expect(blockFieldsFromForm({ blockType: 'video', title: ' Bài 1 ', url: ' https://x.y/a.mp4 ', provider: 'vps', body: 'bỏ', minutes: '2.5' })).toEqual({
+    expect(blockFieldsFromForm({ blockType: 'video', title: ' Bài 1 ', url: ' https://x.y/a.mp4 ', provider: 'vps', body: 'bỏ', minutes: '2.5', passPercent: '80', maxAttempts: '3' })).toEqual({
       block_type: 'video', title: 'Bài 1', content_url: 'https://x.y/a.mp4', storage_provider: 'vps', body_richtext: null,
-      duration_seconds: 150, quiz_pass_percent: null,
+      duration_seconds: 150, quiz_pass_percent: null, quiz_max_attempts: null,
+    });
+    expect(blockFieldsFromForm({ ...emptyBlockForm('quiz'), title: 'Kiểm tra', url: 'https://x.y', passPercent: '70', maxAttempts: '2' })).toEqual({
+      block_type: 'quiz', title: 'Kiểm tra', content_url: null, storage_provider: null, body_richtext: null,
+      duration_seconds: null, quiz_pass_percent: 70, quiz_max_attempts: 2,
     });
   });
 
@@ -93,7 +99,8 @@ describe('ordering', () => {
 describe('publishBlocker', () => {
   it('needs content, no quiz, and a length on every timed video', () => {
     expect(publishBlocker([])).toMatch(/^Bài học chưa có nội dung/);
-    expect(publishBlocker([block({ block_type: 'quiz' })])).toMatch(/quiz/);
+    expect(publishBlocker([block({ block_type: 'quiz', title: 'Cuối bài' })])).toMatch(/^Bài kiểm tra "Cuối bài" chưa có câu hỏi/);
+    expect(publishBlocker([block({ block_type: 'quiz' })], { b1: ['q1'] })).toBeNull();
     expect(publishBlocker([block({ block_type: 'video', storage_provider: 'vps', title: 'Cẩu' })])).toBe('Video "Cẩu" chưa có độ dài. Sửa khối này rồi xuất bản.');
     expect(publishBlocker([block({ block_type: 'video', storage_provider: 'youtube' }), block()])).toBeNull();
   });

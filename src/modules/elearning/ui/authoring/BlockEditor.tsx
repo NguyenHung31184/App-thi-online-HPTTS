@@ -1,25 +1,31 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, FileText, Newspaper, Pencil, Plus, Trash2, Video } from 'lucide-react';
+import { ArrowDown, ArrowUp, FileText, ListChecks, Newspaper, Pencil, Plus, Trash2, Video } from 'lucide-react';
 import IconAction from '../../../../shared/ui/IconAction';
 import {
   AUTHORABLE_BLOCK_TYPES, BLOCK_LABELS, PROVIDER_LABELS, authoringErrorMessage, blockFormFromRow, durationLabel, emptyBlockForm,
   guessProvider,
   sortByOrder, type BlockForm, type BlockType, type LessonBlockRow, type StorageProvider,
 } from '../../domain/lesson-authoring';
+import { formatPercent, type QuizItemRow } from '../../domain/quiz';
 import { useMoveBlock, useRemoveBlock, useSaveBlock } from '../../queries/use-lesson-authoring';
+import { QuizQuestionPicker } from './QuizQuestionPicker';
 
-const ICONS: Record<BlockType, typeof Video> = { video: Video, pdf: FileText, article: Newspaper, quiz: FileText };
+const ICONS: Record<BlockType, typeof Video> = { video: Video, pdf: FileText, article: Newspaper, quiz: ListChecks };
 const field = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm';
 
-function blockSummary(block: LessonBlockRow): string {
+function blockSummary(block: LessonBlockRow, quizItems: QuizItemRow[]): string {
   const parts = [BLOCK_LABELS[block.block_type]];
+  if (block.block_type === 'quiz') {
+    const count = quizItems.filter((item) => item.block_id === block.id).length;
+    return [...parts, `${count} câu`, `đạt ${formatPercent(Number(block.quiz_pass_percent ?? 80))}`, `${block.quiz_max_attempts ?? 3} lượt`].join(' · ');
+  }
   if (block.storage_provider) parts.push(PROVIDER_LABELS[block.storage_provider as StorageProvider] ?? block.storage_provider);
   if (block.duration_seconds) parts.push(durationLabel(block.duration_seconds));
   return parts.join(' · ');
 }
 
 /** The draft's blocks in order, with the form that adds a block or rewrites the one being edited. */
-export function BlockEditor({ lessonId, blocks }: { lessonId: string; blocks: LessonBlockRow[] }) {
+export function BlockEditor({ lessonId, moduleId, blocks, quizItems }: { lessonId: string; moduleId: string; blocks: LessonBlockRow[]; quizItems: QuizItemRow[] }) {
   const [form, setForm] = useState<BlockForm>(emptyBlockForm());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -27,7 +33,8 @@ export function BlockEditor({ lessonId, blocks }: { lessonId: string; blocks: Le
   const removeBlock = useRemoveBlock();
   const moveBlock = useMoveBlock();
   const sorted = sortByOrder(blocks);
-  const isLink = form.blockType !== 'article';
+  const isLink = form.blockType !== 'article' && form.blockType !== 'quiz';
+  const editingQuiz = editingId ? sorted.find((block) => block.id === editingId && block.block_type === 'quiz') ?? null : null;
 
   const fail = (reason: unknown) => setError(authoringErrorMessage(reason));
   const resetForm = (blockType: BlockType = form.blockType) => { setForm(emptyBlockForm(blockType)); setEditingId(null); };
@@ -74,7 +81,7 @@ export function BlockEditor({ lessonId, blocks }: { lessonId: string; blocks: Le
                 <Icon className="h-4 w-4 shrink-0 text-indigo-600" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-800">{index + 1}. {block.title || BLOCK_LABELS[block.block_type]}</p>
-                  <p className="truncate text-xs text-slate-600">{blockSummary(block)}</p>
+                  <p className="truncate text-xs text-slate-600">{blockSummary(block, quizItems)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-0.5">
                   {index > 0 && (
@@ -130,7 +137,24 @@ export function BlockEditor({ lessonId, blocks }: { lessonId: string; blocks: Le
           />
         </div>
 
-        {isLink ? (
+        {form.blockType === 'quiz' ? (
+          <div className="space-y-2">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="block-pass" className="mb-1 block text-sm font-medium text-slate-700">Điểm đạt (%) *</label>
+                <input id="block-pass" inputMode="decimal" value={form.passPercent} onChange={(event) => setForm((current) => ({ ...current, passPercent: event.target.value.replace(/[^\d.]/g, '') }))} className={field} />
+              </div>
+              <div>
+                <label htmlFor="block-attempts" className="mb-1 block text-sm font-medium text-slate-700">Số lượt làm *</label>
+                <input id="block-attempts" inputMode="numeric" value={form.maxAttempts} onChange={(event) => setForm((current) => ({ ...current, maxAttempts: event.target.value.replace(/\D/g, '') }))} className={field} />
+              </div>
+            </div>
+            <p className="text-xs text-slate-600">
+              Máy chủ chấm bài; học viên đạt từ mức điểm này thì khối được tính hoàn thành. Kết quả không ghi vào điểm thi chính thức.
+              {!editingId && ' Thêm khối xong, bấm nút sửa của khối để chọn câu hỏi.'}
+            </p>
+          </div>
+        ) : isLink ? (
           <>
             <div>
               <label htmlFor="block-url" className="mb-1 block text-sm font-medium text-slate-700">Đường dẫn *</label>
@@ -195,6 +219,8 @@ export function BlockEditor({ lessonId, blocks }: { lessonId: string; blocks: Le
             />
           </div>
         )}
+
+        {editingQuiz && <QuizQuestionPicker block={editingQuiz} moduleId={moduleId} items={quizItems} />}
 
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
 

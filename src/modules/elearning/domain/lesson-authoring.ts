@@ -1,4 +1,5 @@
 import type { AssignedBlock } from './assigned-learning';
+import { DEFAULT_MAX_ATTEMPTS, DEFAULT_PASS_PERCENT, quizSettingsError } from './quiz';
 
 export type BlockType = AssignedBlock['block_type'];
 export type StorageProvider = 'youtube' | 'cloudinary' | 'drive' | 'supabase' | 'vps' | 'external';
@@ -49,14 +50,14 @@ export interface LearningClass {
   code: string | null;
 }
 
-/** Blocks an author can add today; quiz waits for server-side marking. */
-export const AUTHORABLE_BLOCK_TYPES = ['video', 'pdf', 'article'] as const;
+/** Blocks an author can add. A quiz is marked on the server from questions of the question bank. */
+export const AUTHORABLE_BLOCK_TYPES = ['video', 'pdf', 'article', 'quiz'] as const;
 
 export const BLOCK_LABELS: Record<BlockType, string> = {
   video: 'Video',
   pdf: 'PDF, slide',
   article: 'Bài viết',
-  quiz: 'Quiz',
+  quiz: 'Bài kiểm tra',
 };
 
 export const PROVIDER_LABELS: Record<StorageProvider, string> = {
@@ -76,10 +77,13 @@ export interface BlockForm {
   body: string;
   /** Video length in minutes, as typed. */
   minutes: string;
+  /** Quiz: pass mark in percent and number of attempts, as typed. */
+  passPercent: string;
+  maxAttempts: string;
 }
 
 export function emptyBlockForm(blockType: BlockType = 'video'): BlockForm {
-  return { blockType, title: '', url: '', provider: 'youtube', body: '', minutes: '' };
+  return { blockType, title: '', url: '', provider: 'youtube', body: '', minutes: '', passPercent: String(DEFAULT_PASS_PERCENT), maxAttempts: String(DEFAULT_MAX_ATTEMPTS) };
 }
 
 export function blockFormFromRow(block: AssignedBlock): BlockForm {
@@ -90,6 +94,8 @@ export function blockFormFromRow(block: AssignedBlock): BlockForm {
     provider: (block.storage_provider as StorageProvider | null) ?? 'external',
     body: block.body_richtext ?? '',
     minutes: block.duration_seconds ? String(Number((block.duration_seconds / 60).toFixed(2))) : '',
+    passPercent: String(block.quiz_pass_percent ?? DEFAULT_PASS_PERCENT),
+    maxAttempts: String(block.quiz_max_attempts ?? DEFAULT_MAX_ATTEMPTS),
   };
 }
 
@@ -121,7 +127,7 @@ export const MIN_TRACKED_VIDEO_SECONDS = 15;
 
 /** The first problem that blocks saving a block; null when it can be saved. */
 export function blockFormError(form: BlockForm): string | null {
-  if (form.blockType === 'quiz') return 'Khối quiz chưa soạn được ở bản này.';
+  if (form.blockType === 'quiz') return quizSettingsError(form);
   if (form.blockType === 'article') return form.body.trim() ? null : 'Chưa nhập nội dung bài viết.';
   const url = form.url.trim();
   if (!url) return 'Chưa nhập đường dẫn nội dung.';
@@ -150,20 +156,22 @@ export function durationLabel(seconds: number): string {
 export type BlockFields = Pick<
   LessonBlockRow,
   'block_type' | 'title' | 'content_url' | 'storage_provider' | 'body_richtext' | 'duration_seconds' | 'quiz_pass_percent'
->;
+> & { quiz_max_attempts: number | null };
 
 /** Column values for a block; fields that do not belong to the block type are cleared. */
 export function blockFieldsFromForm(form: BlockForm): BlockFields {
   const isArticle = form.blockType === 'article';
+  const isQuiz = form.blockType === 'quiz';
   const minutes = Number(form.minutes);
   return {
     block_type: form.blockType,
     title: form.title.trim() || null,
-    content_url: isArticle ? null : form.url.trim(),
-    storage_provider: isArticle ? null : form.provider,
+    content_url: isArticle || isQuiz ? null : form.url.trim(),
+    storage_provider: isArticle || isQuiz ? null : form.provider,
     body_richtext: isArticle ? form.body : null,
     duration_seconds: form.blockType === 'video' && minutes > 0 ? Math.round(minutes * 60) : null,
-    quiz_pass_percent: null,
+    quiz_pass_percent: isQuiz ? Number(form.passPercent) : null,
+    quiz_max_attempts: isQuiz ? Number(form.maxAttempts) : null,
   };
 }
 
@@ -184,29 +192,40 @@ export function nextOrderIndex(rows: { order_index: number }[]): number {
   return rows.reduce((max, row) => Math.max(max, row.order_index), -1) + 1;
 }
 
-/** Why the draft cannot be published; null when it can. Mirrors the checks of `elearning_publish_lesson`. */
-export function publishBlocker(blocks: AssignedBlock[]): string | null {
+/**
+ * Why the draft cannot be published; null when it can. Mirrors the checks of `elearning_publish_lesson`.
+ * `quizQuestions`: chosen question ids per quiz block of the draft.
+ */
+export function publishBlocker(blocks: AssignedBlock[], quizQuestions: Record<string, string[]> = {}): string | null {
   if (blocks.length === 0) return 'Bài học chưa có nội dung. Thêm ít nhất một khối trước khi xuất bản.';
-  if (blocks.some((block) => block.block_type === 'quiz')) return 'Bài có khối quiz chưa xuất bản được ở bản này.';
+  const emptyQuiz = blocks.find((block) => block.block_type === 'quiz' && (quizQuestions[block.id] ?? []).length === 0);
+  if (emptyQuiz) return `Bài kiểm tra "${emptyQuiz.title || 'chưa đặt tên'}" chưa có câu hỏi. Chọn câu từ ngân hàng rồi xuất bản.`;
   const untimed = blocks.find((block) => isTrackedVideo(block) && !(Number(block.duration_seconds) > 0));
   if (untimed) return `Video "${untimed.title || 'chưa đặt tên'}" chưa có độ dài. Sửa khối này rồi xuất bản.`;
   return null;
 }
 
-const SNAPSHOT_FIELDS = ['id', 'block_type', 'title', 'content_url', 'storage_provider', 'body_richtext', 'duration_seconds', 'order_index'] as const;
+const SNAPSHOT_FIELDS = ['id', 'block_type', 'title', 'content_url', 'storage_provider', 'body_richtext', 'duration_seconds', 'quiz_pass_percent', 'order_index'] as const;
 
 /** True when the draft differs from the newest published version, or nothing has been published yet. */
 export function draftDiffersFromVersion(
   lesson: Pick<LessonRow, 'title' | 'description'>,
   blocks: AssignedBlock[],
   latest: LessonVersion | null,
+  quizQuestions: Record<string, string[]> = {},
 ): boolean {
   if (!latest) return true;
   if (lesson.title !== latest.title || (lesson.description ?? '') !== (latest.description ?? '')) return true;
   const draft = sortByOrder(blocks);
   const published = sortByOrder(latest.blocks);
   if (draft.length !== published.length) return true;
-  return draft.some((block, index) => SNAPSHOT_FIELDS.some((field) => (block[field] ?? null) !== (published[index][field] ?? null)));
+  return draft.some((block, index) => {
+    const other = published[index];
+    if (SNAPSHOT_FIELDS.some((field) => (block[field] ?? null) !== (other[field] ?? null))) return true;
+    if (block.block_type !== 'quiz') return false;
+    if ((block.quiz_max_attempts ?? DEFAULT_MAX_ATTEMPTS) !== (other.quiz_max_attempts ?? DEFAULT_MAX_ATTEMPTS)) return true;
+    return (quizQuestions[block.id] ?? []).join() !== (other.questions ?? []).map((question) => question.id).join();
+  });
 }
 
 export interface AssignmentForm {
@@ -268,7 +287,8 @@ export function assignmentProgress(blockIds: string[], marks: ProgressMark[]): {
 const SERVER_MESSAGES: [RegExp, string][] = [
   [/Cannot publish this lesson/i, 'Bạn không có quyền xuất bản bài học này.'],
   [/needs content before publication/i, 'Bài học chưa có nội dung để xuất bản.'],
-  [/quiz publication is not enabled/i, 'Bài có khối quiz chưa xuất bản được ở bản này.'],
+  [/Quiz block has no gradable question/i, 'Một bài kiểm tra chưa có câu hỏi chấm được. Chọn câu một đáp án, nhiều đáp án hoặc Đúng/Sai.'],
+  [/Quiz question cannot be graded/i, 'Bài kiểm tra có câu đã bị xóa khỏi ngân hàng hoặc thuộc dạng không chấm tự động được. Bỏ câu đó rồi xuất bản.'],
   [/Cannot assign content to this class/i, 'Bạn không có quyền giao bài cho lớp này.'],
   [/does not belong to class course/i, 'Lớp này không học mô-đun của bài, nên không giao được.'],
   [/Invalid assignment settings/i, 'Thông tin giao bài chưa hợp lệ. Kiểm tra lại thứ tự, ngày mở và hạn học.'],

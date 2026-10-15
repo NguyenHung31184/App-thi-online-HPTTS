@@ -1,7 +1,8 @@
 # Kế hoạch e-learning: soạn và học đều ở App thi online
 
-Ngày lập: 13/10/2026. Trạng thái: giai đoạn 1 và 2 đã lên production ngày 13/10/2026 (chưa áp migration rút bài, chưa thử trên điện thoại thật); xem
-`docs/implementation/2026-10-13-elearning-authoring-and-assignment.md`. Các giai đoạn sau chưa bắt đầu.
+Ngày lập: 13/10/2026. Trạng thái: giai đoạn 1 và 2 đã lên production ngày 13/10/2026 (migration rút bài đã áp; chưa thử trên điện thoại thật); xem
+`docs/implementation/2026-10-13-elearning-authoring-and-assignment.md`. Giai đoạn 3 và 4: code xong 15/10/2026, migration
+`20261015090000_elearning_quiz_and_report.sql` (repo app quản lý) đã chạy thử, CHƯA áp, chưa push. Giai đoạn 5–7 chưa bắt đầu.
 
 Kế hoạch này thay phần **bố trí giữa hai app** của `docs/KE_HOACH_ELEARNING_HPTTS.md` (repo app quản lý, lập
 04–05/10). Các quy tắc nghiệp vụ ở mục 4 của file đó và thiết kế SCORM trong `docs/KE_HOACH_SCORM_ACTIVEPRESENTER.md`

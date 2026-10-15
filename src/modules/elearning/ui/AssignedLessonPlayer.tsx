@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { mayConfirmRead,type AssignedBlock,type LearningReceipt } from '../domain/assigned-learning';
 import { useAssignedLearning,useRecordAssignedProgress } from '../queries/use-assigned-learning';
 import { AssignedVideo } from './AssignedVideo';
+import { QuizBlock } from './QuizBlock';
 
 interface Props {userId:string;enrollmentId:string;assignmentId:string;lessonId:string}
 export function AssignedLessonPlayer({userId,enrollmentId,assignmentId,lessonId}:Props) {
@@ -40,7 +41,8 @@ export function AssignedLessonPlayer({userId,enrollmentId,assignmentId,lessonId}
       return <AssignedVideo key={`${assignmentId}:${block.id}`} userId={userId} enrollmentId={enrollmentId} assignmentId={assignmentId} block={block}
         receipt={receiptOf(block.id)} onReceipt={(receipt)=>setLocalProgress((prev)=>({...prev,[block.id]:receipt}))} />;
     }
-    return <p role="alert">Bài kiểm tra này cần dịch vụ chấm riêng. Liên hệ giảng viên.</p>;
+    return <QuizBlock key={`${assignmentId}:${block.id}`} userId={userId} enrollmentId={enrollmentId} assignmentId={assignmentId} block={block}
+      attempts={group?.quizAttempts ?? []} onPassed={()=>setLocalProgress((prev)=>({...prev,[block.id]:{id:block.id,status:'completed',resume_seconds:0,source:'server_quiz',completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}}))} />;
   };
   if(catalog.isPending) return <p role="status">Đang tải bài được giao...</p>;
   if(catalog.error) return <div role="alert"><p className="text-red-700">{catalog.error.message}</p><button onClick={()=>void catalog.refetch()} className="underline mt-2">Tải lại</button></div>;

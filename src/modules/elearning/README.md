@@ -25,9 +25,17 @@ Khu quản trị: `/admin/lessons` (`ui/authoring/LessonsPage`) và `/admin/less
   `elearning_publish_lesson`, `elearning_assign_lesson`, `elearning_archive_assignment`.
 - `application/manage-lessons.ts`, `queries/use-lesson-authoring.ts`.
 
-Nội dung nhập bằng đường dẫn `https://`, chưa có tải file lên. Video có đo thời gian phải dài từ 15 giây. Khối quiz
-chưa soạn được. Chi tiết: `docs/implementation/2026-10-13-elearning-authoring-and-assignment.md`.
+Nội dung nhập bằng đường dẫn `https://`, chưa có tải file lên. Video có đo thời gian phải dài từ 15 giây. Chi tiết:
+`docs/implementation/2026-10-13-elearning-authoring-and-assignment.md`.
+
+## Bài kiểm tra cuối bài (từ 15/10/2026)
+
+- `domain/quiz.ts`: dạng câu chấm được, trạng thái trả lời, gói gửi máy chủ, số lượt còn lại, câu báo lỗi.
+- Soạn: `ui/authoring/QuizQuestionPicker` chọn câu đã duyệt của mô-đun từ `question_bank` vào `elearning_quiz_items`.
+- Học: `ui/QuizBlock` gọi `elearning_submit_quiz`; lượt làm đọc từ `elearning_quiz_attempts` (chỉ đọc).
+- Trình duyệt không bao giờ nhận đáp án: phiên bản chỉ có câu hỏi; đáp án nằm ở `elearning_private.quiz_answer_keys`.
+- Kết quả quiz không ghi vào điểm thi chính thức. Migration: `20261015090000_elearning_quiz_and_report.sql` (repo app quản lý).
 
 API record progress không nhận user ID hoặc điểm từ browser. Quyền học, điều kiện mở bài và
 hoàn thành video tính ở backend. Client phải báo các khoảng phát liên tục hợp lệ, không dùng
-vị trí tua làm khoảng đã xem. Báo cáo và SCORM chưa triển khai.
+vị trí tua làm khoảng đã xem. Báo cáo tiến độ nằm ở app quản lý (`/learning-progress`). SCORM chưa triển khai.

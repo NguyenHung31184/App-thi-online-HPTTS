@@ -1,6 +1,7 @@
 import { supabase } from '../../../platform/supabase/client';
 import { validateProgressInput, type AssignedLesson, type RecordLearningInput, type LearningReceipt } from '../domain/assigned-learning';
-import type { AssignedProgress, LearningEnrollment } from '../domain/assigned-learning';
+import type { AssignedProgress, AssignedQuizAttempt, LearningEnrollment } from '../domain/assigned-learning';
+import type { QuizResponse, QuizResult } from '../domain/quiz';
 
 export async function getLearningEnrollments(): Promise<LearningEnrollment[]> {
   const { data: auth, error: authError } = await supabase.auth.getUser();
@@ -73,4 +74,34 @@ export async function recordLearningProgress(input: RecordLearningInput): Promis
   if (error) throw error;
   if (!data || typeof data !== 'object') throw new Error('Chưa nhận được xác nhận lưu tiến độ.');
   return data as LearningReceipt;
+}
+
+/** Các lượt làm quiz của một lượt học. Máy chủ chưa có bảng này (trước khi áp migration) thì coi như chưa làm lượt nào. */
+export async function getQuizAttempts(enrollmentId: string): Promise<AssignedQuizAttempt[]> {
+  const { data, error } = await supabase.from('elearning_quiz_attempts')
+    .select('assignment_id, block_id, attempt_no, score_percent, passed, correct_count, total_count, submitted_at')
+    .eq('enrollment_id', enrollmentId).order('attempt_no');
+  if (error) {
+    if (/elearning_quiz_attempts|schema cache|does not exist/i.test(error.message)) return [];
+    throw error;
+  }
+  return ((data ?? []) as AssignedQuizAttempt[]).map((row) => ({ ...row, score_percent: Number(row.score_percent) }));
+}
+
+export interface SubmitQuizInput {
+  enrollmentId: string;
+  assignmentId: string;
+  blockId: string;
+  answers: Record<string, QuizResponse>;
+}
+
+/** Nộp một lượt quiz; máy chủ chấm và trả kết quả, không trả đáp án. */
+export async function submitQuiz(input: SubmitQuizInput): Promise<QuizResult> {
+  const { data, error } = await supabase.rpc('elearning_submit_quiz', {
+    p_enrollment_id: input.enrollmentId, p_assignment_id: input.assignmentId, p_block_id: input.blockId, p_answers: input.answers,
+  });
+  if (error) throw error;
+  if (!data || typeof data !== 'object') throw new Error('Chưa nhận được kết quả chấm.');
+  const result = data as QuizResult;
+  return { ...result, score_percent: Number(result.score_percent), pass_percent: Number(result.pass_percent) };
 }

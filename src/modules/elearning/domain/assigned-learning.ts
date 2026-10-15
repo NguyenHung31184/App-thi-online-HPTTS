@@ -1,3 +1,5 @@
+import type { QuizAttempt, QuizQuestion } from './quiz';
+
 export interface AssignedBlock {
   id: string;
   block_type: 'video' | 'pdf' | 'article' | 'quiz';
@@ -7,6 +9,10 @@ export interface AssignedBlock {
   body_richtext: string | null;
   duration_seconds: number | null;
   quiz_pass_percent: number | null;
+  /** Quiz: số lượt làm; bản nháp có thể trống (máy chủ dùng 3). */
+  quiz_max_attempts?: number | null;
+  /** Quiz trong phiên bản đã xuất bản: câu hỏi không kèm đáp án. */
+  questions?: QuizQuestion[];
   order_index: number;
 }
 
@@ -47,10 +53,12 @@ export interface LearningReceipt {
 
 export interface LearningEnrollment { id: string; classId: string; className: string }
 export interface AssignedProgress extends LearningReceipt { assignment_id: string; block_id: string }
+export interface AssignedQuizAttempt extends QuizAttempt { assignment_id: string; block_id: string }
 export interface EnrollmentLearning {
   enrollment: LearningEnrollment;
   lessons: AssignedLesson[];
   progress: AssignedProgress[];
+  quizAttempts: AssignedQuizAttempt[];
 }
 
 export function assignedLessonUrl(enrollmentId: string, lesson: AssignedLesson): string {

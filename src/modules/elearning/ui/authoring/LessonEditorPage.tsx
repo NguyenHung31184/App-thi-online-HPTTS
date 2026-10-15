@@ -83,7 +83,7 @@ export default function LessonEditorPage() {
     );
   }
 
-  const { lesson, blocks, versions } = draft.data;
+  const { lesson, blocks, versions, quizItems } = draft.data;
   return (
     <div className="space-y-5">
       <div>
@@ -93,8 +93,8 @@ export default function LessonEditorPage() {
         <h1 className="mt-1 text-xl font-bold text-slate-900">{lesson.title}</h1>
       </div>
       <DetailsForm lesson={lesson} />
-      <BlockEditor lessonId={lesson.id} blocks={blocks} />
-      <PublishPanel lesson={lesson} blocks={blocks} versions={versions} />
+      <BlockEditor lessonId={lesson.id} moduleId={lesson.module_id} blocks={blocks} quizItems={quizItems} />
+      <PublishPanel lesson={lesson} blocks={blocks} versions={versions} quizItems={quizItems} />
       <AssignmentPanel lesson={lesson} versions={versions} />
     </div>
   );

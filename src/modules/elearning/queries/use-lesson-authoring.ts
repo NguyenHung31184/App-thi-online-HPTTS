@@ -3,7 +3,9 @@ import { listModulesWithCourses } from '../../integrations/public';
 import {
   createLesson, loadLessonAssignments, loadLessonCatalog, loadLessonDraft, moveBlock, moveLesson, publishLesson, removeBlock,
   removeLesson, saveBlock, saveLessonDetails, submitAssignment, withdrawAssignment,
+  addQuizQuestion, removeQuizItem, searchBankQuestions,
 } from '../application/manage-lessons';
+import type { QuizItemRow } from '../domain/quiz';
 import type { AssignmentForm, BlockForm, LessonBlockRow, LessonRow, LessonVersion } from '../domain/lesson-authoring';
 
 const root = ['elearning-authoring'] as const;
@@ -108,4 +110,26 @@ export function useSubmitAssignment() {
 export function useWithdrawAssignment() {
   const refresh = useRefresh();
   return useMutation({ mutationFn: withdrawAssignment, onSuccess: refresh });
+}
+
+export function useBankQuestionSearch(moduleId: string, text: string) {
+  return useQuery({
+    queryKey: [...root, 'bank-search', moduleId, text.trim()],
+    queryFn: () => searchBankQuestions(moduleId, text),
+    enabled: Boolean(moduleId),
+    staleTime: 30_000,
+  });
+}
+
+export function useAddQuizQuestion() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: ({ blockId, questionId, items }: { blockId: string; questionId: string; items: QuizItemRow[] }) => addQuizQuestion(blockId, questionId, items),
+    onSuccess: refresh,
+  });
+}
+
+export function useRemoveQuizQuestion() {
+  const refresh = useRefresh();
+  return useMutation({ mutationFn: removeQuizItem, onSuccess: refresh });
 }

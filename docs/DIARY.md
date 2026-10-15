@@ -23,8 +23,14 @@ chấm đọc được. Chạy thử trong khối tự hoàn tác 12 trường h
 lộ đáp án; sai hai lần thì hết lượt; đúng hết thì đạt 100% và khối hoàn thành; đã đạt thì không nộp lại; học viên không
 đọc được bảng đáp án, không tự ghi lượt làm, không xem được báo cáo.
 
-**Chưa làm**: chưa áp migration (chờ chủ dự án cho phép), nên chưa thử thật trên trình duyệt; chưa push. Trước khi áp,
-màn soạn bài sẽ lỗi vì đọc cột `quiz_max_attempts` chưa có, nên phải áp migration trước rồi mới deploy bản này.
+**Đã áp và thử (15/10/2026, sau khi chủ dự án cho phép)**: migration áp lên production. Thử trên lớp thử riêng
+`TEST-EL` (2 học viên thử, tạo cho buổi này): thêm khối kiểm tra 3 câu vào bài thử 13/10, xuất bản phiên bản 4 (phiên
+bản không có đáp án, bảng đáp án đủ 3 dòng), giao cho lớp. Học viên thử: nộp trống bị hỏi lại; lượt 1 đúng 2/3 = 66,7%
+"Chưa đạt, còn 2 lượt"; lượt 2 đúng 3/3 = 100% đạt, khối hoàn thành, nút nộp ẩn; tải lại vẫn thấy 2 lượt, điểm cao
+nhất 100%; trang không chứa đáp án. Báo cáo tiến độ ở app quản lý khớp, Excel đúng. Chưa push.
+
+Lưu ý khi tạo học viên thử: tài khoản thi chỉ vào được trang học khi `profiles.student_id` đã gắn (bình thường do bước
+xác minh CCCD ghi). Học viên thử không có CCCD nên gắn bằng SQL, đúng điều kiện email trùng `exam_account_email`.
 
 ---
 

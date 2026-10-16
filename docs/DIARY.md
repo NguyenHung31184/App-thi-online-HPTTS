@@ -5,6 +5,40 @@
 
 ---
 
+## 2026-10-16 | Học viên thi thử không vào được kỳ thi thật: sai mã truy cập; nút mở khóa ở màn giám sát (migration CHƯA áp)
+
+**Hiện tượng**: kỳ thi thật 14:15–14:45 của NBN-GN3.4 và NBN-GN4.5, năm học viên đã thi thử 14–15/10 không vào được.
+**Nguyên nhân**: cả năm nhập sai mã truy cập (mã thi thật khác mã thi thử), bốn người bị khóa sau 5 lần. Bản đang chạy
+còn lỗi ghi ở mục 15/10 dưới đây (sai mã không báo gì, vào `/exam/null` rồi lỗi), nên học viên không biết mình sai mã.
+Người bị khóa chưa có lượt làm bài nên không hiện trên màn giám sát.
+**Đã làm**:
+- Lúc 14:3x, chủ dự án cho phép: xóa bộ đếm sai mã của 5 tài khoản ở hai cửa sổ thi; một người vào được ngay.
+- Commit `5125f0d` (bản sửa của mục 15/10) và push.
+- Migration `20261016110000_exam_access_unlock.sql`: `get_exam_access_failures()`, `unlock_exam_access(window, user)`,
+  bảng `exam_access_unlocks` (ai mở khóa, lúc nào). Quyền như màn giám sát (admin, teacher, proctor). Mức khóa giữ nguyên.
+- Màn Giám sát trực tiếp: khối `ui/AccessLockAlert.tsx` liệt kê học viên đang nhập sai mã ở kỳ thi đang mở, nút "Mở khóa".
+- Màn vào thi: mã lỗi máy chủ đổi thành câu tiếng Việt (`domain/start-attempt-errors.ts`); trước đó học viên bị khóa
+  thấy nguyên chữ `access_code_rate_limited`, và lỗi Supabase chỉ hiện "Lỗi tạo bài làm."
+- Kiểm tra: 325 test, `tsc`, ranh giới, build đạt; chạy thử migration trên production tự hoàn tác (TEST-TH, hv100286) đúng.
+  Chưa bấm thử giao diện đã đăng nhập.
+
+---
+
+## 2026-10-15 | Sửa lỗi "Không tải được trạng thái giám sát" khi nhập sai mã truy cập
+
+**Hiện tượng**: nhiều học viên thi trên điện thoại thấy màn hình trắng chỉ có dòng đỏ "Không tải được trạng thái giám
+sát. Kiểm tra kết nối rồi tải lại trang." Ban đầu nghi do quyền camera — không phải.
+
+**Nguyên nhân**: `start_exam_attempt` trả `NULL` khi sai mã truy cập. Hàm trả kiểu bản ghi `attempts`, nên PostgREST
+gửi về một object có mọi cột `null` chứ không phải `null`. `startTheoryAttempt` chỉ kiểm tra `!data` nên lọt, trang
+chuyển tới `/exam/null`; vòng hỏi `get_browser_proctoring_state` 5 giây/lần nhận lỗi 22P02 (uuid sai) và hiện câu trên.
+Log 24 giờ: 135 lệnh lỗi 400 từ 8 tài khoản, cả 8 đều có bản ghi nhập sai mã trong `exam_access_failures`.
+
+**Đã sửa**: `data/exam-attempt-repository.ts` kiểm tra `attempt?.id`; sai mã giờ báo "Mã truy cập không đúng." ngay
+tại trang chọn kỳ thi. `tsc` đạt. Chưa commit/deploy.
+
+---
+
 ## 2026-10-15 | E-learning giai đoạn 3 (quiz cuối bài) và 4 (báo cáo tiến độ): code xong, migration CHƯA áp
 
 **Chủ dự án yêu cầu**: làm nốt phần dang dở của giai đoạn 1–2, rồi giai đoạn 3 và 4.

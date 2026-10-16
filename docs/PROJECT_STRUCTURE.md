@@ -21,7 +21,7 @@ src/
     question-bank/      # Ngân hàng câu hỏi: một ngân hàng mỗi mô-đun (Phase C, C2)
       domain/ application/ data/ queries/ ui/ public.ts
     exam-management/    # Đề thi, kỳ thi, kiểm tra ngân hàng của đề
-    exam-monitoring/    # Giám sát trực tiếp kỳ thi đang chạy
+    exam-monitoring/    # Giám sát trực tiếp kỳ thi đang chạy; khối học viên nhập sai mã, nút mở khóa (16/10/2026)
     exam-reporting/     # Dashboard admin, Báo cáo lý thuyết, kết quả một lượt thi
     practical-exams/    # Thi thực hành: mẫu, tiêu chí, kỳ thi, nộp ảnh, chấm
     integrations/       # Danh bạ TTDT, đồng bộ điểm sang TTDT, nhật ký đồng bộ, OCR CCCD

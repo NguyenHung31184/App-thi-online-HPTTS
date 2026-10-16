@@ -4,6 +4,7 @@ import {
   AlertTriangle, Ban, BookOpen, CheckCircle2, LogOut, PenLine, Smartphone, UserX, Users, WifiOff, type LucideIcon,
 } from 'lucide-react';
 import { useLiveExamMonitor } from '../queries/use-live-monitor';
+import { AccessLockAlert } from './AccessLockAlert';
 import {
   formatDuration,
   formatSecondsAgo,
@@ -262,6 +263,7 @@ export default function LiveExamMonitor() {
         </button>
       </div>
 
+      <AccessLockAlert />
       {isPending && <p className="text-sm text-slate-500">Đang tải danh sách học viên đang thi…</p>}
       {error && (
         <p className="text-sm text-red-700" role="alert">

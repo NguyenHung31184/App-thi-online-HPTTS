@@ -5,6 +5,17 @@
 
 ---
 
+## Mã truy cập kỳ thi và khóa sau 5 lần sai (2026-10-16)
+
+- Mỗi cửa sổ thi có mã riêng; kỳ thi thử và kỳ thi thật là hai cửa sổ khác nhau, khác mã. Học viên đã thi thử dễ nhập
+  lại mã cũ. Giám thị đọc mã mới lúc vào phòng và nói rõ không dùng mã thi thử.
+- `start_exam_attempt` sai mã thì trả NULL (PostgREST gửi về một dòng toàn cột null); app phải kiểm tra `attempt.id`.
+- Sai 5 lần trong 10 phút thì khóa 10 phút ở cửa sổ đó (`exam_access_failures`). Người bị khóa chưa có lượt làm bài nên
+  không hiện ở bảng giám sát; xem và mở khóa ở khối "học viên đang nhập sai mã" đầu màn Giám sát trực tiếp. Mỗi lần mở
+  khóa ghi vào `exam_access_unlocks`.
+
+---
+
 ## E-Learning (2026-06-11)
 
 - **Migration `elearning_*` CHỈ ở repo app chính** (QuanlyTTDT-HPTTS/supabase/migrations). Repo này dùng chung bảng qua Supabase chung — không tạo migration elearning ở đây để tránh lệch schema.

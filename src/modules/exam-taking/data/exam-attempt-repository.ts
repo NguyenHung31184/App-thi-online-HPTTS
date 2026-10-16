@@ -8,6 +8,7 @@ import type {
   RecordAiProctoringIncidentResult,
 } from '../domain/exam-attempt';
 import type { AiViolationKind } from '../domain/proctoring-policy';
+import { startAttemptErrorMessage, WRONG_ACCESS_CODE_MESSAGE } from '../domain/start-attempt-errors';
 import type { BrowserProctoringState, BrowserViolationResult, BrowserViolationKind } from '../domain/browser-proctoring';
 
 export async function fetchAttempt(id: string): Promise<Attempt | null> {
@@ -49,10 +50,11 @@ export async function startTheoryAttempt(windowId: string, accessCode: string): 
     p_window_id: windowId,
     p_access_code: accessCode,
   });
-  if (error) throw error;
+  // PostgrestError is not an Error instance, so the page used to show only its generic fallback.
+  if (error) throw new Error(startAttemptErrorMessage(error.message));
   // A wrong code makes the function return NULL, which PostgREST sends as a row of null columns, not as null.
   const attempt = data as Attempt | null;
-  if (!attempt?.id) throw new Error('Mã truy cập không đúng.');
+  if (!attempt?.id) throw new Error(WRONG_ACCESS_CODE_MESSAGE);
   return attempt;
 }
 

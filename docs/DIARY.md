@@ -5,7 +5,7 @@
 
 ---
 
-## 2026-10-16 | Học viên thi thử không vào được kỳ thi thật: sai mã truy cập; nút mở khóa ở màn giám sát (migration CHƯA áp)
+## 2026-10-16 | Học viên thi thử không vào được kỳ thi thật: sai mã truy cập; nút mở khóa ở màn giám sát (migration đã áp 16/10)
 
 **Hiện tượng**: kỳ thi thật 14:15–14:45 của NBN-GN3.4 và NBN-GN4.5, năm học viên đã thi thử 14–15/10 không vào được.
 **Nguyên nhân**: cả năm nhập sai mã truy cập (mã thi thật khác mã thi thử), bốn người bị khóa sau 5 lần. Bản đang chạy
@@ -20,7 +20,8 @@ Người bị khóa chưa có lượt làm bài nên không hiện trên màn gi
 - Màn vào thi: mã lỗi máy chủ đổi thành câu tiếng Việt (`domain/start-attempt-errors.ts`); trước đó học viên bị khóa
   thấy nguyên chữ `access_code_rate_limited`, và lỗi Supabase chỉ hiện "Lỗi tạo bài làm."
 - Kiểm tra: 325 test, `tsc`, ranh giới, build đạt; chạy thử migration trên production tự hoàn tác (TEST-TH, hv100286) đúng.
-  Chưa bấm thử giao diện đã đăng nhập.
+  Chưa bấm thử giao diện đã đăng nhập. Chủ dự án cho phép: áp `20261016110000` (db query từ repo app quản lý, `migration
+  repair`); kiểm tra SQL: bảng, 2 hàm, policy, `anon` không gọi được. Đã push.
 
 ---
 

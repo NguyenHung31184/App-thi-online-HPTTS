@@ -4,9 +4,9 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
-## 2026-10-16 — Mở khóa nhập sai mã truy cập ở màn giám sát (migration `20261016110000` CHƯA áp)
+## 2026-10-16 — Mở khóa nhập sai mã truy cập ở màn giám sát (migration `20261016110000` đã áp 16/10)
 
-- Điểm ổn định trước đó: `5125f0d`. Commit ngay sau đó (xem `git log`).
+- Điểm ổn định trước đó: `5125f0d`. Commit `41944b4`.
 - Migration chỉ thêm hai hàm và bảng `exam_access_unlocks`. Lùi theo `docs/rollback/2026-10-16-mo-khoa-nhap-ma.md`.
 
 ## 2026-10-13 — E-learning: soạn bài và giao bài trong App thi

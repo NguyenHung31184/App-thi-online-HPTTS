@@ -50,8 +50,10 @@ export async function startTheoryAttempt(windowId: string, accessCode: string): 
     p_access_code: accessCode,
   });
   if (error) throw error;
-  if (!data) throw new Error('Mã truy cập không đúng.');
-  return data as Attempt;
+  // A wrong code makes the function return NULL, which PostgREST sends as a row of null columns, not as null.
+  const attempt = data as Attempt | null;
+  if (!attempt?.id) throw new Error('Mã truy cập không đúng.');
+  return attempt;
 }
 
 /** Asks the server to start the working time; returns the deadline it now enforces (epoch ms). */

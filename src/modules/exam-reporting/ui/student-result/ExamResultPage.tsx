@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { isExamPassed } from '../../../../shared/domain/exam-result';
 import { useStudentResult } from '../../queries/use-student-result';
@@ -6,12 +7,15 @@ import { SignaturePad } from './SignaturePad';
 import { ResultPrintSheet } from './ResultPrintSheet';
 import { formatAttemptDuration } from '../../domain/attempt-review';
 import { resultIdentity } from '../../domain/result-identity';
+import { downloadResultPdf } from '../attempt-result/result-pdf';
 
 export default function ExamResultPage() {
   const {
     loading, error, attempt, exam, location, totalMax, studentSession, user, startPhotoUrl,
     autoSyncStatus, handlePrint, signatureUrl, saveSignature, studentRecord,
   } = useStudentResult();
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   if (loading) return <p className="p-4 text-slate-500">Đang tải...</p>;
   if (error) return <p className="p-4 text-red-600">{error}</p>;
   if (!attempt || !exam) return null;
@@ -45,6 +49,36 @@ export default function ExamResultPage() {
   const completedAtStr = typeof attempt.completed_at === 'number' && attempt.completed_at
     ? new Date(attempt.completed_at).toLocaleString('vi-VN')
     : '—';
+
+  // window.print() does nothing in the stock browsers of some Android phones (ASUS, OPPO) and in in-app browsers,
+  // so the button saves a PDF instead; the print dialog stays as the fallback when the PDF cannot be built.
+  const savePdf = async () => {
+    setPdfLoading(true);
+    setPdfError(null);
+    try {
+      await downloadResultPdf({
+        examTitle: exam.title,
+        studentDisplay: displayFullName,
+        studentDob: displayDob === '—' ? null : displayDob,
+        studentCccd: displayCccd === '—' ? null : displayCccd,
+        completedAtStr,
+        durationStr: formatAttemptDuration(attempt.started_at, attempt.completed_at),
+        disqualified: Boolean(attempt.disqualified),
+        earned,
+        denom,
+        passValue,
+        passed,
+        startPhotoUrl,
+        signatureUrl: signatureUrl ?? null,
+        reviewItems: null,
+      });
+    } catch {
+      setPdfError('Không tạo được file PDF. Thử lại, hoặc mở trang này bằng Chrome.');
+      handlePrint();
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto p-4 print:max-w-none print:p-0">
@@ -202,13 +236,15 @@ export default function ExamResultPage() {
               />
               <p className="mt-1 text-xs text-slate-500">{SIGNATURE_STATEMENT}</p>
             </div>
+            {pdfError && <p className="mt-6 text-sm text-red-600 print:hidden" role="alert">{pdfError}</p>}
             <div className="mt-8 flex gap-3 print:hidden">
               <button
                 type="button"
-                onClick={handlePrint}
-                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800"
+                disabled={pdfLoading}
+                onClick={() => void savePdf()}
+                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                In kết quả
+                {pdfLoading ? 'Đang tạo PDF...' : 'In kết quả'}
               </button>
               <Link
                 to="/dashboard"

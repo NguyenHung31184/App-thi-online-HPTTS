@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-10-18 | Nút "In kết quả" của học viên lưu PDF
+
+- Vấn đề: trên một số điện thoại (ASUS, OPPO), bấm "In kết quả" không có gì xảy ra. Nút gọi `window.print()`, mà
+  trình duyệt mặc định của các máy này và trình duyệt nhúng (Zalo, Facebook) bỏ qua lệnh đó.
+- Sửa (commit 64dc515): `ExamResultPage` gọi `downloadResultPdf` (dùng chung với trang kết quả của cán bộ) để lưu phiếu
+  A4 dạng PDF, không kèm chi tiết đáp án. Nếu tạo PDF lỗi thì báo lỗi rồi mở hộp thoại in như trước.
+- Kiểm: tsc, build, check:boundaries, vitest 325/325 đạt. Chưa thử trên máy ASUS/OPPO thật.
+- Tiếp: thử trên máy thật, sau đó deploy.
+
+---
+
 ## 2026-10-16 | Học viên thi thử không vào được kỳ thi thật: sai mã truy cập; nút mở khóa ở màn giám sát (migration đã áp 16/10)
 
 **Hiện tượng**: kỳ thi thật 14:15–14:45 của NBN-GN3.4 và NBN-GN4.5, năm học viên đã thi thử 14–15/10 không vào được.

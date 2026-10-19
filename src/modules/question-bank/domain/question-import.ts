@@ -1,5 +1,6 @@
 import type { QuestionType } from '../../../types';
-import { OPTION_IDS, buildQuestionPayload, emptyDraft, type EssayKey, type QuestionDraft, type QuestionPayload } from './question-draft';
+import { OPTION_IDS, buildQuestionPayload, distributeEssayPoints, emptyDraft, essayKeywordsPending, isEssayType, newEssayKey, type EssayKey, type QuestionDraft, type QuestionPayload } from './question-draft';
+import { ESSAY_DEFAULT_POINTS } from './essay-keywords';
 
 // The column format is the one the legacy import screens read, so the center's existing files keep working.
 // Unlike those screens, a cell that cannot be read turns the row into an error instead of a default answer.
@@ -192,9 +193,9 @@ export function parseEssayKeys(raw: string): EssayKey[] {
     .split(';')
     .map((part) => {
       const bar = part.lastIndexOf('|');
-      if (bar === -1) return { text: part.trim(), points: 2 };
+      if (bar === -1) return newEssayKey(part.trim(), 2);
       const points = parseFloat(part.slice(bar + 1).trim());
-      return { text: part.slice(0, bar).trim(), points: Number.isNaN(points) ? 2 : points };
+      return newEssayKey(part.slice(0, bar).trim(), Number.isNaN(points) ? 2 : points);
     })
     .filter((key) => key.text !== '');
 }
@@ -278,7 +279,9 @@ export function draftFromImportRow(row: ImportRow, allowMissingChoiceAnswer = fa
       break;
     }
     default:
-      draft.essayKeys = parseEssayKeys(row.keys);
+      // Every essay is worth the same, split evenly over its marking points.
+      draft.points = ESSAY_DEFAULT_POINTS;
+      draft.essayKeys = distributeEssayPoints(parseEssayKeys(row.keys), ESSAY_DEFAULT_POINTS);
   }
   return { ok: true, draft };
 }
@@ -408,7 +411,10 @@ export function planDraftImport(rows: ImportDraftRow[], context: ImportContext):
     const badImage = imageName ? imageError(imageName, context.imageSizes) : null;
     if (badImage) { plan.errors.push(skip(badImage)); continue; }
 
-    const built = buildQuestionPayload(item.draft, context.validateMediaUrl, imageName !== null);
+    // Suggested keywords are not marked until a teacher approves them, so such an essay is stored as a draft.
+    const keywordsPending = isEssayType(item.draft.questionType) && item.draft.essayKeys.length > 0 && essayKeywordsPending(item.draft.essayKeys);
+    const draft = keywordsPending ? { ...item.draft, status: 'draft' as const } : item.draft;
+    const built = buildQuestionPayload(draft, context.validateMediaUrl, imageName !== null);
     if (!built.ok) { plan.errors.push(skip(built.error)); continue; }
 
     const key = contentKey(built.payload.stem, built.payload.options);
@@ -420,14 +426,18 @@ export function planDraftImport(rows: ImportDraftRow[], context: ImportContext):
     const onImage = built.payload.question_type === 'drag_drop' && built.payload.rubric !== undefined;
     const reviewNotes = item.confirmed ? [] : (row.reviewNotes ?? []);
     const defaultZones = onImage && !item.confirmed;
-    const notes = [...reviewNotes, ...(defaultZones ? ['Gắn nhãn lên ảnh: kiểm tra vị trí 4 ô trước khi nhập.'] : [])];
+    const notes = [
+      ...reviewNotes,
+      ...(defaultZones ? ['Gắn nhãn lên ảnh: kiểm tra vị trí 4 ô trước khi nhập.'] : []),
+      ...(keywordsPending ? ['Từ khóa chấm do hệ thống gợi ý: câu được lưu nháp, cần duyệt từ khóa rồi mới phát hành.'] : []),
+    ];
     plan.ready.push({
       line: row.line,
       label: row.label,
       payload: built.payload,
       imageName,
       note: notes.length > 0 ? notes.join(' ') : null,
-      needsReview: reviewNotes.length > 0 || defaultZones,
+      needsReview: reviewNotes.length > 0 || defaultZones || keywordsPending,
       source: row,
       draft: item.draft,
     });

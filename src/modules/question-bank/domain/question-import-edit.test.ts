@@ -38,7 +38,7 @@ function draft(type: QuestionType, stem: string): QuestionDraft {
   result.zoneAnswers = ['C', 'A', 'B'];
   result.trueFalse = ['T', 'F', 'T'];
   result.matchingRight = ['Ghép A', 'Ghép B', 'Ghép C'];
-  result.essayKeys = [{ text: 'Ý chấm', points: 2 }];
+  result.essayKeys = [{ text: 'Ý chấm', points: 2, keywords: ['ý chấm'], approved: true }];
   result.mediaUrl = type === 'video_paragraph' ? 'https://example.com/video' : '';
   return result;
 }
@@ -86,6 +86,6 @@ describe('editable Word import drafts', () => {
     expect(plan.ready[3].payload.answer_key).toBe('["T","F","T"]');
     expect(JSON.parse(plan.ready[4].payload.answer_key)).toEqual({ right: ['Ghép A', 'Ghép B', 'Ghép C'], map: { A: '1', B: '2', C: '3' } });
     expect(plan.ready[5].payload.media_url).toBe('https://example.com/video');
-    expect(JSON.parse(plan.ready[6].payload.answer_key)).toEqual([{ text: 'Ý chấm', points: 2 }]);
+    expect(JSON.parse(plan.ready[6].payload.answer_key)).toEqual([{ text: 'Ý chấm', points: 2, keywords: ['ý chấm'], approved: true }]);
   });
 });

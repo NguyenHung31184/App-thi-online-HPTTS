@@ -4,6 +4,12 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-10-19 — Chấm tự luận theo từ khóa (migration `20261019150000`, CHƯA áp)
+
+- Điểm ổn định trước đó: `d787b65`. Bản `grade_attempt` trước khi sửa: `docs/rollback/2026-10-19-grade-attempt-before.sql`.
+- Lùi DB: chạy file đó và khôi phục `exam_private.guard_published_essay` theo `20261006151544_exam_audit_fixes.sql`; các hàm
+  `exam_private.essay_*` mới để lại cũng không ảnh hưởng. Đáp án có thêm `keywords`/`approved` vẫn đọc được bằng code cũ.
+
 ## 2026-10-16 — Mở khóa nhập sai mã truy cập ở màn giám sát (migration `20261016110000` đã áp 16/10)
 
 - Điểm ổn định trước đó: `5125f0d`. Commit `41944b4`.

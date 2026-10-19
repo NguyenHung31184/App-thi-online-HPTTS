@@ -1,5 +1,6 @@
 import type { QuestionType } from '../../../types';
 import type { QuestionStatus } from './question-library';
+import { suggestKeywords } from './essay-keywords';
 
 // Encodings below are read by grade_attempt and the student exam screen; they follow what the legacy
 // form (pages/admin/AdminQuestionBankFormPage, removed in C2 step 3) wrote, type by type. Three legacy behaviours are not
@@ -22,7 +23,32 @@ export function defaultZonePositions(count: number): ZonePosition[] {
 }
 
 export interface ZonePosition { x: number; y: number }
-export interface EssayKey { text: string; points: number }
+/** keywords: groups the grader looks for, alternatives separated by "/"; approved: a teacher has checked them. */
+export interface EssayKey { text: string; points: number; keywords: string[]; approved: boolean }
+
+export function newEssayKey(text: string, points = 0): EssayKey {
+  return { text, points, keywords: suggestKeywords(text), approved: false };
+}
+
+/** Essay answer_key JSON → marking points; points stored before keywords existed get suggestions, unapproved. */
+export function parseStoredEssayKeys(answerKey: string | null | undefined): EssayKey[] {
+  let parsed: unknown;
+  try { parsed = JSON.parse(answerKey ?? ''); } catch { return []; }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null && 'text' in item)
+    .map((item) => {
+      const text = String(item.text ?? '');
+      const points = Number(item.points ?? 0);
+      const keywords = Array.isArray(item.keywords) ? item.keywords.map(String).filter((group) => group.trim() !== '') : [];
+      return keywords.length > 0 ? { text, points, keywords, approved: item.approved === true } : newEssayKey(text, points);
+    });
+}
+
+/** True while an essay waits for a teacher to approve its keywords. */
+export function essayKeywordsPending(keys: EssayKey[]): boolean {
+  return keys.some((key) => key.keywords.length === 0 || !key.approved);
+}
 export interface QuestionOption { id: string; text: string }
 
 export interface QuestionDraft {
@@ -183,11 +209,7 @@ export function draftFromQuestion(question: StoredQuestion): QuestionDraft {
       });
     }
   }
-  if (isEssayType(type) && Array.isArray(parsedKey)) {
-    const keys = parsedKey.filter((item): item is { text: unknown; points: unknown } => typeof item === 'object' && item !== null && 'text' in item)
-      .map((item) => ({ text: String(item.text ?? ''), points: Number(item.points ?? 0) }));
-    draft.essayKeys = keys;
-  }
+  if (isEssayType(type)) draft.essayKeys = parseStoredEssayKeys(answerKey);
 
   const rubric = parseJson(question.rubric);
   draft.rubricText = typeof question.rubric === 'string' ? question.rubric : question.rubric ? JSON.stringify(question.rubric, null, 2) : '';
@@ -278,7 +300,12 @@ export function buildQuestionPayload(
       if (draft.status === 'published' && (keys.length === 0 || keys.some((key) => !Number.isFinite(key.points) || key.points <= 0))) {
         return fail('Câu tự luận cần khóa chấm có điểm lớn hơn 0 trước khi xuất bản. Có thể lưu nháp để bổ sung khóa.');
       }
-      answerKey = keys.length > 0 ? JSON.stringify(keys) : '';
+      if (draft.status === 'published' && essayKeywordsPending(keys)) {
+        return fail('Câu tự luận cần duyệt từ khóa chấm (bấm "Duyệt từ khóa") trước khi phát hành. Có thể lưu nháp để duyệt sau.');
+      }
+      answerKey = keys.length > 0
+        ? JSON.stringify(keys.map((key) => ({ text: key.text.trim(), points: key.points, keywords: key.keywords, approved: key.approved })))
+        : '';
       // Imported essay questions store [] (the legacy form stored one empty option); neither is read.
       options = [];
       rubric = draft.rubricText.trim() || null;

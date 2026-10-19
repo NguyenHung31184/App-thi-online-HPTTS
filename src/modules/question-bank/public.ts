@@ -1,6 +1,7 @@
 export { getQuestionLibraries, getQuestionLibraryWorkspace } from './application/manage-question-library';
 export { checkExamBlueprint, countDrawableQuestions, listModuleQuestions } from './application/check-exam-blueprint';
 export { validateQuestion, type QuestionIssue, type ValidationResult } from './domain/question-validation';
+export { ESSAY_ANSWER_MAX_LENGTH } from './domain/essay-keywords';
 export type { BlueprintCoverage } from './domain/blueprint-coverage';
 export { questionBankKeys } from './queries/keys';
 export {

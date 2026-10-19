@@ -378,7 +378,7 @@ describe('question type tags', () => {
     expect(plan(result.rows).ready[0].payload.question_type).toBe('drag_drop');
   });
 
-  it('reads [Tự luận] with "Ý chấm:" lines, 2 points when missing', () => {
+  it('reads [Tự luận] with "Ý chấm:" lines as a 2-point draft split evenly, keywords waiting for approval', () => {
     const result = sheet([
       p('Câu 8. [Tự luận] Nêu nguyên nhân tai nạn lao động tại cảng.'),
       p('Ý chấm: sai quy trình | 3'),
@@ -387,7 +387,13 @@ describe('question type tags', () => {
     expect(result.rows[0]).toMatchObject({ optionTexts: [], keys: 'sai quy trình|3;thiếu bảo hộ|2', questionType: 'Tự luận' });
     const [ready] = plan(result.rows).ready;
     expect(ready.payload.question_type).toBe('main_idea');
-    expect(JSON.parse(ready.payload.answer_key)).toEqual([{ text: 'sai quy trình', points: 3 }, { text: 'thiếu bảo hộ', points: 2 }]);
+    expect(ready.payload.points).toBe(2);
+    expect(ready.payload.status).toBe('draft');
+    expect(ready.needsReview).toBe(true);
+    expect(JSON.parse(ready.payload.answer_key)).toEqual([
+      { text: 'sai quy trình', points: 1, keywords: ['sai quy trình'], approved: false },
+      { text: 'thiếu bảo hộ', points: 1, keywords: ['thiếu bảo hộ'], approved: false },
+    ]);
   });
 
   it('keeps [Nhiều đáp án] with one mark and refuses [Trắc nghiệm] with two', () => {

@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { ZonePositionPicker } from './ZonePositionPicker';
-import { OPTION_IDS, defaultZonePositions, distributeEssayPoints, dragDropZoneCount, isLabelOnImage, visibleOptionCount, type QuestionDraft, type ZonePosition } from '../../domain/question-draft';
+import { OPTION_IDS, defaultZonePositions, distributeEssayPoints, dragDropZoneCount, essayKeywordsPending, isLabelOnImage, newEssayKey, visibleOptionCount, type EssayKey, type QuestionDraft, type ZonePosition } from '../../domain/question-draft';
+import { formatKeywordList, parseKeywordList, suggestKeywords } from '../../domain/essay-keywords';
 import { fieldClass, focusRing, sizedFieldClass } from '../labels';
 
 const smallButton = `inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium ${focusRing}`;
@@ -205,6 +206,9 @@ export function DragDropField({ draft, update, imageSrc }: FieldProps & { imageS
 export function EssayField({ draft, update }: FieldProps) {
   const total = Math.round(draft.essayKeys.reduce((sum, key) => sum + key.points, 0) * 100) / 100;
   const balanced = Math.abs(total - draft.points) < 0.01;
+  const pending = draft.essayKeys.length > 0 && essayKeywordsPending(draft.essayKeys);
+  const setKey = (index: number, patch: Partial<EssayKey>) =>
+    update({ essayKeys: draft.essayKeys.map((item, i) => (i === index ? { ...item, ...patch } : item)) });
   return (
     <div className="space-y-4">
       {draft.questionType === 'video_paragraph' && (
@@ -215,23 +219,66 @@ export function EssayField({ draft, update }: FieldProps) {
       )}
       <fieldset className="space-y-2">
         <legend className="mb-1 text-sm font-medium text-slate-800">Ý chấm tự động</legend>
-        <p className="text-xs text-slate-600">Mỗi ý xuất hiện trong bài làm được cộng điểm (so khớp không phân biệt hoa thường). Để trống nếu giáo viên chấm tay.</p>
+        <p className="text-xs text-slate-600">
+          Học viên chỉ cần gõ từ khóa. Một ý được điểm khi bài làm có ít nhất 2 từ khóa của ý đó (ý chỉ có 1 từ khóa thì cần 1).
+          Từ khóa cách nhau bằng dấu phẩy; cách viết khác của cùng một từ khóa ghi bằng dấu "/", ví dụ: rò rỉ dầu, đứt cáp/cáp đứt.
+          Không phân biệt hoa thường, có dấu hay không dấu.
+        </p>
         {draft.essayKeys.map((key, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <input
-              value={key.text}
-              onChange={(event) => update({ essayKeys: draft.essayKeys.map((item, i) => (i === index ? { ...item, text: event.target.value } : item)) })}
-              aria-label={`Ý chấm ${index + 1}`}
-              className={fieldClass}
-            />
-            <span className="w-14 shrink-0 text-right text-sm tabular-nums text-slate-700">{key.points} đ</span>
-            <button type="button" onClick={() => update({ essayKeys: distributeEssayPoints(draft.essayKeys.filter((_, i) => i !== index), draft.points) })} className={`${smallButton} text-rose-800 hover:bg-rose-50`} aria-label={`Xóa ý chấm ${index + 1}`}>
-              Xóa
-            </button>
+          <div key={index} className="space-y-1 rounded-lg border border-slate-200 p-2">
+            <div className="flex items-center gap-2">
+              <input
+                value={key.text}
+                onChange={(event) => {
+                  const text = event.target.value;
+                  // Keywords nobody has touched follow the point text as it is typed.
+                  const untouched = !key.approved && key.keywords.join('|') === suggestKeywords(key.text).join('|');
+                  setKey(index, untouched ? { text, keywords: suggestKeywords(text) } : { text });
+                }}
+                aria-label={`Ý chấm ${index + 1}`}
+                className={fieldClass}
+              />
+              <span className="w-14 shrink-0 text-right text-sm tabular-nums text-slate-700">{key.points} đ</span>
+              <button type="button" onClick={() => update({ essayKeys: distributeEssayPoints(draft.essayKeys.filter((_, i) => i !== index), draft.points) })} className={`${smallButton} text-rose-800 hover:bg-rose-50`} aria-label={`Xóa ý chấm ${index + 1}`}>
+                Xóa
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="min-w-0 flex-1 text-xs font-medium text-slate-700">Từ khóa
+                <input
+                  key={`${index}-${key.keywords.join('|')}`}
+                  defaultValue={formatKeywordList(key.keywords)}
+                  onBlur={(event) => {
+                    const keywords = parseKeywordList(event.target.value);
+                    if (keywords.join('|') !== key.keywords.join('|')) setKey(index, { keywords, approved: false });
+                  }}
+                  className={`${fieldClass} mt-1`}
+                />
+              </label>
+              <button type="button" onClick={() => setKey(index, { keywords: suggestKeywords(key.text), approved: false })} className={`${smallButton} text-slate-700 hover:bg-slate-100`}>
+                Gợi ý lại
+              </button>
+              <span className={`text-xs font-medium ${key.approved && key.keywords.length > 0 ? 'text-emerald-800' : 'text-amber-900'}`}>
+                {key.approved && key.keywords.length > 0 ? 'Đã duyệt' : 'Chưa duyệt'}
+              </span>
+            </div>
           </div>
         ))}
+        {pending && (
+          <div role="status" className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-950">
+            <span>Từ khóa chưa được duyệt, câu này chưa phát hành được.</span>
+            <button
+              type="button"
+              disabled={draft.essayKeys.some((key) => key.keywords.length === 0)}
+              onClick={() => update({ essayKeys: draft.essayKeys.map((key) => ({ ...key, approved: true })) })}
+              className={`${smallButton} bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50`}
+            >
+              Duyệt từ khóa
+            </button>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={() => update({ essayKeys: distributeEssayPoints([...draft.essayKeys, { text: '', points: 0 }], draft.points) })} className={`${smallButton} text-indigo-700 hover:bg-indigo-50`}>
+          <button type="button" onClick={() => update({ essayKeys: distributeEssayPoints([...draft.essayKeys, newEssayKey('')], draft.points) })} className={`${smallButton} text-indigo-700 hover:bg-indigo-50`}>
             Thêm ý chấm
           </button>
           {draft.essayKeys.length > 0 && (

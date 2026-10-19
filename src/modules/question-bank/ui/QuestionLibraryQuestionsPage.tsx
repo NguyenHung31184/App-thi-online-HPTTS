@@ -3,7 +3,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { QuestionType } from '../../../types';
 import { QUESTION_TYPES } from '../domain/question-draft';
-import { filterLibraryQuestions, questionIssues, type LibraryQuestionFilter, type QuestionStatus } from '../domain/question-library';
+import { filterLibraryQuestions, needsKeywordReview, questionIssues, type LibraryQuestionFilter, type QuestionStatus } from '../domain/question-library';
 import { useChangeQuestionStatus, useQuestionExport, useRemoveQuestions } from '../queries/use-question-actions';
 import { ConfirmDialog } from './confirm-dialog';
 import { saveFile } from './download';
@@ -41,7 +41,7 @@ export default function QuestionLibraryQuestionsPage() {
   const rawStatus = params.get('status') ?? '';
   const status: LibraryQuestionFilter['status'] = rawStatus === 'all' || statuses.includes(rawStatus as QuestionStatus) ? rawStatus as LibraryQuestionFilter['status'] : '';
   const rawType = params.get('type') ?? '';
-  const type: NonNullable<LibraryQuestionFilter['type']> = rawType === 'broken' || QUESTION_TYPES.includes(rawType as QuestionType) ? rawType as QuestionType | 'broken' : '';
+  const type: NonNullable<LibraryQuestionFilter['type']> = rawType === 'broken' || rawType === 'keywords' || QUESTION_TYPES.includes(rawType as QuestionType) ? rawType as QuestionType | 'broken' | 'keywords' : '';
   // The editor returns here with the same filters.
   const returnState = { returnTo: `${location.pathname}${location.search}` };
   const taxonomyNodeId = params.get('node') ?? '';
@@ -55,6 +55,7 @@ export default function QuestionLibraryQuestionsPage() {
   );
   const issuesById = useMemo(() => new Map(questions.map((question) => [question.id, questionIssues(question)])), [questions]);
   const brokenCount = questions.filter((question) => question.status !== 'retired' && (issuesById.get(question.id)?.length ?? 0) > 0).length;
+  const keywordReviewCount = questions.filter(needsKeywordReview).length;
 
   // Actions apply to the selected rows that are on screen, never to rows hidden by a filter.
   const selectedVisible = visible.filter((question) => selected.has(question.id));
@@ -132,6 +133,7 @@ export default function QuestionLibraryQuestionsPage() {
             <option value="">Tất cả loại câu</option>
             {QUESTION_TYPES.map((value) => <option key={value} value={value}>{questionTypeLabels[value]}</option>)}
             <option value="broken">Câu có lỗi dữ liệu</option>
+            <option value="keywords">Tự luận cần duyệt từ khóa</option>
           </select>
         </label>
         <label className="grid gap-1 text-sm font-medium text-slate-700">Mục trong cây kiến thức
@@ -146,6 +148,13 @@ export default function QuestionLibraryQuestionsPage() {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-300 bg-amber-50 px-4 py-1 text-sm text-amber-900">
           <p><strong>{brokenCount}</strong> câu có lỗi dữ liệu, thí sinh gặp các câu này sẽ không làm được.</p>
           <button type="button" onClick={() => setFilter('type', 'broken')} className={`inline-flex min-h-11 items-center rounded px-1 font-semibold underline ${focusRing}`}>Xem các câu lỗi</button>
+        </div>
+      )}
+
+      {keywordReviewCount > 0 && type !== 'keywords' && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-300 bg-amber-50 px-4 py-1 text-sm text-amber-900">
+          <p><strong>{keywordReviewCount}</strong> câu tự luận có từ khóa chấm do hệ thống gợi ý, cần giảng viên duyệt trước khi phát hành.</p>
+          <button type="button" onClick={() => setFilter('type', 'keywords')} className={`inline-flex min-h-11 items-center rounded px-1 font-semibold underline ${focusRing}`}>Xem các câu cần duyệt</button>
         </div>
       )}
 
@@ -221,6 +230,9 @@ export default function QuestionLibraryQuestionsPage() {
                     <p className="mt-1 text-xs font-medium text-amber-900">
                       Lỗi: {issues[0].message}{issues.length > 1 ? ` (và ${issues.length - 1} lỗi khác)` : ''}
                     </p>
+                  )}
+                  {needsKeywordReview(question) && (
+                    <p className="mt-1 text-xs font-medium text-amber-900">Cần duyệt từ khóa chấm</p>
                   )}
                 </div>
                 <div className="col-start-2 flex items-center gap-3 sm:col-start-auto sm:justify-end sm:py-1">

@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-10-19 | Chấm tự luận theo từ khóa (code xong, migration CHƯA áp)
+
+- Vấn đề: hàm chấm cũ chỉ cho điểm một ý khi nguyên văn cả câu "Ý chấm" có trong bài làm, nên học viên gần như
+  không được điểm, và viết đủ câu thì không kịp trong 30 phút.
+- Đã làm (chốt với chủ dự án):
+  - Mỗi ý chấm có danh sách từ khóa (cách viết khác ghi bằng "/") và cờ đã duyệt. Ý đạt khi 200 ký tự đầu của bài
+    làm khớp ít nhất 2 từ khóa (ý chỉ có 1 từ khóa thì cần 1). Không phân biệt hoa thường và có dấu hay không;
+    gõ có dấu thì đảo thứ tự từ vẫn khớp. Ý chưa có từ khóa vẫn chấm theo luật cũ.
+  - Hệ thống tự tách gợi ý từ khóa từ câu đáp án (`domain/essay-keywords.ts`), giảng viên sửa rồi bấm "Duyệt từ khóa".
+  - Nhập Word/Excel: câu tự luận thành 2 điểm, chia đều cho các ý, lưu nháp và ghi chú "cần duyệt". Ngân hàng câu
+    hỏi có dòng báo số câu cần duyệt và bộ lọc "Tự luận cần duyệt từ khóa". 114 câu tự luận cũ tự hiện trong danh sách
+    này (chưa ghi gì vào database).
+  - Phát hành câu tự luận khi từ khóa chưa duyệt bị chặn ở app và ở trigger `guard_published_essay`. Câu cũ đã phát
+    hành không bị đụng, đề đang thi vẫn rút được.
+  - Màn thi: ô tự luận giới hạn 200 ký tự, có hướng dẫn "ghi ngắn các ý chính".
+  - Migration `20261019150000_essay_keyword_marking.sql` (định nghĩa `grade_attempt` lấy từ bản đang chạy trên production).
+- Kiểm: tsc, check:boundaries, vitest 337/337, build đạt. Chạy migration trên production trong giao dịch tự hoàn tác
+  (ROLLBACK): 10 trường hợp chấm đúng kết quả mong đợi; trigger chặn phát hành khi chưa duyệt, cho qua khi đã duyệt,
+  sửa chủ đề câu cũ vẫn được. Chưa chấm thử trọn một lượt thi và chưa bấm thử giao diện khi đăng nhập.
+- Tiếp: chủ dự án cho phép thì áp migration lên production, deploy frontend, duyệt từ khóa cho 114 câu cũ.
+
+---
+
 ## 2026-10-18 | Nút "In kết quả" của học viên lưu PDF
 
 - Vấn đề: trên một số điện thoại (ASUS, OPPO), bấm "In kết quả" không có gì xảy ra. Nút gọi `window.print()`, mà

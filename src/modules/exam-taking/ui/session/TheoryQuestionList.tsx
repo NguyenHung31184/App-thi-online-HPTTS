@@ -2,7 +2,7 @@ import { memo, type Dispatch, type SetStateAction } from 'react';
 import type { QuestionForStudent } from '../../domain/exam-attempt';
 import { hashStringToSeed, shuffleWithSeed } from '../../domain/session-paper';
 import { optionLetter, referencesOtherOptions } from '../../domain/option-order';
-import { validateQuestion } from '../../../question-bank/public';
+import { ESSAY_ANSWER_MAX_LENGTH, validateQuestion } from '../../../question-bank/public';
 import { SortableOptionList } from '../../../../shared/ui/SortableOptionList';
 import { LabelOnImageDrop } from './LabelOnImageDrop';
 
@@ -119,13 +119,21 @@ export const TheoryQuestionList = memo(function TheoryQuestionList({ questions, 
                 </div>
               )}
               {isEssay ? (
-                <textarea
-                  value={answers[q.id] ?? ''}
-                  onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                  rows={5}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  placeholder="Nhập câu trả lời..."
-                />
+                <div>
+                  <p id={`essay-hint-${q.id}`} className="mb-1 text-sm text-slate-600">
+                    Ghi ngắn gọn các ý chính, mỗi ý vài từ khóa, cách nhau bằng dấu phẩy. Ví dụ: rò rỉ dầu, đứt cáp
+                  </p>
+                  <textarea
+                    value={answers[q.id] ?? ''}
+                    onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value.slice(0, ESSAY_ANSWER_MAX_LENGTH) }))}
+                    maxLength={ESSAY_ANSWER_MAX_LENGTH}
+                    rows={3}
+                    aria-describedby={`essay-hint-${q.id}`}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                    placeholder="Nhập các từ khóa..."
+                  />
+                  <p className="text-right text-xs tabular-nums text-slate-600">{(answers[q.id] ?? '').length}/{ESSAY_ANSWER_MAX_LENGTH} ký tự</p>
+                </div>
               ) : isLabelOnImage ? (
                 (() => {
                   let r = q.rubric;

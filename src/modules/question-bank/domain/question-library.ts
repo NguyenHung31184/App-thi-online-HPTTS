@@ -1,5 +1,6 @@
 import type { QuestionType } from '../../../types';
 import { validateQuestion, type QuestionIssue } from './question-validation';
+import { essayKeywordsPending, isEssayType, parseStoredEssayKeys } from './question-draft';
 
 export type CognitiveLevel = 'recognition' | 'comprehension' | 'application';
 export type QuestionStatus = 'draft' | 'review' | 'published' | 'retired';
@@ -78,8 +79,8 @@ export interface LibraryQuestionFilter {
   status: QuestionStatus | '' | 'all';
   taxonomyNodeId: string;
   text: string;
-  /** '' = every type; 'broken' = questions the exam screen cannot show (see questionIssues). */
-  type?: QuestionType | '' | 'broken';
+  /** '' = every type; 'broken' = questions the exam screen cannot show (see questionIssues); 'keywords' = essays whose keywords wait for approval. */
+  type?: QuestionType | '' | 'broken' | 'keywords';
 }
 
 /** Problems that stop a student from answering the question, as the exam screen checks them. */
@@ -122,6 +123,7 @@ export function filterLibraryQuestions(
     if (nodeIds && (!question.taxonomyNodeId || !nodeIds.has(question.taxonomyNodeId))) return false;
     if (text && !`${question.stem} ${question.topic}`.toLocaleLowerCase('vi').includes(text)) return false;
     if (filter.type === 'broken') return questionIssues(question).length > 0;
+    if (filter.type === 'keywords') return needsKeywordReview(question);
     if (filter.type && question.questionType !== filter.type) return false;
     return true;
   });
@@ -131,4 +133,11 @@ export function countQuestionsByStatus(questions: LibraryQuestion[]): Record<Que
   const counts: Record<QuestionStatus, number> = { draft: 0, review: 0, published: 0, retired: 0 };
   for (const question of questions) counts[question.status] += 1;
   return counts;
+}
+
+/** An essay whose marking keywords a teacher still has to approve. */
+export function needsKeywordReview(question: Pick<LibraryQuestion, 'questionType' | 'answerKey' | 'status'>): boolean {
+  if (question.status === 'retired' || !isEssayType(question.questionType)) return false;
+  const keys = parseStoredEssayKeys(question.answerKey);
+  return keys.length > 0 && essayKeywordsPending(keys);
 }

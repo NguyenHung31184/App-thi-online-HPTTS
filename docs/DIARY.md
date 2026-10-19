@@ -5,7 +5,7 @@
 
 ---
 
-## 2026-10-19 | Chấm tự luận theo từ khóa (migration ĐÃ ÁP 19/10, frontend chưa deploy)
+## 2026-10-19 | Chấm tự luận theo từ khóa (migration đã áp, frontend đã deploy 19/10)
 
 - Vấn đề: hàm chấm cũ chỉ cho điểm một ý khi nguyên văn cả câu "Ý chấm" có trong bài làm, nên học viên gần như
   không được điểm, và viết đủ câu thì không kịp trong 30 phút.
@@ -25,7 +25,8 @@
   (ROLLBACK): 10 trường hợp chấm đúng kết quả mong đợi; trigger chặn phát hành khi chưa duyệt, cho qua khi đã duyệt,
   sửa chủ đề câu cũ vẫn được. Chưa chấm thử trọn một lượt thi và chưa bấm thử giao diện khi đăng nhập.
 - Đã áp migration lên production 19/10 (chủ dự án cho phép), repair lịch sử; kiểm lại: 4 hàm mới có, grade_attempt gọi essay_point_score, trigger đã cập nhật.
-- Tiếp: push + deploy frontend (cần chủ dự án cho phép), duyệt từ khóa cho 114 câu cũ.
+- Đã push 08d87bb, Vercel deploy thành công 19/10.
+- Tiếp: bấm thử giao diện khi đăng nhập, duyệt từ khóa cho 114 câu cũ, theo dõi điểm tự luận kỳ thi đầu tiên.
 
 ---
 

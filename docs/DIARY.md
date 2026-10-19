@@ -5,7 +5,7 @@
 
 ---
 
-## 2026-10-19 | Chấm tự luận theo từ khóa (code xong, migration CHƯA áp)
+## 2026-10-19 | Chấm tự luận theo từ khóa (migration ĐÃ ÁP 19/10, frontend chưa deploy)
 
 - Vấn đề: hàm chấm cũ chỉ cho điểm một ý khi nguyên văn cả câu "Ý chấm" có trong bài làm, nên học viên gần như
   không được điểm, và viết đủ câu thì không kịp trong 30 phút.
@@ -24,7 +24,8 @@
 - Kiểm: tsc, check:boundaries, vitest 337/337, build đạt. Chạy migration trên production trong giao dịch tự hoàn tác
   (ROLLBACK): 10 trường hợp chấm đúng kết quả mong đợi; trigger chặn phát hành khi chưa duyệt, cho qua khi đã duyệt,
   sửa chủ đề câu cũ vẫn được. Chưa chấm thử trọn một lượt thi và chưa bấm thử giao diện khi đăng nhập.
-- Tiếp: chủ dự án cho phép thì áp migration lên production, deploy frontend, duyệt từ khóa cho 114 câu cũ.
+- Đã áp migration lên production 19/10 (chủ dự án cho phép), repair lịch sử; kiểm lại: 4 hàm mới có, grade_attempt gọi essay_point_score, trigger đã cập nhật.
+- Tiếp: push + deploy frontend (cần chủ dự án cho phép), duyệt từ khóa cho 114 câu cũ.
 
 ---
 

@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-10-20 | Trang "Kiểm tra ngân hàng" đếm cả câu ngừng sử dụng
+
+- Vấn đề: đề "Lý thuyết NBN QC bậc 1-2" báo medium 238 câu trong khi chỉ 88 câu medium đang phát hành (150 câu đã
+  ngừng sử dụng). Trang `BankCheckPage` lấy mọi câu chưa xóa rồi đếm blueprint và mô phỏng bốc thăm trên đó.
+- Kiểm production: `start_exam_attempt` chỉ bốc câu `status = published` (hoặc null), nên học viên KHÔNG bốc trúng câu
+  ngừng sử dụng. Hàm cũ `create_attempt_with_questions` không lọc trạng thái nhưng không ai có quyền gọi và app không dùng.
+- Sửa: `drawableQuestions` trong `exam-management/domain/bank-check.ts`; trang đếm, mô phỏng và liệt kê chỉ câu bốc được,
+  ghi riêng số câu không được bốc. Thêm test. tsc, lint, ranh giới, vitest 338/338, build đạt.
+- Tiếp: push/deploy khi chủ dự án đồng ý.
+
+---
+
 ## 2026-10-19 | Chấm tự luận theo từ khóa (migration đã áp, frontend đã deploy 19/10)
 
 - Vấn đề: hàm chấm cũ chỉ cho điểm một ý khi nguyên văn cả câu "Ý chấm" có trong bài làm, nên học viên gần như

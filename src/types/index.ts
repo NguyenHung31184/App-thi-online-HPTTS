@@ -214,6 +214,8 @@ export interface QuestionBankItem {
   image_url?: string | null;
   media_url?: string | null;
   rubric?: unknown | null;
+  /** draft | review | published | retired; null counts as published, as start_exam_attempt reads it. */
+  status?: string | null;
   created_at?: string;
   updated_at?: string;
 }

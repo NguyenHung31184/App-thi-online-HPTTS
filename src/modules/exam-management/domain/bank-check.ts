@@ -6,6 +6,11 @@ export interface BlueprintCheckRow {
   ok: boolean;
 }
 
+/** Questions start_exam_attempt can draw: published, or saved before statuses existed (null). */
+export function drawableQuestions(questions: QuestionBankItem[]): QuestionBankItem[] {
+  return questions.filter((q) => (q.status ?? 'published') === 'published');
+}
+
 /**
  * How many bank questions match each blueprint rule ("*" = any topic or difficulty); empty without a blueprint.
  * Counts per rule independently, as the bank check page always showed (the draw itself is checked by question-bank).

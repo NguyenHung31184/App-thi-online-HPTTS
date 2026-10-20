@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QuestionBankItem } from '../../../types';
-import { bankCsv, bankCsvFileName, blueprintCheck, simulateDraw } from './bank-check';
+import { bankCsv, bankCsvFileName, blueprintCheck, drawableQuestions, simulateDraw } from './bank-check';
 
 const question = (id: string, topic: string, difficulty: string, extra: Partial<QuestionBankItem> = {}) =>
   ({ id, topic, difficulty, stem: `Câu ${id}`, points: 2, options: [{ id: 'A', text: 'Đúng "thật"' }, { id: 'B', text: 'Sai' }], answer_key: 'A', ...extra }) as unknown as QuestionBankItem;
@@ -35,5 +35,17 @@ describe('bankCsv', () => {
     expect(csv.startsWith('﻿"#","Câu hỏi"')).toBe(true);
     expect(csv.split('\n')[1]).toBe('"1","Câu 1","An toàn","medium","2","4","Đúng ""thật"""');
     expect(bankCsvFileName('Cấu tạo và nguyên lý vận hành cần trục giàn QC')).toBe('ngan-hang-Cấu-tạo-và-nguyên-lý-vận-hành-.csv');
+  });
+});
+
+describe('drawableQuestions', () => {
+  it('keeps published and status-less questions, drops retired and drafts', () => {
+    const pool = drawableQuestions([
+      question('1', 'A', 'medium', { status: 'published' }),
+      question('2', 'A', 'medium', { status: 'retired' }),
+      question('3', 'A', 'medium', { status: 'draft' }),
+      question('4', 'A', 'medium', { status: null }),
+    ]);
+    expect(pool.map((q) => q.id)).toEqual(['1', '4']);
   });
 });

@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import type { BlueprintRule, QuestionBankItem } from '../../../../types';
-import { blueprintCheck, simulateDraw } from '../../domain/bank-check';
+import { blueprintCheck, drawableQuestions, simulateDraw } from '../../domain/bank-check';
 import { useDrawFrequency, useExam, useModuleQuestions } from '../../queries/use-exam-management';
 import { DifficultyBadge, DrawFreqBadge, QuestionPreviewModal, SimulateDrawModal } from './bank-check-parts';
 import { BlueprintStatusPanel } from './BlueprintStatusPanel';
@@ -17,7 +17,10 @@ export default function BankCheckPage() {
   const exam = examQuery.data ?? null;
   const questionsQuery = useModuleQuestions(exam?.module_id);
   const frequencyQuery = useDrawFrequency(exam?.module_id ? examId : undefined);
-  const bankQuestions = useMemo(() => questionsQuery.data ?? [], [questionsQuery.data]);
+  const allQuestions = useMemo(() => questionsQuery.data ?? [], [questionsQuery.data]);
+  // Only published questions can be drawn (start_exam_attempt); retired and draft ones stay out of every count here.
+  const bankQuestions = useMemo(() => drawableQuestions(allQuestions), [allQuestions]);
+  const notDrawable = allQuestions.length - bankQuestions.length;
   const drawFrequency = useMemo(() => frequencyQuery.data ?? {}, [frequencyQuery.data]);
   const loading = examQuery.isPending || (Boolean(exam?.module_id) && (questionsQuery.isPending || frequencyQuery.isPending));
   const failure = examQuery.error ?? questionsQuery.error;
@@ -143,7 +146,13 @@ export default function BankCheckPage() {
           </svg>
           <span>Mô-đun: <strong>{exam.module_id}</strong></span>
           <span className="text-sky-400">·</span>
-          <span>{bankQuestions.length} câu trong ngân hàng</span>
+          <span>{bankQuestions.length} câu đang phát hành, được bốc vào đề</span>
+          {notDrawable > 0 && (
+            <>
+              <span className="text-sky-400">·</span>
+              <span>{notDrawable} câu ngừng sử dụng hoặc chưa phát hành, không được bốc</span>
+            </>
+          )}
           {totalDraws > 0 && (
             <>
               <span className="text-sky-400">·</span>

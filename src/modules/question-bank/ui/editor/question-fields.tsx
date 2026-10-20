@@ -123,18 +123,19 @@ export function MatchingField({ draft, update }: FieldProps) {
       <legend className="mb-1 text-sm font-medium text-slate-800">Cặp nối đôi</legend>
       <p className="text-xs text-slate-600">Mỗi hàng là một cặp đúng. Khi thi, cột phải được xáo trộn; điểm chia đều theo số cặp nối đúng.</p>
       {ids.map((id, index) => (
-        <div key={id} className="grid grid-cols-[1.5rem_minmax(0,1fr)_2.75rem] items-center gap-2 sm:grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_2.75rem]">
-          <span className="font-semibold text-slate-700" aria-hidden="true">{id}.</span>
-          <input value={optionText(draft, id)} onChange={(event) => update({ options: setOptionText(draft, id, event.target.value) })} aria-label={`Cột trái ${id}`} className={fieldClass} />
-          <input
-            value={draft.matchingRight[index] ?? ''}
-            onChange={(event) => update({ matchingRight: setAt(draft.matchingRight, index, event.target.value, '') })}
-            aria-label={`Cột phải nối với ${id}`}
-            className={`${fieldClass} col-start-2 row-start-2 sm:col-start-auto sm:row-start-auto`}
-          />
-          <div className="col-start-3 row-start-1 sm:col-start-auto">
-            <RemoveRow update={update} id={id} label={`cặp ${id}`} hasText={optionText(draft, id).trim() !== '' || (draft.matchingRight[index] ?? '').trim() !== ''} />
+        <div key={id} className="flex items-center gap-2">
+          <span className="w-6 shrink-0 font-semibold text-slate-700" aria-hidden="true">{id}.</span>
+          {/* Two inputs side by side from the sm breakpoint, stacked on a phone; the × stays at the row's end. */}
+          <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
+            <input value={optionText(draft, id)} onChange={(event) => update({ options: setOptionText(draft, id, event.target.value) })} aria-label={`Cột trái ${id}`} className={fieldClass} />
+            <input
+              value={draft.matchingRight[index] ?? ''}
+              onChange={(event) => update({ matchingRight: setAt(draft.matchingRight, index, event.target.value, '') })}
+              aria-label={`Cột phải nối với ${id}`}
+              className={fieldClass}
+            />
           </div>
+          <RemoveRow update={update} id={id} label={`cặp ${id}`} hasText={optionText(draft, id).trim() !== '' || (draft.matchingRight[index] ?? '').trim() !== ''} />
         </div>
       ))}
     </fieldset>

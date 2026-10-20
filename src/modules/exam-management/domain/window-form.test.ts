@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { examOptionLabel, examsWithoutModule, randomAccessCode, windowFormError } from './window-form';
+import { examOptionLabel, examsWithoutModule, longestDurationMinutes, randomAccessCode, windowFormError } from './window-form';
 
 describe('examOptionLabel', () => {
   it('adds the description and cuts long labels', () => {
@@ -39,5 +39,28 @@ describe('examsWithoutModule', () => {
   it('lists the chosen exams that have no module', () => {
     const exams = [{ id: 'e1', title: 'Có', module_id: 'm' }, { id: 'e2', title: 'Không', module_id: ' ' }];
     expect(examsWithoutModule(['e1', 'e2', 'e9'], exams)).toEqual(['Không', 'e9']);
+  });
+});
+
+describe('window length against exam duration', () => {
+  const base = { isTrial: false, classId: 'c1', useMultiExams: false, examId: 'e1', selectedExamIds: [], titlesWithoutModule: [], accessCode: 'A1B2', durationMinutes: 30 };
+  const start = new Date(2026, 9, 21, 8, 15).getTime();
+  const minutes = (n: number) => start + n * 60_000;
+
+  it('refuses a window shorter than the exam plus 5 minutes of preparation', () => {
+    expect(windowFormError({ ...base, startAt: start, endAt: minutes(20) }))
+      .toBe('Khung giờ 20 phút ngắn hơn thời gian làm bài 30 phút cộng 5 phút chuẩn bị: học viên sẽ bị nộp bài trước khi hết giờ. Đặt giờ Kết thúc từ 08:50 trở đi.');
+    expect(windowFormError({ ...base, startAt: start, endAt: minutes(34) })).toMatch(/^Khung giờ 34 phút/);
+  });
+
+  it('accepts exactly the exam plus preparation, and skips the check without a duration', () => {
+    expect(windowFormError({ ...base, startAt: start, endAt: minutes(35) })).toBeNull();
+    expect(windowFormError({ ...base, durationMinutes: 0, startAt: start, endAt: minutes(5) })).toBeNull();
+  });
+
+  it('takes the longest of the chosen exams', () => {
+    const exams = [{ id: 'a', title: 'A', duration_minutes: 30 }, { id: 'b', title: 'B', duration_minutes: 45 }, { id: 'c', title: 'C' }];
+    expect(longestDurationMinutes(['a', 'b', 'c'], exams)).toBe(45);
+    expect(longestDurationMinutes([], exams)).toBe(0);
   });
 });

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import type { WindowProctoringMode } from '../domain/exam-inputs';
 import { fromDatetimeLocal, toDatetimeLocal } from '../../../shared/lib/datetime-local';
-import { examsWithoutModule, randomAccessCode, windowFormError } from '../domain/window-form';
+import { examsWithoutModule, longestDurationMinutes, randomAccessCode, windowFormError } from '../domain/window-form';
 import {
   useCreateExamWindow,
   useExams,
@@ -74,7 +74,8 @@ export default function WindowFormPage() {
     e.preventDefault();
     const startTs = fromDatetimeLocal(startAt);
     const endTs = fromDatetimeLocal(endAt);
-    const problem = windowFormError({ isTrial, classId, useMultiExams, examId, selectedExamIds, titlesWithoutModule, startAt: startTs, endAt: endTs, accessCode });
+    const durationMinutes = longestDurationMinutes(chosenExamIds, exams);
+    const problem = windowFormError({ isTrial, classId, useMultiExams, examId, selectedExamIds, titlesWithoutModule, startAt: startTs, endAt: endTs, accessCode, durationMinutes });
     setError(problem ?? '');
     if (problem) return;
 

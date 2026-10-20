@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-10-20 | Chặn kỳ thi có khung giờ ngắn hơn thời gian làm bài
+
+- Giờ nộp của học viên = sớm hơn giữa (đồng hồ bắt đầu + thời lượng đề) và giờ Kết thúc kỳ thi; đồng hồ chạy muộn
+  nhất 5 phút sau khi mở đề (`exam_private.preparation_allowance_ms` = 300000). Trước đây form kỳ thi không kiểm,
+  khung giờ ngắn thì mọi học viên bị cắt sớm.
+- Sửa (chủ dự án chọn chặn): `windowFormError` từ chối khi Kết thúc - Bắt đầu < đề dài nhất + 5 phút, báo giờ Kết thúc
+  sớm nhất hợp lệ. Chỉ kiểm ở form (chưa có ràng buộc database). tsc, lint, ranh giới, vitest 341/341, build đạt.
+
+---
+
 ## 2026-10-20 | Trang "Kiểm tra ngân hàng" đếm cả câu ngừng sử dụng
 
 - Vấn đề: đề "Lý thuyết NBN QC bậc 1-2" báo medium 238 câu trong khi chỉ 88 câu medium đang phát hành (150 câu đã

@@ -19,6 +19,7 @@ export interface ExamChoice {
   title: string;
   description?: string | null;
   module_id?: string | null;
+  duration_minutes?: number | null;
 }
 
 /** Titles of the chosen exams without a module: their scores cannot sync to TTDT. */
@@ -32,6 +33,14 @@ export function examsWithoutModule(chosenIds: string[], exams: ExamChoice[]): st
     .filter(Boolean);
 }
 
+/** Matches exam_private.preparation_allowance_ms: the exam clock starts at the latest 5 minutes after the student opens the paper. */
+export const PREPARATION_MINUTES = 5;
+
+/** Longest working time among the chosen exams, in minutes; 0 when none is known. */
+export function longestDurationMinutes(chosenIds: string[], exams: ExamChoice[]): number {
+  return Math.max(0, ...chosenIds.map((id) => Number(exams.find((e) => e.id === id)?.duration_minutes) || 0));
+}
+
 export interface WindowFormCheck {
   isTrial: boolean;
   classId: string;
@@ -42,6 +51,8 @@ export interface WindowFormCheck {
   startAt: number;
   endAt: number;
   accessCode: string;
+  /** Longest exam duration in the window; 0 or missing skips the length check. */
+  durationMinutes?: number;
 }
 
 /** The first problem that blocks saving a window, in the order the form always checked; null when it can be saved. */
@@ -56,6 +67,13 @@ export function windowFormError(form: WindowFormCheck): string | null {
   }
   if (!Number.isFinite(form.startAt) || !Number.isFinite(form.endAt)) return 'Vui lòng nhập thời gian Bắt đầu và Kết thúc.';
   if (form.endAt <= form.startAt) return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+  const duration = form.durationMinutes ?? 0;
+  const neededMs = (duration + PREPARATION_MINUTES) * 60_000;
+  if (duration > 0 && form.endAt - form.startAt < neededMs) {
+    const length = Math.floor((form.endAt - form.startAt) / 60_000);
+    const earliestEnd = new Date(form.startAt + neededMs).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return `Khung giờ ${length} phút ngắn hơn thời gian làm bài ${duration} phút cộng ${PREPARATION_MINUTES} phút chuẩn bị: học viên sẽ bị nộp bài trước khi hết giờ. Đặt giờ Kết thúc từ ${earliestEnd} trở đi.`;
+  }
   if (form.accessCode.trim() === '') return 'Vui lòng nhập Mã truy cập, hoặc bấm nút bên cạnh ô để tạo mã.';
   return null;
 }

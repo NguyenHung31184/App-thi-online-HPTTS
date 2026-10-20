@@ -35,6 +35,7 @@ export async function listAttemptsForReport(filters: ReportFilters): Promise<Att
       passed: isPassed(score, r.disqualified, r.exams?.pass_threshold ?? DEFAULT_PASS_THRESHOLD),
       disqualified: Boolean(r.disqualified),
       completed_at: r.completed_at != null ? new Date(r.completed_at).toLocaleString('vi-VN') : null,
+      completed_at_ms: r.completed_at != null ? Number(r.completed_at) : null,
       synced_to_ttdt_at: r.synced_to_ttdt_at ?? null,
     } as AttemptReportRow;
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QuestionBankItem } from '../../../types';
-import { bankCsv, bankCsvFileName, blueprintCheck, drawableQuestions, simulateDraw } from './bank-check';
+import { bankSheetRows, blueprintCheck, drawableQuestions, simulateDraw } from './bank-check';
 
 const question = (id: string, topic: string, difficulty: string, extra: Partial<QuestionBankItem> = {}) =>
   ({ id, topic, difficulty, stem: `Câu ${id}`, points: 2, options: [{ id: 'A', text: 'Đúng "thật"' }, { id: 'B', text: 'Sai' }], answer_key: 'A', ...extra }) as unknown as QuestionBankItem;
@@ -29,12 +29,10 @@ describe('simulateDraw', () => {
   });
 });
 
-describe('bankCsv', () => {
-  it('writes the BOM, quotes cells and puts the correct answer text last', () => {
-    const csv = bankCsv([bank[0]], { '1': 4 });
-    expect(csv.startsWith('﻿"#","Câu hỏi"')).toBe(true);
-    expect(csv.split('\n')[1]).toBe('"1","Câu 1","An toàn","medium","2","4","Đúng ""thật"""');
-    expect(bankCsvFileName('Cấu tạo và nguyên lý vận hành cần trục giàn QC')).toBe('ngan-hang-Cấu-tạo-và-nguyên-lý-vận-hành-.csv');
+describe('bankSheetRows', () => {
+  it('keeps numbers as numbers, labels the difficulty and puts the correct answer text last', () => {
+    expect(bankSheetRows([bank[0]], { '1': 4 })).toEqual([[1, 'Câu 1', 'An toàn', 'Trung bình', 2, 4, 'Đúng "thật"']]);
+    expect(bankSheetRows([bank[0]], {})[0][5]).toBe(0);
   });
 });
 

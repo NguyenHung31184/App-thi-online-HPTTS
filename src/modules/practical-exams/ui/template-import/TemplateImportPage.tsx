@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { TemplateDraft } from '../../application/import-template';
 import { downloadExcelTemplate, useCreateTemplateFromDraft, useReadTemplateFile } from '../../queries/use-practical-exams';
+import { useFileExport } from '../../../../shared/ui/use-file-export';
 import { ModuleSelect } from '../template-form/ModuleSelect';
 import { DraftPreview } from './DraftPreview';
 
@@ -9,6 +10,7 @@ const fieldClass = 'w-full border border-slate-300 rounded-lg px-3 py-2';
 
 /** Practical template from our Excel template or the centre's Word score sheet: read, check, then create. */
 export default function TemplateImportPage() {
+  const excel = useFileExport();
   const navigate = useNavigate();
   const read = useReadTemplateFile();
   const create = useCreateTemplateFromDraft();
@@ -60,9 +62,10 @@ export default function TemplateImportPage() {
             Chọn file .xlsx hoặc .docx
             <input type="file" accept=".xlsx,.xls,.docx" className="sr-only" onChange={(e) => { choose(e.target.files?.[0]); e.target.value = ''; }} />
           </label>
-          <button type="button" onClick={downloadExcelTemplate} className="min-h-11 px-4 rounded-lg border border-slate-300 font-semibold text-slate-700 hover:bg-slate-50">
-            Tải file Excel mẫu
+          <button type="button" onClick={() => excel.run(downloadExcelTemplate)} disabled={excel.busy} className="min-h-11 px-4 rounded-lg border border-slate-300 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+            {excel.busy ? 'Đang tạo file...' : 'Tải file Excel mẫu'}
           </button>
+          {excel.error && <p role="alert" className="text-sm text-red-700">{excel.error}</p>}
           {fileName && <span className="text-sm text-slate-600">{read.isPending ? `Đang đọc ${fileName}…` : fileName}</span>}
         </div>
       </section>

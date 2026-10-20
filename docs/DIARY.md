@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-10-20 | Dựng lại toàn bộ xuất Excel theo cách của app quản lý
+
+- Học từ app quản lý (training-result-excel, plan-excel): exceljs tải khi cần, Times New Roman, khung, tiêu đề tô màu,
+  khổ in, số/ngày đúng kiểu, phần tạo dòng là hàm thuần có test.
+- Thêm `shared/lib/excel-workbook.ts` + `shared/ui/use-file-export.ts` (nút hiện "Đang tạo file...", báo lỗi).
+- Chuyển 5 chỗ: kết quả thi (thêm STT, Lớp, Điểm % và điểm số dạng số, giờ nộp dạng ngày), tín hiệu giám sát,
+  trang Kiểm tra ngân hàng (CSV → Excel, độ khó tiếng Việt), xuất câu hỏi + mẫu nhập câu hỏi (tiêu đề cột vẫn ở dòng 1),
+  mẫu phiếu chấm thực hành. Mẫu nhập: ví dụ tự luận đổi sang 2 điểm, quy tắc ghi theo luật chấm từ khóa.
+- Kiểm: tsc, ranh giới, vitest 348/348 (thêm test builder + đọc lại file nhập), build đạt (exceljs tách gói riêng).
+  Lint còn 2 lỗi cũ ở `AccessLockAlert.tsx`, không thuộc phần này. Chưa mở file bằng Excel thật.
+- Tiếp: push/deploy khi chủ dự án đồng ý (kèm commit chặn khung giờ kỳ thi 1321173 chưa push).
+
+---
+
 ## 2026-10-20 | Chặn kỳ thi có khung giờ ngắn hơn thời gian làm bài
 
 - Giờ nộp của học viên = sớm hơn giữa (đồng hồ bắt đầu + thời lượng đề) và giờ Kết thúc kỳ thi; đồng hồ chạy muộn

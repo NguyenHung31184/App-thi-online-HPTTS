@@ -8,6 +8,13 @@ import { ESSAY_DEFAULT_POINTS } from './essay-keywords';
 export const MAX_IMPORT_ROWS = 1000;
 export const IMPORT_HEADER = ['Nội dung câu hỏi', ...OPTION_IDS.map((id) => `Đáp án ${id}`), 'Đáp án đúng', 'Loại câu hỏi', 'Keys', 'Chủ đề', 'Độ khó', 'Điểm', 'Tên file ảnh'];
 
+const IMPORT_WIDTHS = [50, ...OPTION_IDS.map(() => 20), 16, 16, 40, 18, 12, 8, 16];
+
+/** IMPORT_HEADER with column widths, in the shape the Excel builder takes; "Điểm" is a number column. */
+export function importColumns(): { header: string; width: number; kind?: 'number' }[] {
+  return IMPORT_HEADER.map((header, index) => ({ header, width: IMPORT_WIDTHS[index], ...(header === 'Điểm' ? { kind: 'number' as const } : {}) }));
+}
+
 /** Type names written in templates and exports; parseQuestionType reads them back. */
 export const IMPORT_TYPE_NAMES: Record<QuestionType, string> = {
   single_choice: 'Trắc nghiệm',

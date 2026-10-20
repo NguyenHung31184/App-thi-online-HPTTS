@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aiRiskPoints, evidenceFramesOf, evidencePathsOf, evidenceUrlOf, isPassed, resultSheetRows, reviewStatusOf, searchResultRows,
-  searchViolationSummaries, studentDisplayName, summarizeViolations, violationSheetRows,
+  searchViolationSummaries, studentDisplayName, summarizeViolations, violationSheetRows, RESULT_SHEET_COLUMNS, VIOLATION_SHEET_COLUMNS,
   type AttemptReportRow, type ReportDirectory, type ViolationReportRow,
 } from './report-rows';
 
@@ -94,7 +94,7 @@ describe('summarizeViolations', () => {
 const result = (over: Partial<AttemptReportRow>): AttemptReportRow => ({
   id: 'abc123', user_id: 'u', user_name: 'Nguyễn An', user_email: 'an@hptts.vn', exam_id: 'e', exam_title: 'QC', window_id: 'w1',
   class_id: 'c1', class_name: 'FL-K103', score: 0.755, raw_score: 15, passed: true, disqualified: false, completed_at: '1/10/2026',
-  synced_to_ttdt_at: null, ...over,
+  completed_at_ms: 1_791_000_000_000, synced_to_ttdt_at: null, ...over,
 });
 
 describe('result rows', () => {
@@ -104,16 +104,16 @@ describe('result rows', () => {
     expect(searchResultRows(rows, 'ZZZ').map((r) => r.id)).toEqual(['zzz']);
   });
 
-  it('builds the "Kết quả thi" sheet', () => {
-    const sheet = resultSheetRows([result({}), result({ score: null, disqualified: true, synced_to_ttdt_at: 'x', class_name: '' })]);
-    expect(sheet[0]).toHaveLength(9);
-    expect(sheet[1]).toEqual(['abc123', 'Nguyễn An', 'an@hptts.vn', 'QC', 'w1 / FL-K103', '75.5% (15)', 'Đạt', '1/10/2026', 'Chưa']);
-    expect(sheet[2].slice(4)).toEqual(['w1 / c1', '', 'Loại', '1/10/2026', 'Có']);
+  it('builds the "Kết quả thi" sheet with numbers kept as numbers', () => {
+    const sheet = resultSheetRows([result({}), result({ score: null, raw_score: null, disqualified: true, synced_to_ttdt_at: 'x', class_name: '' })]);
+    expect(sheet[0]).toHaveLength(RESULT_SHEET_COLUMNS.length);
+    expect(sheet[0]).toEqual([1, 'Nguyễn An', 'an@hptts.vn', 'QC', 'FL-K103', 0.755, 15, 'Đạt', 1_791_000_000_000, 'Chưa', 'abc123']);
+    expect(sheet[1].slice(4, 10)).toEqual(['c1', null, null, 'Loại', 1_791_000_000_000, 'Đã đồng bộ']);
   });
 
   it('builds the "Vi pham" sheet', () => {
     const sheet = violationSheetRows(summarizeViolations([signal({ event: 'ai_cell_phone', risk_points: 3 })]));
-    expect(sheet[0]).toHaveLength(13);
-    expect(sheet[1]).toEqual(['a1', 'Nguyễn An', 'an@hptts.vn', 0, 0, 0, 0, 0, 0, 0, 1, 0, 3]);
+    expect(sheet[0]).toHaveLength(VIOLATION_SHEET_COLUMNS.length);
+    expect(sheet[0]).toEqual([1, 'Nguyễn An', 'an@hptts.vn', 0, 0, 0, 0, 0, 0, 0, 1, 0, 3, 'a1']);
   });
 });

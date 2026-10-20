@@ -11,6 +11,7 @@ import {
   listPracticalTemplates, updatePracticalCriteria, updatePracticalTemplate,
 } from '../application/templates';
 import { buildExcelTemplate, createTemplateFromDraft, readTemplateFile, type TemplateDraft } from '../application/import-template';
+import { saveBlob } from '../../../shared/lib/excel-workbook';
 import type { CreatePracticalSessionInput, CreatePracticalTemplateInput, UpdateCriteriaInput, UpdatePracticalSessionInput, UpdatePracticalTemplateInput } from '../domain/inputs';
 
 export const practicalKeys = {
@@ -166,11 +167,6 @@ export function useCreateTemplateFromDraft() {
 }
 
 /** Saves the Excel template to fill in. */
-export function downloadExcelTemplate(): void {
-  const url = URL.createObjectURL(buildExcelTemplate());
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'mau-de-thi-thuc-hanh.xlsx';
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+export async function downloadExcelTemplate(): Promise<void> {
+  saveBlob('Mau de thi thuc hanh.xlsx', await buildExcelTemplate());
 }

@@ -5,6 +5,17 @@
 
 ---
 
+## Xuất Excel (2026-10-20)
+
+- Mọi file Excel xuất ra đi qua `src/shared/lib/excel-workbook.ts` (exceljs, học theo app quản lý): Times New Roman,
+  bảng kẻ khung, dòng tiêu đề tô màu, cố định và lặp lại khi in, có nút lọc, A4 ngang vừa khổ, số và ngày giữ đúng kiểu.
+- Báo cáo (kết quả thi, tín hiệu giám sát, ngân hàng của đề) có phần đầu: tên đơn vị, tên báo cáo, phạm vi, giờ xuất.
+- File được nhập lại (xuất câu hỏi, mẫu nhập câu hỏi, mẫu phiếu chấm thực hành) KHÔNG có phần đầu: trình đọc tìm tên cột
+  ở dòng 1. Có test đọc lại bằng chính hàm nhập (`excel-roundtrip.test.ts`, `excel-template.test.ts`).
+- Ngày giờ: exceljs ghi Date theo UTC, nên cột ngày giờ nhận epoch ms và builder dời theo múi giờ máy để Excel hiện
+  đúng giờ Việt Nam.
+- Đọc file nhập vẫn dùng SheetJS (`xlsx`); không thêm `file-saver`, tải file bằng `saveBlob`.
+
 ## Mã truy cập kỳ thi và khóa sau 5 lần sai (2026-10-16)
 
 - Mỗi cửa sổ thi có mã riêng; kỳ thi thử và kỳ thi thật là hai cửa sổ khác nhau, khác mã. Học viên đã thi thử dễ nhập

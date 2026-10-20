@@ -1,9 +1,10 @@
 import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
+import { XLSX_MIME, buildWorkbookBytes } from '../../../shared/lib/excel-workbook';
 import { validateMediaUrl } from '../../../platform/media/media-url-validator';
 import { OPTION_IDS } from '../domain/question-draft';
 import { readDocxBlocks } from '../domain/docx-reader';
-import { IMAGE_EXTENSIONS, IMPORT_HEADER, IMPORT_TYPE_NAMES as TYPE, MAX_IMPORT_ROWS, contentKey, draftFromImportRow, imageKey, planDraftImport, planImport, readImportSheet, type ImportPlan, type ImportRow, type ImportSheet, type SkippedRow } from '../domain/question-import';
+import { IMAGE_EXTENSIONS, IMPORT_TYPE_NAMES as TYPE, MAX_IMPORT_ROWS, importColumns, contentKey, draftFromImportRow, imageKey, planDraftImport, planImport, readImportSheet, type ImportPlan, type ImportRow, type ImportSheet, type SkippedRow } from '../domain/question-import';
 import { buildWordSheet, proposeMarking, readWordQuestions, type AnswerMarking, type WordRow } from '../domain/word-questions';
 import type { QuestionDraft } from '../domain/question-draft';
 import type { QuestionLibrary, QuestionStatus } from '../domain/question-library';
@@ -286,7 +287,7 @@ const TEMPLATE_RULES = [
   'Kéo thả: thứ tự đúng của tất cả các nhãn, ví dụ B;A;D;C.',
   'Đúng/Sai: một giá trị cho mỗi phát biểu A, B, C…, ví dụ Đ;S;Đ;S (hoặc T;F;T;F).',
   'Nối đôi: cột trái là các đáp án A, B, C…; cột phải ghi ở Keys, cách nhau bằng dấu chấm phẩy; Đáp án đúng ghi A-1;B-2.',
-  'Tự luận: để trống Đáp án đúng; Keys ghi các ý chấm dạng ý|điểm;ý|điểm.',
+  'Tự luận: để trống Đáp án đúng; Keys ghi các ý chấm, cách nhau bằng dấu chấm phẩy. Câu tự luận luôn 2 điểm chia đều cho các ý; từ khóa chấm do hệ thống gợi ý, giảng viên duyệt rồi mới phát hành.',
   'Độ khó: Dễ, Trung bình hoặc Khó, để trống là Trung bình. Điểm: số nguyên từ 1, để trống là 2.',
   'Tên file ảnh: chỉ dùng khi nhập ZIP. Ảnh để trong thư mục images/ cạnh file Excel; JPG, PNG, GIF hoặc WEBP, tối đa 5 MB.',
 ];
@@ -299,20 +300,17 @@ export async function buildImportTemplate(kind: 'spreadsheet' | 'zip'): Promise<
     exampleRow('Sắp xếp quy trình nâng hàng theo đúng thứ tự', ['Móc cẩu vào hàng', 'Kiểm tra tải trọng', 'Ra lệnh nâng', 'Quan sát vùng nguy hiểm'], 'B;A;D;C', TYPE.drag_drop, '', 'Vận hành thiết bị', 2),
     exampleRow('Xác định Đúng hoặc Sai cho từng phát biểu về an toàn vận hành cẩu RTG:', ['Phải kiểm tra khu vực trước khi nâng hàng.', 'Được phép nâng vượt tải 20% khi khẩn cấp.', 'Mọi hạn vị phải hoạt động trước mỗi ca.', 'Không cần tắt nguồn khi bảo trì nhỏ.'], 'Đ;S;Đ;S', TYPE.true_false_multi, '', 'An toàn vận hành', 4),
     exampleRow('Nối thiết bị RTG với chức năng đúng:', ['Bộ chống lắc hàng', 'Công tắc hành trình', 'Thiết bị đo tải', 'Cơ cấu Skew'], 'A-1;B-2;C-3;D-4', TYPE.matching, 'Hãm lắc container khi xe con tăng/giảm tốc;Ngắt mạch khi chạm điểm giới hạn;Đo tải và ngắt tời khi quá tải;Vi chỉnh góc xoay để căn lỗ chốt gù', 'Thiết bị', 4),
-    exampleRow('Nêu các nguyên nhân gây tai nạn lao động tại cảng biển.', [], '', TYPE.main_idea, 'sai quy trình|2;thiếu bảo hộ|2;không kiểm tra thiết bị|2;vi phạm quy định|2;chủ quan|2', 'An toàn lao động', 10),
+    exampleRow('Nêu các nguyên nhân gây tai nạn lao động tại cảng biển.', [], '', TYPE.main_idea, 'sai quy trình;thiếu bảo hộ;không kiểm tra thiết bị;vi phạm quy định;chủ quan', 'An toàn lao động', 2),
   ];
-  const questions = XLSX.utils.aoa_to_sheet([IMPORT_HEADER]);
-  const sample = XLSX.utils.aoa_to_sheet([IMPORT_HEADER, ...examples, [], ...TEMPLATE_RULES.map((line) => [line])]);
-  const widths = [{ wch: 50 }, ...OPTION_IDS.map(() => ({ wch: 20 })), { wch: 16 }, { wch: 16 }, { wch: 40 }, { wch: 18 }, { wch: 12 }, { wch: 8 }, { wch: 16 }];
-  questions['!cols'] = widths;
-  sample['!cols'] = widths;
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, questions, 'Cau_hoi');
-  XLSX.utils.book_append_sheet(workbook, sample, 'Vi_du');
-  const bytes = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+  // Column names stay on row 1 of both sheets: the importer reads the first sheet from its first row.
+  const columns = importColumns();
+  const bytes = await buildWorkbookBytes([
+    { name: 'Cau_hoi', columns, rows: [] },
+    { name: 'Vi_du', columns, rows: examples, footer: TEMPLATE_RULES },
+  ]);
 
   if (kind === 'spreadsheet') {
-    return { fileName: 'Mau_nhap_cau_hoi.xlsx', blob: new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) };
+    return { fileName: 'Mau_nhap_cau_hoi.xlsx', blob: new Blob([bytes], { type: XLSX_MIME }) };
   }
   const zip = new JSZip();
   zip.file('cau_hoi.xlsx', bytes);

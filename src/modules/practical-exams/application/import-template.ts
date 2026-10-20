@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
+import { buildWorkbook, type TableSheet } from '../../../shared/lib/excel-workbook';
 import type { PracticalExamTemplate } from '../../../types';
 import { readDocxBlocks } from '../../question-bank/public';
 import { insertCriteria, insertTemplate } from '../data/template-repository';
@@ -67,13 +68,11 @@ export async function createTemplateFromDraft(
   return template;
 }
 
-/** The Excel template to fill in, with one worked example (RTG). */
-export function buildExcelTemplate(): Blob {
-  const book = XLSX.utils.book_new();
-  const add = (name: string, rows: unknown[][], widths: number[]) => {
-    const sheet = XLSX.utils.aoa_to_sheet(rows);
-    sheet['!cols'] = widths.map((wch) => ({ wch }));
-    XLSX.utils.book_append_sheet(book, sheet, name);
+/** The Excel template to fill in, with one worked example (RTG). Each sheet keeps its column names on row 1, where readExcel looks. */
+export async function buildExcelTemplate(): Promise<Blob> {
+  const sheets: TableSheet[] = [];
+  const add = (name: string, [header, ...rows]: (string | number)[][], widths: number[]) => {
+    sheets.push({ name, columns: header.map((title, i) => ({ header: String(title), width: widths[i] })), rows, landscape: true });
   };
   add('Chung', [
     ['Mục', 'Giá trị', 'Ghi chú'],
@@ -110,6 +109,5 @@ export function buildExcelTemplate(): Blob {
     ['Áo phản quang', 'Container nghiêng, va đập xe mooc hoặc hàng hóa khác'],
     ['Găng tay', 'Đánh rơi, đổ mã hàng'],
   ], [24, 55]);
-  const data = XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
-  return new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  return buildWorkbook(sheets);
 }

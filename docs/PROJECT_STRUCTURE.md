@@ -27,6 +27,7 @@ src/
     integrations/       # Danh bạ TTDT, đồng bộ điểm sang TTDT, nhật ký đồng bộ, OCR CCCD
     identity-access/    # Đăng nhập, vai trò, chặn quyền, xác thực CCCD
   shared/ui/ shared/lib/   # Dùng chung, không mang nghiệp vụ
+                           # shared/lib/excel-workbook.ts: mọi file Excel xuất ra (exceljs, tải khi bấm); đọc file nhập vẫn dùng SheetJS (xlsx)
   platform/storage/    # Tải file lên exam-uploads
   App.tsx              # Toàn bộ routes (import trực tiếp, không lazy)
   contexts/AuthContext.tsx   # Chỉ chuyển tiếp sang identity-access (cho 2 trang e-learning, giai đoạn 4)

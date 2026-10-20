@@ -16,6 +16,7 @@ export interface AttemptReportRow {
   passed: boolean;
   disqualified: boolean;
   completed_at: string | null;
+  completed_at_ms: number | null;
   synced_to_ttdt_at: string | null;
 }
 
@@ -217,37 +218,57 @@ export function searchResultRows(rows: AttemptReportRow[], search: string): Atte
   );
 }
 
-export type SheetCell = string | number;
+/** One Excel cell: text, a number, epoch ms for a date column, a fraction for a percent column, or empty. */
+export type SheetCell = string | number | null;
+/** Column of an exported sheet; the shape the shared Excel builder takes. */
+export interface SheetColumnSpec { header: string; width: number; kind?: 'text' | 'integer' | 'number' | 'percent' | 'datetime' }
 
-/** "Kết quả thi" sheet: header row then one row per attempt. */
+export const RESULT_SHEET_COLUMNS: SheetColumnSpec[] = [
+  { header: 'STT', width: 6, kind: 'integer' },
+  { header: 'Họ và tên', width: 28 },
+  { header: 'Email đăng nhập', width: 26 },
+  { header: 'Đề thi', width: 36 },
+  { header: 'Lớp', width: 24 },
+  { header: 'Điểm (%)', width: 10, kind: 'percent' },
+  { header: 'Điểm số', width: 9, kind: 'number' },
+  { header: 'Kết quả', width: 11 },
+  { header: 'Nộp bài lúc', width: 17, kind: 'datetime' },
+  { header: 'Đồng bộ TTDT', width: 12 },
+  { header: 'Mã bài làm', width: 38 },
+];
+
+/** "Kết quả thi" sheet rows, in the order of RESULT_SHEET_COLUMNS. */
 export function resultSheetRows(rows: AttemptReportRow[]): SheetCell[][] {
-  return [
-    ['Mã bài làm', 'Họ tên', 'Email', 'Đề thi', 'Kỳ / Lớp', 'Điểm', 'Đạt', 'Hoàn thành', 'Đồng bộ TTDT'],
-    ...rows.map((r) => [
-      r.id,
-      r.user_name,
-      r.user_email,
-      r.exam_title,
-      `${r.window_id} / ${r.class_name || r.class_id}`,
-      r.score != null ? `${(r.score * 100).toFixed(1)}%${r.raw_score != null ? ` (${r.raw_score})` : ''}` : '',
-      r.disqualified ? 'Loại' : r.passed ? 'Đạt' : 'Chưa đạt',
-      r.completed_at ?? '',
-      r.synced_to_ttdt_at ? 'Có' : 'Chưa',
-    ]),
-  ];
+  return rows.map((r, i) => [
+    i + 1,
+    r.user_name,
+    r.user_email,
+    r.exam_title,
+    r.class_name || r.class_id,
+    r.score,
+    r.raw_score,
+    r.disqualified ? 'Loại' : r.passed ? 'Đạt' : 'Chưa đạt',
+    r.completed_at_ms,
+    r.synced_to_ttdt_at ? 'Đã đồng bộ' : 'Chưa',
+    r.id,
+  ]);
 }
 
-/** "Vi pham" sheet: header row then one row per attempt. */
+export const VIOLATION_SHEET_COLUMNS: SheetColumnSpec[] = [
+  { header: 'STT', width: 6, kind: 'integer' },
+  { header: 'Họ và tên', width: 28 },
+  { header: 'Email đăng nhập', width: 26 },
+  ...['Mất focus', 'Ẩn tab / thu nhỏ', 'Thoát toàn màn hình', 'Copy/Paste bị chặn', 'Ảnh webcam', 'Không thấy mặt',
+    'Nhiều khuôn mặt', 'Điện thoại', 'Sách / vật cấm'].map((header) => ({ header, width: 11, kind: 'integer' as const })),
+  { header: 'Điểm rủi ro AI', width: 11, kind: 'integer' },
+  { header: 'Mã lượt thi', width: 38 },
+];
+
+/** "Vi pham" sheet rows, in the order of VIOLATION_SHEET_COLUMNS. */
 export function violationSheetRows(rows: ViolationSummaryRow[]): SheetCell[][] {
-  return [
-    [
-      'Lượt thi', 'Họ tên', 'Email', 'Mất focus', 'Ẩn tab / thu nhỏ', 'Thoát fullscreen', 'Copy/Paste bị chặn',
-      'Ảnh webcam', 'Không thấy mặt', 'Nhiều khuôn mặt', 'Điện thoại', 'Sách / vật cấm', 'Điểm AI',
-    ],
-    ...rows.map((r) => [
-      r.attempt_id, r.user_name, r.user_email, r.focusLostCount, r.visibilityHiddenCount, r.fullscreenExitedCount,
-      r.copyPasteBlockedCount, r.photoTakenCount, r.aiNoFaceCount, r.aiMultipleFaceCount, r.aiCellPhoneCount,
-      r.aiProhibitedObjectCount, r.aiRiskScore,
-    ]),
-  ];
+  return rows.map((r, i) => [
+    i + 1, r.user_name, r.user_email, r.focusLostCount, r.visibilityHiddenCount, r.fullscreenExitedCount,
+    r.copyPasteBlockedCount, r.photoTakenCount, r.aiNoFaceCount, r.aiMultipleFaceCount, r.aiCellPhoneCount,
+    r.aiProhibitedObjectCount, r.aiRiskScore, r.attempt_id,
+  ]);
 }

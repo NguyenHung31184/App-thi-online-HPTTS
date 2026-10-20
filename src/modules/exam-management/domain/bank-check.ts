@@ -58,17 +58,27 @@ export function simulateDraw(questions: QuestionBankItem[], blueprint: Blueprint
   return result;
 }
 
-/** CSV of the listed questions with their draw count and correct answer text (Excel reads it with the BOM). */
-export function bankCsv(questions: QuestionBankItem[], frequency: Record<string, number>): string {
-  const header = ['#', 'Câu hỏi', 'Chủ đề', 'Độ khó', 'Điểm', 'Số lần bốc', 'Đáp án đúng'];
-  const rows = questions.map((question, index) => {
+const DIFFICULTY_LABELS: Record<string, string> = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' };
+
+/** Columns of the bank sheet; the shape the shared Excel builder takes. */
+export const BANK_SHEET_COLUMNS = [
+  { header: 'STT', width: 6, kind: 'integer' as const },
+  { header: 'Câu hỏi', width: 70 },
+  { header: 'Chủ đề', width: 24 },
+  { header: 'Độ khó', width: 12 },
+  { header: 'Điểm', width: 8, kind: 'number' as const },
+  { header: 'Số lần bốc', width: 11, kind: 'integer' as const },
+  { header: 'Đáp án đúng', width: 40 },
+];
+
+/** One row per listed question, in the order of BANK_SHEET_COLUMNS; the answer column shows the correct option text. */
+export function bankSheetRows(questions: QuestionBankItem[], frequency: Record<string, number>): (string | number)[][] {
+  return questions.map((question, index) => {
     const options = Array.isArray(question.options) ? (question.options as { id: string; text: string }[]) : [];
     const correct = options.find((option) => option.id === question.answer_key);
-    return [String(index + 1), question.stem, question.topic || '', question.difficulty, String(question.points), String(frequency[question.id] ?? 0), correct?.text ?? question.answer_key];
+    return [
+      index + 1, question.stem, question.topic || '', DIFFICULTY_LABELS[question.difficulty] ?? question.difficulty,
+      question.points, frequency[question.id] ?? 0, correct?.text ?? question.answer_key,
+    ];
   });
-  return '﻿' + [header, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-}
-
-export function bankCsvFileName(examTitle: string): string {
-  return `ngan-hang-${examTitle.slice(0, 30).replace(/\s+/g, '-')}.csv`;
 }

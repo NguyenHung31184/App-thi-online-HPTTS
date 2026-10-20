@@ -5,7 +5,8 @@ import { blueprintCheck, drawableQuestions, simulateDraw } from '../../domain/ba
 import { useDrawFrequency, useExam, useModuleQuestions } from '../../queries/use-exam-management';
 import { DifficultyBadge, DrawFreqBadge, QuestionPreviewModal, SimulateDrawModal } from './bank-check-parts';
 import { BlueprintStatusPanel } from './BlueprintStatusPanel';
-import { downloadBankCsv } from './download-bank-csv';
+import { downloadBankExcel } from './download-bank-excel';
+import { useFileExport } from '../../../../shared/ui/use-file-export';
 
 // Bank check page of an exam: the module's questions, the blueprint gap analysis, a simulated draw and a CSV export.
 
@@ -29,6 +30,7 @@ export default function BankCheckPage() {
   const [filterDifficulty, setFilterDifficulty] = useState('');
   const [previewQuestion, setPreviewQuestion] = useState<QuestionBankItem | null>(null);
   const [simulatedDraw, setSimulatedDraw] = useState<QuestionBankItem[] | null>(null);
+  const excel = useFileExport();
 
   const blueprint = useMemo<BlueprintRule[]>(
     () => (Array.isArray(exam?.blueprint) ? (exam!.blueprint as BlueprintRule[]) : []),
@@ -90,14 +92,15 @@ export default function BankCheckPage() {
           {hasModule && (
             <button
               type="button"
-              onClick={() => downloadBankCsv(filteredQuestions, drawFrequency, exam.title)}
-              className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 text-sm"
-              title="Xuất danh sách câu hỏi đang lọc ra CSV"
+              onClick={() => excel.run(() => downloadBankExcel(filteredQuestions, drawFrequency, exam.title))}
+              disabled={excel.busy}
+              className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 disabled:opacity-50 text-sm"
+              title="Xuất danh sách câu hỏi đang lọc ra Excel"
             >
               <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Xuất CSV
+              {excel.busy ? 'Đang tạo file...' : 'Xuất Excel'}
             </button>
           )}
           {blueprint.length > 0 && hasModule && (
@@ -126,6 +129,8 @@ export default function BankCheckPage() {
           </Link>
         </div>
       </div>
+
+      {excel.error && <p role="alert" className="mb-3 text-sm text-red-700">{excel.error}</p>}
 
       {/* Module info */}
       {!hasModule ? (

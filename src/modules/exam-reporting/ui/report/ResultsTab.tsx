@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { searchResultRows, type AttemptReportRow } from '../../domain/report-rows';
 import { exportReportToExcel } from './download-report';
+import { useFileExport } from '../../../../shared/ui/use-file-export';
 
 interface ResultsTabProps {
   rows: AttemptReportRow[];
@@ -11,15 +12,17 @@ interface ResultsTabProps {
 }
 
 export function ResultsTab({ rows, search, onSearchChange }: ResultsTabProps) {
+  const excel = useFileExport();
   const shown = useMemo(() => searchResultRows(rows, search), [rows, search]);
 
   return (
     <>
       <div className="flex flex-wrap gap-2 mb-4 print:hidden">
-        <button type="button" onClick={() => exportReportToExcel(rows)} disabled={rows.length === 0}
+        <button type="button" onClick={() => excel.run(() => exportReportToExcel(rows))} disabled={rows.length === 0 || excel.busy}
           className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-          Xuất Excel
+          {excel.busy ? 'Đang tạo file...' : 'Xuất Excel'}
         </button>
+        {excel.error && <p role="alert" className="self-center text-sm text-red-700">{excel.error}</p>}
       </div>
 
       <div className="flex flex-col gap-2 mb-3">

@@ -1,5 +1,5 @@
-import * as XLSX from 'xlsx';
-import { IMPORT_HEADER, importCellsFor } from '../domain/question-import';
+import { XLSX_MIME, buildWorkbookBytes, excelFileName } from '../../../shared/lib/excel-workbook';
+import { importCellsFor, importColumns } from '../domain/question-import';
 import { QUESTION_STATUS_LABELS, type LibraryQuestion, type QuestionStatus } from '../domain/question-library';
 import { findQuestionsUsedInAttempts, setQuestionsStatus, softDeleteQuestions } from '../data/question-repository';
 
@@ -30,18 +30,13 @@ export async function removeQuestions({ libraryId, ids }: { libraryId: string; i
   return { deleted, retired };
 }
 
-/** The import columns (picture column replaced by the picture link) plus the status, one row per question. */
-export function buildQuestionExport(questions: LibraryQuestion[], libraryName: string): { fileName: string; blob: Blob } {
-  const header = [...IMPORT_HEADER.slice(0, -1), 'Link ảnh', 'Trạng thái'];
+/**
+ * The import columns (picture column replaced by the picture link) plus the status, one row per question. Column names
+ * stay on row 1 so the file can be edited and imported again.
+ */
+export async function buildQuestionExport(questions: LibraryQuestion[], libraryName: string): Promise<{ fileName: string; blob: Blob }> {
+  const columns = [...importColumns().slice(0, -1), { header: 'Link ảnh', width: 30 }, { header: 'Trạng thái', width: 14 }];
   const rows = questions.map((question) => [...importCellsFor(question), question.imageUrl ?? '', QUESTION_STATUS_LABELS[question.status]]);
-  const sheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
-  sheet['!cols'] = header.map((_, index) => ({ wch: index === 0 ? 60 : 20 }));
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Cau_hoi');
-  const bytes = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
-  const safeName = libraryName.replace(/[/\\?%*:|"<>·]/g, '-').replace(/\s+/g, ' ').trim();
-  return {
-    fileName: `Cau-hoi ${safeName}.xlsx`,
-    blob: new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-  };
+  const bytes = await buildWorkbookBytes([{ name: 'Cau_hoi', columns, rows }]);
+  return { fileName: excelFileName(`Cau-hoi ${libraryName}`), blob: new Blob([bytes], { type: XLSX_MIME }) };
 }

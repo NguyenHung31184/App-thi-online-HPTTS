@@ -146,6 +146,35 @@ export function distributeEssayPoints(keys: EssayKey[], totalPoints: number): Es
   }));
 }
 
+/**
+ * Removes the option row `id`: rows below move up one letter, and every answer that points at a row (correct
+ * answers, ordering, true/false per statement, matching right-hand text) follows its row. A removed single answer
+ * is cleared so the teacher picks the correct option again.
+ */
+export function removeOption(draft: QuestionDraft, id: string): Partial<QuestionDraft> {
+  const index = OPTION_IDS.indexOf(id as (typeof OPTION_IDS)[number]);
+  if (index === -1) return {};
+  const texts = OPTION_IDS.map((optionId) => draft.options.find((option) => option.id === optionId)?.text ?? '');
+  texts.splice(index, 1);
+  texts.push('');
+  const shift = (value: string): string | null => {
+    const at = OPTION_IDS.indexOf(value as (typeof OPTION_IDS)[number]);
+    if (at === -1) return value;
+    if (at === index) return null;
+    return at > index ? OPTION_IDS[at - 1] : value;
+  };
+  const kept = (values: string[]) => values.map(shift).filter((value): value is string => value !== null);
+  const without = <T,>(values: T[]) => values.filter((_, i) => i !== index);
+  return {
+    options: OPTION_IDS.map((optionId, i) => ({ id: optionId, text: texts[i] })),
+    singleAnswer: shift(draft.singleAnswer) ?? '',
+    multipleAnswers: kept(draft.multipleAnswers),
+    zoneAnswers: kept(draft.zoneAnswers),
+    trueFalse: without(draft.trueFalse),
+    matchingRight: without(draft.matchingRight),
+  };
+}
+
 /** Option slots to show: at least 4, one empty slot after the last filled one, at most 10. */
 export function visibleOptionCount(options: QuestionOption[]): number {
   const filled = options.filter((option) => option.text.trim() !== '').length;

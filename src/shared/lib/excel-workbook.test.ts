@@ -8,7 +8,7 @@ async function read(bytes: ArrayBuffer) {
   return book;
 }
 
-describe('buildWorkbookBytes', () => {
+describe('buildWorkbookBytes', { timeout: 20_000 }, () => {
   it('puts the column names on row 1 when there is no heading, so importers can read the file back', async () => {
     const book = await read(await buildWorkbookBytes([{ name: 'Cau_hoi', columns: [{ header: 'Nội dung', width: 40 }, { header: 'Điểm', width: 8, kind: 'integer' }], rows: [['Câu 1', 2]] }]));
     const ws = book.getWorksheet('Cau_hoi')!;
@@ -49,7 +49,7 @@ describe('buildWorkbookBytes', () => {
   });
 });
 
-describe('file names', () => {
+describe('file names', { timeout: 20_000 }, () => {
   it('keeps Vietnamese and drops characters Windows refuses', () => {
     expect(excelFileName('Kết quả thi: QC/K44')).toBe('Kết quả thi- QC-K44.xlsx');
     expect(excelFileName('  ')).toBe('du-lieu.xlsx');

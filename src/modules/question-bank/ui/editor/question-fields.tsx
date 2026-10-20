@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { ZonePositionPicker } from './ZonePositionPicker';
-import { OPTION_IDS, defaultZonePositions, distributeEssayPoints, dragDropZoneCount, essayKeywordsPending, isLabelOnImage, newEssayKey, visibleOptionCount, type EssayKey, type QuestionDraft, type ZonePosition } from '../../domain/question-draft';
+import { X } from 'lucide-react';
+import { OPTION_IDS, defaultZonePositions, distributeEssayPoints, dragDropZoneCount, essayKeywordsPending, isLabelOnImage, newEssayKey, removeOption, visibleOptionCount, type EssayKey, type QuestionDraft, type ZonePosition } from '../../domain/question-draft';
 import { formatKeywordList, parseKeywordList, suggestKeywords } from '../../domain/essay-keywords';
 import { fieldClass, focusRing, sizedFieldClass } from '../labels';
 
@@ -19,6 +20,22 @@ function setOptionText(draft: QuestionDraft, id: string, text: string) {
 
 function optionText(draft: QuestionDraft, id: string) {
   return draft.options.find((option) => option.id === id)?.text ?? '';
+}
+
+/** The × at the end of an option row: shown once the row has text, removes it and moves the rows below up. */
+function RemoveRow({ update, id, label, hasText }: { update: DraftUpdate; id: string; label: string; hasText: boolean }) {
+  if (!hasText) return <span className="w-11 shrink-0" aria-hidden="true" />;
+  return (
+    <button
+      type="button"
+      onClick={() => update((current) => removeOption(current, id))}
+      title={`Xóa ${label}`}
+      aria-label={`Xóa ${label}`}
+      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-800 ${focusRing}`}
+    >
+      <X className="h-5 w-5" aria-hidden="true" />
+    </button>
+  );
 }
 
 function setAt<T>(values: T[], index: number, value: T, filler: T): T[] {
@@ -66,6 +83,7 @@ export function ChoiceOptionsField({ draft, update }: FieldProps) {
             )}
             <span aria-hidden="true">Đúng</span>
           </label>
+          <RemoveRow update={update} id={id} label={`đáp án ${id}`} hasText={optionText(draft, id).trim() !== ''} />
         </div>
       ))}
     </fieldset>
@@ -91,6 +109,7 @@ export function TrueFalseField({ draft, update }: FieldProps) {
             <option value="T">Đúng</option>
             <option value="F">Sai</option>
           </select>
+          <RemoveRow update={update} id={id} label={`phát biểu ${id}`} hasText={optionText(draft, id).trim() !== ''} />
         </div>
       ))}
     </fieldset>
@@ -104,15 +123,18 @@ export function MatchingField({ draft, update }: FieldProps) {
       <legend className="mb-1 text-sm font-medium text-slate-800">Cặp nối đôi</legend>
       <p className="text-xs text-slate-600">Mỗi hàng là một cặp đúng. Khi thi, cột phải được xáo trộn; điểm chia đều theo số cặp nối đúng.</p>
       {ids.map((id, index) => (
-        <div key={id} className="grid grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)]">
+        <div key={id} className="grid grid-cols-[1.5rem_minmax(0,1fr)_2.75rem] items-center gap-2 sm:grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_2.75rem]">
           <span className="font-semibold text-slate-700" aria-hidden="true">{id}.</span>
           <input value={optionText(draft, id)} onChange={(event) => update({ options: setOptionText(draft, id, event.target.value) })} aria-label={`Cột trái ${id}`} className={fieldClass} />
           <input
             value={draft.matchingRight[index] ?? ''}
             onChange={(event) => update({ matchingRight: setAt(draft.matchingRight, index, event.target.value, '') })}
             aria-label={`Cột phải nối với ${id}`}
-            className={`${fieldClass} col-start-2 sm:col-start-auto`}
+            className={`${fieldClass} col-start-2 row-start-2 sm:col-start-auto sm:row-start-auto`}
           />
+          <div className="col-start-3 row-start-1 sm:col-start-auto">
+            <RemoveRow update={update} id={id} label={`cặp ${id}`} hasText={optionText(draft, id).trim() !== '' || (draft.matchingRight[index] ?? '').trim() !== ''} />
+          </div>
         </div>
       ))}
     </fieldset>
@@ -144,6 +166,7 @@ export function DragDropField({ draft, update, imageSrc }: FieldProps & { imageS
           <div key={id} className="flex items-center gap-2">
             <span className="w-16 shrink-0 text-sm text-slate-700" aria-hidden="true">Nhãn {index + 1}</span>
             <input value={optionText(draft, id)} onChange={(event) => update({ options: setOptionText(draft, id, event.target.value) })} aria-label={`Nhãn ${index + 1}`} className={fieldClass} />
+            <RemoveRow update={update} id={id} label={`nhãn ${index + 1}`} hasText={optionText(draft, id).trim() !== ''} />
           </div>
         ))}
       </fieldset>

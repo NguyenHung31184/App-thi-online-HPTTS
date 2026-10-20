@@ -12,7 +12,7 @@ async function sheets(blob: Blob) {
   return { names: book.SheetNames, cells };
 }
 
-describe('question Excel files read back by the importer', () => {
+describe('question Excel files read back by the importer', { timeout: 20_000 }, () => {
   it('template: empty Cau_hoi first, every Vi_du example imports', async () => {
     const { names, cells } = await sheets((await buildImportTemplate('spreadsheet')).blob);
     expect(names).toEqual(['Cau_hoi', 'Vi_du']);

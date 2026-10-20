@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildExcelTemplate, readTemplateFile } from './import-template';
 
-describe('practical exam Excel template', () => {
+describe('practical exam Excel template', { timeout: 20_000 }, () => {
   it('reads back into the RTG example draft without warnings', async () => {
     const draft = await readTemplateFile(new File([await buildExcelTemplate()], 'Mau de thi thuc hanh.xlsx'));
     expect(draft.title).toBe('Vận hành cần trục giàn RTG – Khóa 44');

@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-10-20 | Nút × xóa dòng đáp án khi sửa câu hỏi
+
+- Chủ dự án muốn xóa dòng đáp án thừa (ví dụ dòng tiêu đề "Cột 1 | Cột 2" bị nhập thành cặp nối đôi).
+- Thêm `removeOption` (`question-bank/domain/question-draft.ts`): dòng dưới dồn lên một chữ cái; đáp án đúng, thứ tự
+  kéo thả, Đúng/Sai từng phát biểu và cột phải nối đôi đi theo dòng của nó; đáp án đúng (một đáp án) bị xóa thì để
+  trống để chọn lại. Nút × (44px, có nhãn đọc màn hình) ở câu một/nhiều đáp án, Đúng/Sai, nối đôi, kéo thả; chỉ hiện ở
+  dòng có chữ. Xóa xong vẫn phải bấm Lưu.
+- Test Excel đặt hạn 20 giây (một lần chạy toàn bộ bị quá 5 giây mặc định khi máy bận).
+- Kiểm: tsc, ranh giới, vitest 352/352, build đạt. Chưa bấm thử giao diện khi đăng nhập.
+
+---
+
 ## 2026-10-20 | Dựng lại toàn bộ xuất Excel theo cách của app quản lý
 
 - Học từ app quản lý (training-result-excel, plan-excel): exceljs tải khi cần, Times New Roman, khung, tiêu đề tô màu,

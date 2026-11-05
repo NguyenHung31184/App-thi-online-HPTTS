@@ -4,6 +4,12 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 
 ---
 
+## 2026-11-05 — Xác nhận đọc Quy chế trước lần thi đầu (không có migration ở repo này)
+
+- Database: migration `20261105100000` ở repo app quản lý (đã áp 05/11); cách lùi database ghi ở `docs/ROLLBACK.md` repo đó.
+- Lùi code: `git revert <hash>` (bỏ `RegulationGate` và các file `regulation*` trong `exam-taking`). Code chịu được lúc
+  chưa có hoặc đã gỡ hai hàm RPC: lỗi tải trạng thái thì vẫn vào thi bình thường.
+
 ## 2026-10-19 — Chấm tự luận theo từ khóa (migration `20261019150000` đã áp 19/10)
 
 - Điểm ổn định trước đó: `d787b65`. Bản `grade_attempt` trước khi sửa: `docs/rollback/2026-10-19-grade-attempt-before.sql`.

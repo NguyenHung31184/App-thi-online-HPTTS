@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-11-05 | Học viên xác nhận đã đọc Quy chế đào tạo trước lần thi đầu (Plan 79, B11)
+
+- Thông tư 79 Điều 47 khoản 2: phổ biến Quy chế cho học viên đầu khóa. Chủ dự án chọn xác nhận ở App thi.
+- Bảng và hàm nằm ở database chung, migration ở repo app quản lý (`20261105100000_regulation_acknowledgements.sql`, đã
+  áp 05/11): App thi chỉ gọi RPC `get_my_regulation_status` và `acknowledge_regulation`, không ghi thẳng bảng.
+- `exam-taking`: `domain/regulation.ts`, `data/regulation-repository.ts`, `application/manage-regulation.ts`,
+  `queries/use-regulation.ts`, `ui/intro/RegulationGate.tsx`. Bấm "Vào thi" khi chưa xác nhận phiên bản Quy chế đang
+  công khai → khung Quy chế (mở file mới tick được) → màn thể lệ như cũ. Không có file Quy chế hoặc không tải được
+  trạng thái thì không chặn vào thi.
+- Kiểm: 354 test, `tsc -b`, check:boundaries, eslint module, build đạt. Chưa bấm thử bằng tài khoản thi thật.
+- Tiếp theo: chủ dự án tải file Quy chế ở app quản lý rồi thử một tài khoản thi.
+
 ## 2026-10-20 | Nút × xóa dòng đáp án khi sửa câu hỏi
 
 - Chủ dự án muốn xóa dòng đáp án thừa (ví dụ dòng tiêu đề "Cột 1 | Cột 2" bị nhập thành cặp nối đôi).

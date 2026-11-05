@@ -3,4 +3,5 @@ export const examTakingKeys = {
   availableWindows: () => [...examTakingKeys.root, 'available-windows'] as const,
   examRules: (examId: string) => [...examTakingKeys.root, 'exam-rules', examId] as const,
   attempt: (attemptId: string) => [...examTakingKeys.root, 'attempt', attemptId] as const,
+  regulation: () => [...examTakingKeys.root, 'regulation'] as const,
 };

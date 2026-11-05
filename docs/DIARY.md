@@ -5,6 +5,13 @@
 
 ---
 
+## 2026-11-05 | Nút mở app HPTTS khác, không đăng nhập lại
+
+- Quyền vào từng app cấp ở tab cấp quyền của app quản lý (`exam_role` cho App thi). `src/platform/auth/app-handoff.ts`
+  (cùng tệp ở app quản lý, Sổ chuyên cần): `main.tsx` đổi mã `#handoff=` lấy phiên trước khi dựng giao diện;
+  `src/app/layouts/AppSwitcher.tsx` hiện nút ở thanh đầu khu Quản trị (admin, giáo viên, giám thị).
+- Edge Function `app-handoff` ở repo app quản lý. Kiểm: 357 test, tsc, eslint, boundaries, build đạt.
+
 ## 2026-11-05 | Học viên xác nhận đã đọc Quy chế đào tạo trước lần thi đầu (Plan 79, B11)
 
 - Thông tư 79 Điều 47 khoản 2: phổ biến Quy chế cho học viên đầu khóa. Chủ dự án chọn xác nhận ở App thi.

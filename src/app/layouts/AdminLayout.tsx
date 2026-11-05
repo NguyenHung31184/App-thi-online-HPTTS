@@ -4,6 +4,7 @@ import { adminAreaAccess, useAuth } from '../../modules/identity-access/public';
 import AppLayout, { type NavSection } from '../../shared/ui/AppLayout';
 import { SyncStatusChip } from '../../modules/integrations/public';
 import { NetworkChip } from '../../shared/ui/NetworkChip';
+import { AppSwitcher } from './AppSwitcher';
 import {
   ExamIcon,
   CalendarIcon,
@@ -121,7 +122,7 @@ export default function AdminLayout() {
       navSections={navSections}
       title={title}
       breadcrumb="Quản trị"
-      headerChips={<><NetworkChip />{!isTeacher && <SyncStatusChip />}</>}
+      headerChips={<><AppSwitcher userId={user.id} /><NetworkChip />{!isTeacher && <SyncStatusChip />}</>}
       userEmail={user.email}
       userRole={isTeacher ? 'Giáo viên' : 'Admin'}
       onLogout={() => signOut()}

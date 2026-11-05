@@ -4,9 +4,6 @@ import { useAuth } from '../../identity-access/public';
 import { ExamCard } from '../../../shared/ui/ExamCard';
 import { useAvailableTheoryWindows, useExamForRules, useStartTheoryAttempt } from '../queries/use-theory-attempt';
 import { ExamRules } from './intro/ExamRules';
-import { RegulationGate } from './intro/RegulationGate';
-import { needsRegulationAck } from '../domain/regulation';
-import { useAcknowledgeRegulation, useMyRegulationStatus } from '../queries/use-regulation';
 import { preloadProctoring } from '../queries/session-actions';
 import { currentInAppBrowser } from '../../../platform/browser/in-app-browser';
 import { InAppBrowserNotice } from '../../../shared/ui/InAppBrowserNotice';
@@ -28,12 +25,6 @@ export default function AvailableTheoryExamsPage() {
   // A window that draws one of several exams has no single exam to describe before the attempt starts.
   const rulesExamId = rulesWindow && !(rulesWindow.exam_ids?.length) ? rulesWindow.exam_id : null;
   const rulesExam = useExamForRules(rulesExamId).data ?? null;
-  // Regulation confirmation (Circular 79, Art. 47(2)). If the status cannot be loaded the exam still opens: the
-  // confirmation must not stop a running exam session.
-  const regulationQuery = useMyRegulationStatus(Boolean(user?.id));
-  const acknowledge = useAcknowledgeRegulation();
-  const [regulationWindowId, setRegulationWindowId] = useState<string | null>(null);
-  const [regulationError, setRegulationError] = useState('');
 
   // The student reads the rules while the monitoring models download, instead of waiting inside the exam.
   useEffect(() => { if (rulesWindowId) preloadProctoring(); }, [rulesWindowId]);
@@ -54,31 +45,8 @@ export default function AvailableTheoryExamsPage() {
     setEnterError('');
     // Stop here, before an attempt exists: the exam cannot take its photos in this browser.
     if (inApp?.blocksInlineCamera) { setCameraBlocked(true); return; }
-    if (needsRegulationAck(regulationQuery.data)) {
-      setRegulationError('');
-      setRegulationWindowId(windowId);
-      return;
-    }
-    showRules(windowId);
-  };
-
-  const showRules = (windowId: string) => {
     setRulesConfirmed(false);
     setRulesWindowId(windowId);
-  };
-
-  const handleRegulationConfirm = async () => {
-    const regulation = regulationQuery.data;
-    if (!regulation || !regulationWindowId) return;
-    setRegulationError('');
-    try {
-      await acknowledge.mutateAsync(regulation.version);
-      const windowId = regulationWindowId;
-      setRegulationWindowId(null);
-      showRules(windowId);
-    } catch (reason) {
-      setRegulationError(reason instanceof Error ? reason.message : 'Không ghi được xác nhận.');
-    }
   };
 
   const handleStart = async () => {
@@ -97,20 +65,6 @@ export default function AvailableTheoryExamsPage() {
 
   if (cameraBlocked && inApp) {
     return <InAppBrowserNotice browser={inApp} variant="block" onBack={() => setCameraBlocked(false)} />;
-  }
-
-  if (regulationWindowId && regulationQuery.data) {
-    return (
-      <RegulationGate
-        // A new file version (regulation_changed) must be opened again before the tick unlocks.
-        key={regulationQuery.data.version}
-        regulation={regulationQuery.data}
-        onConfirm={() => { void handleRegulationConfirm(); }}
-        onBack={() => { setRegulationWindowId(null); setRegulationError(''); }}
-        busy={acknowledge.isPending}
-        error={regulationError}
-      />
-    );
   }
 
   if (rulesWindow) {

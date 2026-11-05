@@ -15,6 +15,11 @@
   công khai → khung Quy chế (mở file mới tick được) → màn thể lệ như cũ. Không có file Quy chế hoặc không tải được
   trạng thái thì không chặn vào thi.
 - Kiểm: 354 test, `tsc -b`, check:boundaries, eslint module, build đạt. Chưa bấm thử bằng tài khoản thi thật.
+- **Sửa cùng ngày (chủ dự án duyệt):** "đầu khóa" nghĩa là hỏi ở lần đăng nhập đầu, không đợi lúc vào thi. Tách thành
+  module `regulation` (chuyển các file trên bằng `git mv`): `RegulationFirstLoginGate` bọc trang học viên trong
+  `Layout.tsx` (tài khoản có `student_id`, trừ lúc đang làm bài `/exam/...`); mục menu "Quy chế đào tạo"
+  (`/student/regulation`) để đọc lại. Màn "Vào thi" về như trước B11. Nhóm menu "Thí sinh" đổi thành "Học viên"
+  (app nay là cổng học viên: học, thi, kết quả, Quy chế). 355 test, tsc, boundaries, eslint, build đạt.
 - Tiếp theo: chủ dự án tải file Quy chế ở app quản lý rồi thử một tài khoản thi.
 
 ## 2026-10-20 | Nút × xóa dòng đáp án khi sửa câu hỏi

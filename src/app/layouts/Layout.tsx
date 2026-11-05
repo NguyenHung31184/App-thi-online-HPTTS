@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { studentAreaAccess, useAuth } from '../../modules/identity-access/public';
+import { RegulationFirstLoginGate, regulationCheckApplies } from '../../modules/regulation/public';
 import AppLayout, { type NavSection } from '../../shared/ui/AppLayout';
-import { DashboardIcon, IdCardIcon, SettingsIcon, ExamIcon, GradingIcon } from '../../shared/ui/Icons';
+import { DashboardIcon, IdCardIcon, SettingsIcon, ExamIcon, GradingIcon, RegulationIcon } from '../../shared/ui/Icons';
 
 const viewTitles: Record<string, string> = {
   '/dashboard': 'Trang chủ',
@@ -10,6 +11,7 @@ const viewTitles: Record<string, string> = {
   '/verify-cccd': 'Xác thực CCCD',
   '/admin': 'Quản trị',
   '/student/learn': 'Học trực tuyến',
+  '/student/regulation': 'Quy chế đào tạo',
 };
 
 export default function Layout() {
@@ -43,12 +45,13 @@ export default function Layout() {
       },
       {
         id: 'student',
-        title: 'Thí sinh',
+        title: 'Học viên',
         items: [
           { to: '/student/learn', label: 'Học trực tuyến', icon: DashboardIcon },
           { to: '/student/exams', label: 'Bài thi', icon: ExamIcon },
           { to: '/student/results', label: 'Kết quả', icon: GradingIcon },
           { to: '/verify-cccd', label: 'Xác thực CCCD', icon: IdCardIcon },
+          { to: '/student/regulation', label: 'Quy chế đào tạo', icon: RegulationIcon },
         ],
       },
     ];
@@ -98,7 +101,9 @@ export default function Layout() {
       isSidebarOpen={isSidebarOpen}
       setSidebarOpen={setSidebarOpen}
     >
-      <Outlet />
+      <RegulationFirstLoginGate enabled={!isAdmin && regulationCheckApplies(location.pathname, user?.student_id)}>
+        <Outlet />
+      </RegulationFirstLoginGate>
     </AppLayout>
   );
 }

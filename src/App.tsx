@@ -32,6 +32,7 @@ const ExamTakePage = lazy(() => import('./modules/exam-taking/public').then((m) 
 const ExamIntroPage = lazy(() => import('./modules/exam-taking/public').then((m) => ({ default: m.ExamIntroPage })));
 const StudentExamsPage = lazy(() => import('./modules/exam-taking/public').then((m) => ({ default: m.AvailableTheoryExamsPage })));
 const StudentLearnPage = lazy(() => import('./modules/elearning/public').then((m) => ({ default: m.StudentLearnPage })));
+const RegulationPage = lazy(() => import('./modules/regulation/public').then((m) => ({ default: m.RegulationPage })));
 const LessonPlayerPage = lazy(() => import('./modules/elearning/public').then((m) => ({ default: m.LessonPlayerPage })));
 const LessonsPage = lazy(() => import('./modules/elearning/public').then((m) => ({ default: m.LessonsPage })));
 const LessonEditorPage = lazy(() => import('./modules/elearning/public').then((m) => ({ default: m.LessonEditorPage })));
@@ -107,6 +108,7 @@ function App() {
             <Route path="student/exams" element={<StudentExamsPage />} />
             <Route path="student/results" element={<StudentResultsPage />} />
             <Route path="student/learn" element={<StudentLearnPage />} />
+            <Route path="student/regulation" element={<RegulationPage />} />
             <Route path="student/learn/:lessonId" element={<LessonPlayerPage />} />
             <Route path="exam/:attemptId/intro" element={<ExamIntroPage />} />
             <Route path="exam/:attemptId" element={<ExamTakePage />} />

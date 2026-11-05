@@ -7,7 +7,8 @@ Mỗi dòng = 1 điểm khôi phục. Thêm entry MỚI Ở ĐẦU.
 ## 2026-11-05 — Xác nhận đọc Quy chế trước lần thi đầu (không có migration ở repo này)
 
 - Database: migration `20261105100000` ở repo app quản lý (đã áp 05/11); cách lùi database ghi ở `docs/ROLLBACK.md` repo đó.
-- Lùi code: `git revert <hash>` (bỏ `RegulationGate` và các file `regulation*` trong `exam-taking`). Code chịu được lúc
+- Lùi code: `git revert <hash>` cả hai commit (module `src/modules/regulation`, khung trong `Layout.tsx`, route
+  `/student/regulation`). Code chịu được lúc
   chưa có hoặc đã gỡ hai hàm RPC: lỗi tải trạng thái thì vẫn vào thi bình thường.
 
 ## 2026-10-19 — Chấm tự luận theo từ khóa (migration `20261019150000` đã áp 19/10)

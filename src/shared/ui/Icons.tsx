@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   CreditCard,
   FileText,
+  ScrollText,
   Calendar,
   ClipboardCheck,
   Settings,
@@ -31,4 +32,5 @@ export const SyncIcon = (p: IconProps) => <RefreshCw {...defaultProps} {...p} />
 export const LogoutIcon = (p: IconProps) => <LogOut {...defaultProps} {...p} />;
 export const MenuIcon = (p: IconProps) => <Menu {...defaultProps} {...p} />;
 export const LessonIcon = (p: IconProps) => <BookOpen {...defaultProps} {...p} />;
+export const RegulationIcon = (p: IconProps) => <ScrollText {...defaultProps} {...p} />;
 export const QuestionBankIcon = (p: IconProps) => <ListChecks {...defaultProps} {...p} />;
